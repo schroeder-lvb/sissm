@@ -1,0 +1,66 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Introduction to SISSM
+JS Schroeder -- last updated:  2019.08.28
+
+
+What is it?
+==============================
+
+SISSM is a server application designed to run alongside your Insurgency Sandstorm dedicated server software.  It is designed to be an "unattended watchdog" for your server.  It is not a remote management tool, nor a server setup tool. 
+
+*  Compiled for Linux and Windows servers
+*  Auto-reboots ISS servers for stability, as non-intrusively as possible, with early warnings sent to your game clients
+*  Adaptive Checkpoint mode Anti-rusher algorithm adjusts territorial objective capture rate
+*  Auto-kicks bad-name players
+*  Reserved slots for approved list of players (typically Admins.txt)
+*  Sent to your game clients: greetings (2 lines at start) and server rules (up to 10 items)
+*  Sent to your game clients: player connects and disconnects -- with incognito option for a short list of admins
+*  "First Player Downgrade" makes gameplay easier for a lone player - helps to prime the empty servers
+*  "Ruleset Override" sets server properties locked by some rulesets, such as bot count in Frenzy mode
+*  HTML server status generator 
+*  Generates a player connection log to help facilitate after-the-fact ban
+*  Configured through a single .cfg file, per server.  All plugins can be enabled/disabled individually.
+
+Miscellaneous Features:
+
+*  All functional features are implemented through plugins.  You can write your own, or modify an existing one!
+*  Localization: All SISSM messages sent to your game clients are all in SISSM's config file.  This makes localization possible ***
+
+
+How does it work?
+==============================
+
+SISSM communicates with your ISS dedicated server by tracking game log file and communicating through RCON.  
+
+SISSM uses only the officially published information from NWI and UE4.  No reverse engineering was done. **
+
+
+How do I install and run it?
+==============================
+
+1.  Download the source code & compile it (or use a pre-built executable binary for selected OS)
+2.  Edit the template sissm.cfg file (change server name, RCON port/password, path to ISS log file, path to your Admin.txt file etc.)
+3.  Start your ISS dedicated server
+4.  Start SISSM:  ./sissm sissm.cfg (Linux), ./sissm.exe sissm.cfg (Win/PowerShell), or sissm sissm.cfg (Win/DOS)
+
+There is a "Quickstart" guide available, with a template almost-ready-to-run sissm.cfg requiring only few lines of change.
+
+
+What are Current Risks and Limitations
+==============================
+
+Primarily tested under Debian9 and Ubuntu18, Windows version is available but not stress tested.
+
+SISSM must be installed on the same machine hosting your Sandstomr Dedicated Server.
+
+Tested only for Checkpoint and Hardcord Checkpoint modes with <= 12 players and <= 50 bots.
+
+Insurgency Sandstorm game is still undergoing significant structural changes.  Due to the unpredictability of NWI development, future support for SISSM cannot be guaranteed.
+
+
+----------------------------------
+
+** Execptions:  1) Unpublished RCON "quit" command, and 2) UE4 Engine.ini "net.MaxPlayersOverride="
+*** Limited testing- if you run into problems with extended character sets please contact me (e.g., Asian, Russian, Arabic, Hebrew, etc.)
+
+

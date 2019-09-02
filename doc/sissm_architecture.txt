@@ -1,0 +1,103 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+SISSM Architecture
+J.S Schroeder - last updated 2019.08.25
+
+=======================================
+SISSM Architecture
+========================================
+
+*  Linux GNU "C" no GUI / Windows "MSVC" no GUI
+*  Single-thread design
+*  Functional implementation through Plugins
+*  Event driven 
+
+=======================================
+SISSM Interface
+========================================
+
+*  Game logfile polling ("tail")
+*  RCON TCP/IP interface
+
+SISSM optionally reads game Admins.txt file if
+privileged features are provided by plugins.
+
+========================================
+SISSM Topology
+========================================
+
+
+
+             (main loop, init))
+             =============         
+            |             |                                  (Plugins)
+            |   sissm.c   |                               |==================
+            |             |   <------------------------>  |
+             ==============                               |
+                  ^                                       |    pigreetings.c
+                  |                                       |    
+                  v      (game control)                   |    pigateway.c 
+      ==================================                  |
+     |                                  |                 |    pirebooter.c
+     |      roster.c       api.c        | <------------>  |
+     |                                  |                 |    piantirush.c
+      ==================================                  |
+             ^                   ^                        |    pisoloplayer.c
+             |                   |                        |
+             v                   v  (OS control/tools)    |    pioverride.c
+      =============           =============               |
+     |             |         |             |              |    piwebgen.c
+     |   ftrack.c  |         |  events.c   |              |
+     |             |         |             |<-----------> |
+     |             |<------->|             |              |
+     |   rdrv.c    |         |  alarm.c    |              |    pit001.c (template)
+     |             |         |             |              |
+      ============           |             |              |
+       (I/O layer)           |  cfs.c      |
+                             |             |
+                             |             |
+                             |  util.c     |
+                             |             | 
+                             |             | 
+                             |  log.c      | 
+                             |             | 
+                             |             | 
+                             |  bsd.c      | 
+                             |             | 
+                             |             | 
+                             |  winport.c  | 
+                             |             | 
+                              =============
+
+
+
+=======================================
+Module Description Summary
+========================================
+
+sissm.c         Top level, init, main loop, event & polling dispatcher
+
+roster.c        Game state extraction, player information parsing
+api.c           Main control/query interface for the plugins
+
+ftrack.c        Game logfile tracking (tail)
+rdrv.c          Game RCON interface driver (TCP/IP)
+
+events.c        Event-driven engine with callback features: init, install, dispatch
+alarm.c         Alarm event handling with callback feature
+cfs.c           Simple configuration file reader 
+util.c          Generic tools subroutines
+bsd.c           BSD-compatible methods
+winport.c       Windows-compatible methods
+log.c           Generic file logger with adjustible severity level
+
+pigreetings.c   Player connection/disconnection in-game notifications
+pigateway.c     Reserved slots control & bad-name player auto-kick
+pirebooter.c    Server auto-rebooter:  idle and max runtime algorihtms
+piantirush.c    Sandstorm anti-rusher algorithm for 2-stage capture rate throttling
+pisoloplayer.c  Sandstorm counterattack disabler for solo players
+pioverride.c    Gameproperty Ruleset overrider e.g., controlling bot count for Frenzy
+piwebgen.c      Generates server status html file - periodic and/or change event driven
+pit001.c        FUnctional example template for plugin developers
+
+
+

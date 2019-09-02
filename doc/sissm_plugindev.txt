@@ -1,0 +1,74 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+SISSM Features for Plugin Developers
+JS Schroeder -- last updated:  2019.08.25
+
+
+============
+
+For the custom plugin dvelopers, pit001.c/pit001.h files are
+already provided for you with all event handlers, and some
+example code embedded and active.
+
+For the casual developers: 
+
+1.  Edit sissm.cfg, deactivate all plugins, activate pit001 plugin.
+2.  Run SISSM with your game server and study the handlers in action
+3.  Fill-in pit001.c with your custom code
+
+For the serious developers:
+
+1   Copy pit001.c/h to the name of your plugin, e.g., pimyplugin
+2.  Global search/replace "pit001" with "pimyplugin" on your .c/h files
+3.  Modify sissm.c to call the 'installer' of your plugin:
+    a.  Add #include <pimyplugin.h> at top
+    b.  Add call to your pimypluginInstallPlugin() at sissm.c/sissmInitPlugin() 
+
+============
+
+Installable Event Handlers/Callbacks
+
+*  Player connect notification (real-time and synthetic)
+*  Player disconnect notification (real-time and synthetic)
+*  Server restart notification
+*  Server map change notification
+*  Game start  notification
+*  Game end notification
+*  Round start notification
+*  Round end notification
+*  Next objective notification
+*  Warm restart (error recovery) notification
+*  Periodic Callback (1.0Hz) notification
+
+Alarms
+
+*  Create timed event object w/ optional installable callback 
+*  Reset
+*  Read "time remaining to alarm" at any time
+
+Simple CFG parameter reader
+
+*  Simple string or number (float) read from .cfg file
+*  Specify hard-coded default for missing parameter in .cfg
+*  Use master cfg (typically ssism.cfg) or create your own
+
+System Logger
+
+*  Log file logPrintf() with plugin ID, 5 severity levels, and your text
+
+APIs
+
+*  Event handler (see event.h)
+*  Alarm handler (see alarm.h)
+*  Force a server restart
+*  Read system clock
+*  Set cvar (gamemodeproperty) 
+*  Read cvar (gamemodeproperty)
+*  Send text to game clients ("say")
+*  Kick or ban players by GUID, with optional "reason" text
+*  Get current count of players on server
+*  Get string of player names on server
+*  Generic RCON command/status 
+*  Get current map name
+*  Get server name (from .cfg file)
+
+

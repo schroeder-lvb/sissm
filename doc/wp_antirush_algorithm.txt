@@ -1,0 +1,98 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Implementing a Tri-state Objective Capture Timer
+JS Scheorder - last revised:  2019.08.21
+=================
+
+Statement of the Problem:
+
+Majority of Sandstorm players are casual arcaders - they play for speed ("play the objective"),
+most often uncoordinated, and always running.  The default and official server
+parameters are set to encourage this, with only 5 minute alloted between the objectives,
+and fast rate for objective capture (30 seconds with multiplier).
+
+For the minority tactical team players, we end up lagging one full checkpoint behind (i.e., 
+while we are still re-supplying, someone else has already captured the next objective).
+
+When the speed players evade through enemy bots to reach the next objective, the AI algorithm
+raises the bot alertness level, thus diminishing the survival rate of the tactical team.
+
+Analyzing this scenario there are three cases to model:
+
+Case-1:  Everybody is a speed player
+Case-2:  Everybody is a methodical team player
+Case-3:  Mix of both
+
+SISSM ("bopeep2") implements a 3-state objective capture rate timer to address Case-1
+and Case-3, with minimum impact to the Case-2 scenarios.
+
+Three territorial "objective capture rates" are implemented:
+
+"Normal" -- 30 seconds with 25% multiplier for up to 2 or 3 people (factory default)
+"Slow"   -- 90 seconds with no accelerator multiplier
+"Locked" -- 180 seconds with no accelerato multiplier (basically this is "capture disabled")
+
+The Algorithm:
+=====================
+
+Whenever SISSM detects an objective capture, the server is re-programmed according
+to number of players in the game.  (These parameters can be adjusted in the 
+SISSM configuration file.)
+
+1-2 players:  no rate throttling 
+
+3-5 players:  for the first 135 seconds, SLOW rate; NORMAL rate after
+
+6+ players::  for the first 180 seconds, LOCKED rate; NORMAL rate after
+
+The concept is that the runner-players quickly arriving on territorial objectives
+is forced to wait until the (long) timer runs out.
+
+Social engineering design:  The "Locked" rate was added to the algorithm due to
+NWI's recent introduction of "group join to a community server" feature.  Often
+a group of non-tactical players will indiscriminantly join any populated server 
+to play no differently than if they were on a matchmaking server.  They
+beeline to the objective, but become bored after waiting 2-3 minutes
+of doing "nothing" (while a massive firefight is going on outside).  This has a
+positive effect of such arcaders disconnecting voluntarily from the 
+tactical community servers.
+
+
+Use Case Analysis:
+=====================
+
+Case-1:  Everybody is a speed player
+Everybody arrives at objective early, but will see slow capture rate until
+the timer expires.  Meanwhile all the bots the players left undead (plus 
+the 2nd wave spawn) will attack the capture point for an added entertainment.
+
+Case-2:  Everybody is a methodical team player
+Everybody arrives late, it is likely they won't see the "slow" capture rate at all.
+
+Case-3:  Mix of both
+Speed players arrives early to see the "Slow rate" but will be enterained
+by extra attacking bots at the objective while waiting for the rest of the team.
+Tactical players can take their time practicing methodical movements, with
+less worry of start of counterattack before their arrival at the objective.
+
+
+Pre-Requisite:
+=====================
+
+Use of this plugin assumes that 1) You are hosting a slow-tactical server, and 
+2) you have extended the time between the objective captures
+(default 5 minutes is too short IMHO -- 15 minutes is recommended).
+
+
+Shortfalls and Future Improvements:
+====================================
+
+Currently there is little or nothing can be done about players rushing
+to the destruction objective (weapons cache).  This is due to lack of 
+event information I can extract from the NWI server software.
+
+Currently the timing and rate parameters are a single set of values for
+all maps, all objectives.  In the future the plugins can be expanded
+to be "map aware" and dynamically adjust some of the parameters according
+to distance between the objectives.
+
+

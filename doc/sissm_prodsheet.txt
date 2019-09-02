@@ -1,0 +1,121 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Product Summary
+JS Schroeder -- last updated:  2019.08.25
+
+
+SISSM Product Summary
+==============================
+
+SISSM is designed to run quietly alongside your Sandstorm community server 
+to monitor and execute various automated algorithms to provide added security
+and to enhance gaming experience for your player base.
+
+SISSM is partitioned into two parts: "core" and "plugins". 
+
+*  "Core" handles low-level interfaces and monitoring of the Sandstorm
+server.  The primary function of the core is to provide background
+server tracking, event handling/dispatching, and command/status APIs 
+to the plugin layer.  The core interfaces with the Sandstorm server by 
+polling game log file, and commununicating via the RCON interfaces.
+
+*  All functional features of SISSM are implemented as "plugins".  SISSM comes 
+with many useful plugins which can be enabled/disabled individually 
+according to your needs.  See section "Included Plugins" below for 
+list of summaries.   A new or modified plugins may be written by
+the third party via the SISSM API.
+
+SISSM is a background game server helper, and is not designed to be
+a remote management or a server setup/configuration tool.  
+
+
+Operating Systems 
+==============================
+
+SISSM runs and tested primarily on Linux platforms.  Windows version
+is also available but it is not stress tested at this time 
+(please report bugs).
+
+
+SISSM Product Specifications
+==============================
+
+Features:
+
+*  Al functional features are implemented by the individual plugins (see below)
+*  Designed for unattended Sandstorm server management (not a remote admin tool)
+*  Intended for Co-op modes, tactical servers (not tested under PvP modes yet)
+*  Must run local on the server server running the game instance
+*  Developers: write your own plugins! (Example template is pre-installed and activated.)
+*  Single-threaded Event-Callback & API architecture 
+*  Works by RCON and tracking the game server logfile
+*  Individual plugins may configured/enabled/disabled by the .cfg file
+*  Creates a .log file, adjustible log level from the .cfg file
+*  Works with multiple game instances per server, each with different SISSM .cfg file
+*  [TBD] licensing with source code distribution, but not openly published
+
+
+SISSM Usage:
+==================
+
+Running SISSM requires just one parameter - sissm.cfg file.  All options for your
+server are contained in this file.  The basic launch syntax:
+
+    ./sissm sissm.cfg         ;; Linux
+    ./sissm.exe sissm.cfg     ;; Windows PowerShell
+    sissm.exe sissm.cfg       ;; Windows DOS
+
+
+Included Plugins
+=================
+
+Plugin: "greetings"
+
+*  Announces player arrival and departure in game chat 
+*  Displays 2 lines of text at start of each round - "server welcome"
+*  Displays 1 line of text at start of each objective, up to 10 "rules"
+*  Logs player connect/disconnect info to the SISSM log file for security 
+*  Incognito short list of admins for connecting/leaving unannounced
+
+Plugin: "gateway"
+
+*  Auto-kicks players with unacceptable names
+*  Implements reserved ports, e.g., setup 12-slot server advertised as 10,
+   and only those on the specified list (typically Admins.txt) can 
+   connect to slots 11 and 12.
+
+Plugin: "override"
+
+*  Specify up to 10 gamemodeproperties to set at start of game OR round
+*  Provided to override ruleset gamemodeproperties such as bot count in Frenzy mode
+
+Plugin: "rebooter"
+
+*  Reboots the server every N minutes when in idle (default 20 min)
+*  Reboots the server after M hours when active (default 5 hours)
+*  All reboots are done while server is empty, or at end of the game
+
+Plugin: "soloplayer"
+
+*  Disables Counterattack if N or less players are in game (default 1)
+
+Plugin: "antirush"
+
+*  Implements a dual-stage objective capture rate for better co-existence 
+   of arcade (objective rushing) and tactical (team coordinated) group of
+   players.   This is done by slowing down capture rate for N seconds since 
+   the previous capture (default 135 seconds)
+
+*  Optinoal auto-disable for <= N players (default 2)
+
+Plugin: "webgen"
+
+*  Periodically generates a rudimentary .html output of server status
+*  Provided as example code to be customized for your server
+
+Plugin: "pit001"
+
+*  Example template for quick development of your custom plugins
+*  "C" language, access to SISSM API and Event/Alarm handler 
+*  All event handler routines are activated, ready for your code 
+
+

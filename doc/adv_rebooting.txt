@@ -1,0 +1,65 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+SISSM Controlled Server Reboots
+JS Schroeder -- last updated:  2019.08.28
+
+==========================
+
+The Sandstorm server doesn't have "restart" or a "reboot" command.  The best it can do is to "quit" or "terminate"
+the game server.
+
+In order to implement a SISSM-initiated server reboot, your game launcher script must be placed in a
+loop to look something like this:
+
+rem Windows version (.bat):
+:start
+   InsurgencyServer-Win64-Shipping.exe { params }
+   timeout 20
+   goto start
+
+# Linux version (.sh):
+while true
+do
+    ./InsurgencyServer-Linux-Shipping { params }
+    sleep 20 
+done
+
+In the above loop forms, after the Insurgency server binary is terminated normally (or abnormally), it halts for
+20 seconds, and the new server instance is started.  This is your 'restart' looop.
+
+SISSM, therefore, needs to merely kill the existing game server instance to induce a "reboot".
+
+There are two methods SISSM uses to terminate the game server process - soft and hard.   In 'soft' kill,
+RCON command "quit" is sent to the game server, quick terminates the game server process.  In 'hard' kill,
+SISSM issues a command to the operatoring system (Linux or Windows) to kill the process.  
+
+The 'soft' implementation is an easy one, and there is nothing extra to setup.  However, this is not a very 
+reliable way to force the game server to shut down, because if the game server is "hung" SISSM cannot
+communicate with the server to initiate the needed shutdown.
+
+The 'hard' kill approach is much better, but it requires the server operator to provide a script
+for SISSM to execute.  Once done, this custom script should be tested by calling it "by hand" to make sure
+the running server successfully terminate, and the aforementioned loop will restart it.
+
+How does SISSM know which one to use?  If the sissm.cfg parameter sissm.RestartScript is an empty string, then
+the soft kill method is used:
+
+sissm.RestartScript   ""                                 // reboot script of your server
+
+If the same parameter has path to your script, then SISSM will call this whenever a "restart"
+is needed by one or more of the plugins.
+
+sissm.RestartScript  "/home/ins/scripts/restart1.sh"    // reboot script of your server
+
+-------------------
+Example Restart Loops
+-------------------
+
+@echo off
+:start
+cd C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server
+InsurgencyServer-Win64-Shipping.exe Oilfield?Scenario=Scenario_Refinery_Checkpoint_Security?MaxPlayers=8?game=CheckpointHardcore -Port=27102 -QueryPort=27131 -AdminList=Admins -Mapcycle=Mapcycle -Hostname="My HC Server" -GSLTToken=00000000000000000000000000000000 -GameStats -log
+timeout 20
+goto start
+
+
+

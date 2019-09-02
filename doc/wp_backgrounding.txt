@@ -1,0 +1,19 @@
+
+1.  Start the Insurgency Server
+
+    This is site depending - your server!
+
+2.  for Windows PowerShell:
+
+3.  for Windows DOS:
+
+    ./sissm.exe sissm.cfg             ; power
+    start /b ./sissm.exe sissm.cfg    ; power
+
+    Start-Proces -NoNewWindow ./sissm.exe sissm.cfg
+
+2.  for Linux:
+
+    ./sissm sissm.cfg         ; run it interactively (testing)
+    ./sissm sissm.cfg &       ; run it in background (production)
+

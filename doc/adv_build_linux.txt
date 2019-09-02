@@ -1,0 +1,35 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Compiling SISSM from Source:  Linux
+JS Scheorder - last revised:  2019.08.25
+=====================
+
+This instruction is for Debian/Ubuntu tree.  Your commands may differ
+for other branches of Linux such as Redhat.
+
+
+1) Install compile tools
+
+$ sudo apt-get install build-essential
+
+2) Unzip sissm/src
+
+$ md ~/[your work area]
+$ cd ~/[your work area]
+$ unzip [SISSM release source].zip
+
+This will create a 'src' subfolderw under [your work area] containing
+all source files, and 'Makefile' will appear at ~/[your work area]
+
+3) Compile to generate 'sissm' binary
+
+$ cd ~/[your work area]
+
+Note - do not go into 'src' folder
+
+$ make clean
+$ make
+
+If there are no errors, you will find 'sissm' binary executable
+in the folder ~/[your work area]/build
+
+
