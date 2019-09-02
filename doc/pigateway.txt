@@ -1,0 +1,68 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+PIGATEWAY Plugin
+JS Schroeder -- last updated:  2019.08.25
+
+PIGATEWAY is a plugin that watches who connects to your server.  This plugin manages
+Admin ports (reserved ports) so admins can join on a full server.   It is also capable of 
+auto-kicking profanity named players upon attempted connection.
+
+=====================
+Enabling Admin Ports
+=====================
+
+The admin port algorithm used by pigateway plugin works by setting parameters in three places:
+
+1.  You have "advertised" ports - this is what is in your game launch parameter
+Example:  8-slot Co-op Checkpoint.
+This is what you want to allow 'public' to see, and use.
+
+2.  You also have "allocated" ports - this is controlled by UE4.  You set this in the Engine.ini
+file while the server is not running (otherwise, it will overwrite your changes).  Engine.ini
+location can vary but generally they are like so (Windows & Linux versions shown)
+
+Windows (example):
+C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server\Insurgency\Saved\Config\WindowsServer\Engine.ini
+
+Linux (example):
+/home/ins/ss/Insurgency/Saved/Config/LinuxServer/Engine.ini
+
+Edit the Engine.ini file to add this to end.
+
+[SystemSettings]
+net.MaxPlayersOverride=12
+
+This enables up to 12 people to join the server, even though the game browser only shows 8.
+
+3.  To keep regular players from joining to your slots 9 through 12, you tell SISSM to watch
+for that.  In yous sissm.cfg file set:
+
+pigateway.pluginState                 1                 // 1=enable plugin, 0=disable plugin
+pigateway.firstAdminSlotNo            9        // first open slot# non-admins will be kicked
+
+This tells SISSM that everything above slot 9 is for Admins only.  When the 9th player tries to connect,
+SISSM will look up the SteamID (typically Admins.txt).  If the player is not on the list, s/he is 
+kicked with the message "Server_Full" (and it realy is, as indicated in the game browser).
+
+What this also means that when an Admin sees 8/8 full on the game browser, s/he may be able to join,
+up until 4 additional ports are taken by other admins.
+
+Adjust your three above settings to your needs following this example.
+
+=====================
+Enabling Bad Name Kick
+=====================
+
+If you enable the badnamekick option, SISSM look up the new connected player name,
+and compares against the 'profanity name' list.
+
+Currently the "profnity list" is hard-coded.  You will need to modify the source code
+(pigateway.c) and recompile to modify it.
+
+pigateway.pluginState                 1                 // 1=enable plugin, 0=disable plugin
+pigateway.enableBadNameFilter         1        // 1=enable kick on profanity names 0=disable
+
+This feature merely kicks bad-named players and it specifies no reason.  This is done
+intentionally to discourage people from iteratively modiifying one or two letters in their name
+to bypass the algorithm.
+
+

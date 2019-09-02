@@ -1,0 +1,100 @@
+
+Alpha 23 (0.0.23) 20190902
+
+    Application changes:
+
+    Compatible and tested against CTE-1.4 Patch-1 Linux (not tested under CTE-1.4 Patch-1 Windows)
+    Completed/enabled PICLADMIN - allows admin-assistants to issue command through in-game chat
+    Added pre-start diagnostics that highlights ./cfg error due to typos, etc.
+        See http://cassandra.confluvium.info/sissm/ "Command-Line Admin Plugin" for details.
+    Clear up misleading "Try to open games.log" message, which now shows oly if there is an error
+    Removed "bad names" profanity list from source code - this is now a separate editable .txt file.
+    Added "no parameter" sissm launch for the mouse-click users - if sissm_default.cfg exists in the same 
+        folder and no launch parameter is specified, it will use it.
+
+    Example Config or Documentation changes:
+
+    See below: "SISSM.CFG Upgrading from Alpha22 to Alpha23" 
+    Changed sissm.cfg example to use "\" instead of "/" for Windows paths (thanks to tarAn for pointing this out)
+    New Advanced Setup note: Runing Multiple Servers from a Same Folder; "SAW" users should read this
+        if you are running multiple instances of game servers on the same machine from the same folder.
+
+Alpha 22 (0.0.22) 20190828
+
+    Fix template sissm.cfg - rebooter is now disabled  by default
+    Fix map update
+    Added "" option for all apiSay - server operator may run quiet on selected prompts
+    Added sigterm handler and a new event handler to gracefully exit sissm leaving game in a playable state
+    Bug fix: empty string handling ("") in cfg data read now works correctly
+    Enhanced localization - brought out more printed strings to .cfg file
+    Tested to work:  sissm.RestartScript "taskkill /IM InsurgencyServer-Win64-Shipping.exe /F"
+    Changes to sissm.cfg - see attached section below if you are upgrading to Alpha 22
+
+Alpha 21 (0.0.21) 20190826
+
+    Reshuffled order of init so that admin list and gamelog reads can easily be verified 
+    Create "starter" distribution template sissm.cfg
+
+Alpha 20 (0.0.20) 20190825
+ 
+    First Closed Alpha
+    Win version: Stabilized start on dead game server
+    Win version: Stabilized game server dying mid run
+
+=========================================================================================
+
+////////////////////////////////
+////// SISSM.CFG Upgrading from Alpha22 to Alpha23
+//////
+////// Please check to make sure these entries are added to 
+////// the correct sections.  Depending on previous version# you may
+////// already have some of these in your existing .cfg file.
+///////////////////////////////
+
+
+1.  picladmin block:  Changed all default fun-responses to be shorter (fits on one line)
+
+2.  Added bad words file path variable.  Simply add profanity words here, one word per line.
+A (clean) example badwords.txt file is in the release package.  This is used to compare against
+connecting player name.  If the bad-name plugin is enabled, the user is kicked.  To obtain
+the horrific version of badwords.txt used by the author of this package, contact me via 
+Steam ("shroeder_lvb"), Discord "Shchroeder#7524", or email: schroeder-lvb@outlook.com).
+
+sissm.BadWordsFilePath     "/home/ins/scripts/badwords.txt"
+
+
+
+////////////////////////////////
+////// SISSM.CFG Upgrading to Alpha22
+//////
+////// Please check to make sure these entries are added to 
+////// the correct sections.  Depending on previous version# you may
+////// already have some of these in your existing .cfg file.
+///////////////////////////////
+
+
+sissm.adminListFilePath                 "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
+// sissm.adminListFilePath  "C:/Program Files (x86)/Steam/steamapps/common/sandstorm_server/Insurgency/Config/Server/Admins.txt"
+
+sissm.gracefulExit                    1        // 0=immediate exit, 1=graceful exit of sissm
+
+pirebooter.rebootWarning           "Server restart at end of game - up in 60sec"
+
+pigreetings.incognitoGUID   "76561100000000001 76561100000000002 76561100000000003"
+pigreetings.connected              "connected"
+pigreetings.disconnected           "disconnected"
+
+pisoloplayer.soloWarning       "Counterattack disabled for a single player"
+pisoloplayer.multiWarning      ""        // keep this 'quiet' (too much spam on screen)!
+// pisoloplayer.multiWarning   "Counterattack enabled for multi-players"
+
+
+
+////// Please add or correct TYPOS that may be in your pprevious Alhpa release
+////// Your version may be "piwebgenConfig" which should be "piwebgen"
+///////////////////////////////
+
+piwebgen.hyperlinkFormat               1               // 0=text 1=hyperlink list of players
+piwebgen.autoRefreshHeader            1              // 1=generates html auto-refresh header
+piwebgen.commTimeoutSec             120     // #sec of rcon fail before failure is indicated
+

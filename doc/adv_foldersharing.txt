@@ -1,0 +1,88 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Running Multile Sandstorm Servers from a Same Install Folder of the Same Machine
+JS Scheorder - last revised:  2019.09.01
+=====================
+
+                   * * * * * * * * * * * * * * * * * 
+Note:  If you are running only a single game instance in your machine, or running
+multiple game instances from a seprate install folder, you may ignore this appnote.
+
+Note:  If you are setting up multiple game instances on the same machine using 
+the "Sandstorm Admin Wrapper (SAW)", you need to read this appnote.
+                   * * * * * * * * * * * * * * * * * 
+
+SISSM is designed to manage a single game server instance.  It is very common for game hosters to run
+multiple game servers on a single multi-core machine.  Here, you run multiple instances
+of SISSM, each with distinct sissm.cfg file corresponding to each of your game server instance.
+
+Difficulty arises when multiple game instances are run from the same game install folder.  This is not
+a recommended practice, but it has the advantage of being disk storage efficient.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1)  Your Server Launcher
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In this scenario, you must specify a unique game log file for each of the instances in your launchers.  
+This is done by replacing the "-log" game launcher argument with "-log=filename.ext".
+
+For example if you are running server1, server2, and server3, then specify each game launcher
+to generate log file with names server1.log, server2.log and server3.
+
+------------------------
+For Server1, launch with:
+InsurgencyServer-Win64-Shipping.exe { other parameters } -log=server1.log
+
+For Server2, launch with:
+InsurgencyServer-Win64-Shipping.exe { other parameters } -log=server2.log
+
+For Server3, launch with:
+InsurgencyServer-Win64-Shipping.exe { other parameters } -log=server3.log
+------------------------
+
+This step is necessary, because without specifying the output log file, Sandstorm 
+will auto-name log files based on the boot order as Insurgency.log, Insurgency_1.log, and 
+Insurgency_log_2.log, etc.  There is no easy method of telling SISSM which server correponds 
+to which log file because servers can be rebooted in any order, at any time.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2)  Creating a Separate SISSM.CFG files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Setup three instances of SISSM with corresponding configuration files, named as
+sissm1.cfg, sissm2.cfg and sissm3.cfg.  Simply specify in each configuration file the corresponding
+game log file you assigned.  You do this by modifying the sissm.GameLogFile parameter:
+
+------------------------
+In sissm1.cfg:
+sissm.GameLogFile "C:/Program Files (x86)/Steam/steamapps/common/sandstorm_server/Insurgency/Saved/Log/server1.log
+
+In sissm2.cfg:
+sissm.GameLogFile "C:/Program Files (x86)/Steam/steamapps/common/sandstorm_server/Insurgency/Saved/Log/server2.log
+
+In sissm3.cfg:
+sissm.GameLogFile "C:/Program Files (x86)/Steam/steamapps/common/sandstorm_server/Insurgency/Saved/Log/server3.log
+------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+3)  Other Filenames that must be Unique, Including the Plugin Parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In addition to the .cfg and .log files you should walk through your sissm.cfg files to make sure 
+multiple instances of sissm does not cause a file write conflict.  For example, you will need to specify
+unique sissm.LogFile (default "sissm.log"), or piwebgen.webFileName parameter (default "sissm.html") 
+that generates .html status per server.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+4)  Running Multiple Instances of SISSM
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Now you can run three instances of SISSM, like this:
+
+./ssism.exe sissm1.cfg
+./ssism.exe sissm2.cfg
+./ssism.exe sissm3.cfg
+

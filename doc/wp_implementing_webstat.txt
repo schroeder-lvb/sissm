@@ -1,0 +1,49 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Implementing a web monitor
+JS Scheorder - last revised:  2019.08.07
+=====================
+
+
+//////////////////////////
+warning warning warning
+
+This is a concept demo for getting server status onto a web.  Method 
+outlined here is inherently INSECURE.  The information is provided here
+for technical demonstration only, and you will need to rewrite it for
+public deployments.
+
+warning warning warning
+/////////////////////////
+
+
+Default Apache2 security allow reading/writing from /usr/share dataspace.
+
+$ sudo mkdir /usr/share/sissm
+$ sudo chmod 777 /usr/share/sissm
+
+Set sissm.cfg file to let piwebgen plugin create a html file here, example:
+
+--------
+...
+...
+piwebgen.webFileName     "/usr/share/sissm/zeus.html" 
+...
+...
+--------
+
+
+Your back-end (PhP, nodejs, Ruby-on-Rails) can poll and read this data
+and server them to other web clients.  Example /var/www/html/status.php:
+
+-------
+<meta http-equiv="refresh" content="14" />
+<?php
+
+$dump = file_get_contents( "/usr/share/sissm/zeus.html");
+echo $dump;
+if (9 != strlen($dump)) {
+    echo "IP:Port:      " . $_SERVER['SERVER_ADDR'] . ":27102";
+}
+?>
+------
+

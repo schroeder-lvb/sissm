@@ -1,0 +1,105 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+PICLADMIN - User's Manual for the Assistant Administrators
+JS Schroeder -- last updated:  2019.08.31
+
+//
+// Only supported for Insurgency Sandstorm 1.4 and later!
+//
+
+PICLADMIN (Plugin Command-Line Admin) plugin allows admin commands to be
+executed through the in-game chat interface.  The server operator set up
+the list of priviledged users, as well as the command prefix.
+
+Default admin list is the same as game Admins.txt.  Your server owner may 
+use a separate list.
+
+Default command prefix is "!".  You issue PICLADMIN commands by typing
+commands like:  !ban robert.  he server owner may change the prefix
+to use something other than the "!", for example, "amanda".  If this
+is the case you issue a command like:  "amanda ban robert".
+
+
+
+/////////////////////////////////////////////////
+////////// Server Admin In-Game Command Reference
+/////////////////////////////////////////////////
+
+
+version (v) [sissm]
+Show SISSM version number
+Examples:  !v sissm
+
+========================
+
+help (h) [command]
+Show list of available commands
+Examples:  !h list, !help banid
+
+========================
+
+botfixed (bf) [2-60]
+Set fixed bot count regardless of how many players are in game.
+Examples:  !bf 20, !botfixed 50
+
+========================
+
+botscaled (bs) [2-60]
+Set fixed bot count in scaling mode - specified bot count describes full-server.
+Examples:  !bs 36, !botscaled 32
+
+========================
+
+botdifficulty (bd) [0-10]
+Change bot difficulty level -- 0=easy, 10=difficult
+Exmaples:  !bd 5, !botdifficulty 10
+
+========================
+
+killfeed (kf) on|ff
+Turn on/off killfeed
+Examples:  !kf off, !killfeed on
+
+========================
+
+friendlyfire (ff) on|off
+Enable/disable friendly-fire
+Examples:  !ff off, !friendlyfire on
+
+========================
+
+roundrestart (rr) [now]
+Restart current round
+Examples:  !rr now, !roundrestart now
+
+========================
+
+reboot (reboot) [now]
+Reboot the server (everyone will be disconnected!)
+Example:  !reboot now
+
+========================
+
+ban (b) [partial-name]
+Perm-ban a player by partial name
+Examples:  !b rob, !ban ert
+
+========================
+
+banid (bi) [SteamID64]
+Perm-ban a player by SteamID64 - this can be done after a player has signed off.
+Examples:  !bi 76561123123123123, !banid 76561123123123123
+
+========================
+
+kick (k) [partial-name]
+Kick a player by partial name
+Examples:  !k ober, !kick robert
+
+========================
+
+kickid (ki)
+Kick a player by SteamID64 
+Example:  !ki 76561123123123123, !kickid 76561123123123123
+
+
+

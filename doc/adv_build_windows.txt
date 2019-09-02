@@ -1,0 +1,30 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Compiling SISSM from Source:  Windows
+JS Scheorder - last revised:  2019.08.25
+=====================
+
+1) Download and install Visual Studio
+ 
+    https://visualstudio.microsoft.com/
+    Download Visual Studio -> Community Edition installer
+    Run the downloaded installer
+    Choose: "Desktop development with C++" which includes the Core, MSVC and Windows 10 SDK.
+    (Only the command line "msvc" is quired)
+    Reboot your PC
+
+2) Unzip sissm/src
+
+    Unpack the distribution source code .zip file to an empty folder.  
+    It will create a 'src' subfolder where all source files remain.
+
+    From Start->Visual Studio 2019, start "Developer Command Prompt for VS" or 
+    "Developer PowerShell for VS"
+
+    Navigate to the 'src' folder via the cd command.
+
+3) Compile to generate 'sissm.exe'
+
+    You must be defaulted to the 'src' folder.  Type:
+
+    cl *.c Ws2_32.lib /Fesissm.exe
+
