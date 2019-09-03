@@ -24,15 +24,15 @@ Miscellaneous Features:
 
 
 
-***** IMPORTANT Cybsersecurity Note for Commercial Gamer Server Hosters ******
+***** IMPORTANT Cybsersecurity Note for Commercial Gamer Server Hosting Companies ******
 
-SISSM was deisgned for self-hosting game hobbyists, who has full ownership control of his/her own system executing the server (such as Linux VPS or running a home server).  One of SISSM’s main function is to auto-reboot the game server periodically to maintain stability.  The “hard-boot” option allows the operator (who has control of sissm.cfg file) to specify an external reboot O/S command or a script.  This is a necessary feature to achieve reliable rebooting of "dead" servers.
+SISSM was deisgned for self-hosting game hobbyists, who has full ownership control of his/her own system executing the dedicated game server instances (such as via the Cloud Linux VPS or a home-based server).  One of SISSM’s main function is to reboot the game server periodically to maintain stability.  SISSM's “hard-reboot” option allows the operator (who has control of sissm.cfg file) to specify an external reboot OS command or a script.  This is a necessary feature to reliably reboot a "dead" game server instance.
 
-This is a major security problem if you are providing a shell-restricted service to your clients.   A clever exploiter may replace this with OS commands to gain shell access to your machine!
+This is a major security problem if you are providing a shell-restricted service to your clients.   A clever exploiter may replace this with OS command string to gain shell access to your machine!
 
-If you are using SISSM under such environment, 
-*  Provide a separate reboot service of the game server through your web admin, or automation
-*  Build a modified SISSM without the “pirebooter” plugin.  At minimum you can achieve this by editing sissm.c, commenting out the call to pirebooterInstallPlugin().
-
-
-
+If you are using SISSM under a restricted turn-key environment:
+*  Provide a separate reboot service of the game server through your web admin, and/or timed automation, and 
+*  Build a modified SISSM that removes reboot command execution:  edit the file sissm.c and replace 
+    strlcpy( sissmConfig.restartScript, cfsFetchStr( cP, "sissm.restartscript", "" ), CFS_FETCH_MAX ); 
+with:
+    strcpy(  sissmConfig.restartScript, “” );
