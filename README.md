@@ -33,6 +33,11 @@ This is a major security problem if you are providing a shell-restricted service
 If you are using SISSM under a restricted turn-key environment:
 *  Provide a separate reboot service of the game server through your web admin, and/or timed automation, and 
 *  Build a modified SISSM that removes reboot command execution:  edit the file sissm.c and replace 
+
     strlcpy( sissmConfig.restartScript, cfsFetchStr( cP, "sissm.restartscript", "" ), CFS_FETCH_MAX ); 
+    
 with:
+
     strcpy(  sissmConfig.restartScript, “” );
+    
+
