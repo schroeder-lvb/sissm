@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PIREBOOTER Plugin
-JS Schroeder -- last updated:  2019.08.25
+JS Schroeder -- last updated:  2019.09.03
 
 The PIREBOOTER plugin 
 
@@ -8,39 +8,42 @@ The PIREBOOTER plugin
 IMPORTANT:  Read the white paper WP_REBOOTING before proceeding.
 ================
 
-Sadly, Sandstorm Dedicated Server has a history of instability.  Sometimes it enters a stage where
-nobody can connect.  When the server is hard-at-work for many hours, we start to experience
-lags, rubber banding, and client-server sync issues.  In short, SISSM-controlled automated server
-reboots can help to run a smooth server for your clients.
+Sadly, Sandstorm Dedicated Server has a history of instability.  Sometimes it enters a state where
+no one can connect.  When the server is hard-at-work for many hours, lags and rubber-bandings
+are observed by the gamers.  In short, SISSM-controlled automated server
+reboots can help to run a smoother, more stable server for your game clients.
 
-Here are the 'reboot tactics':
+Here are the reboot tactics:
 
-1.  Reboot the server when it hasn't been rebooted for more than xx hours
+1.  Reboot the server, busy or idle, when it hasn't been rebooted for more than XX hours
 
-2.  Reboot the server when it is idle for more than YY minutes.  There are two reasons for this:
-a) we always want to start with a "recently rebooted" server because once the players start to 
-arrive, it may be busy for many hours.  We want to minimize rebooting in the middle of the
-game when rule#1 kicks in.  b) The server may be "idle" because nobody can sign in
-due to a server failure.  By rebooting you are possibly clearing this anomaly.
+2.  Reboot the server when idle for more than YY minutes.  There are two reasons for this:
+a) we always want to start with a "recently rebooted" server before players start to 
+arrive, after which the server may be busy for many hours.  We want to minimize rebooting in 
+the middle of the game.  b) The server may be "idle" because nobody can sign in
+due to a server failure.  By rebooting you are mitigating this anomaly.
 
 3.  Reboot the server when it is dead.  This is detected by dead RCON interface, zero activities
 in the server logs.  Dead servers should be rebooted as soon as possible - ZZ minutes
 upon initial detection.  We don't want immediate action for various reasons, one of which
 is to avoid being in a "high speed reboot loop" due to a corrupt server image/configuration.
 
-First enable the REBOOTER plugin, and turn on pirebooter.logUpdateSec.  This allows you to 
-monitor how our reboot timers are incrementing.  This is useful for diagnostics, but will also
-help you gauge "how much time do I have before the next reboot kicks in."
+Setup:
+
+First enable the REBOOTER plugin in your sissm.cfg file by turning on pirebooter.logUpdateSec.  
+This allows you to monitor how our reboot timers are incrementing.  This is useful for 
+diagnostics, but will also help you gauge "how much time do I have before the next 
+reboot kicks in."
 
 pirebooter.pluginState                1                 // 1=enable plugin, 0=disable plugin
 pirebooter.logUpdateSec              60      // report rate, counter state to log file (sec)
 
-The three limits for the aforementioned 3 cases are here, all expressed in units of seconds.
+The three limits are for the aforementioned 3 cases described, all expressed in units of seconds.
 Program it to your liking.  
 
 pirebooter.rebootBusySec          18000                                 // 5*60*60 (5 hours)
-pirebooter.rebootIdleSec           1200                                //    20*60 (20 min)
-pirebooter.rebootDeadSec            300                                 //     5*60 ( 5 min)
+pirebooter.rebootIdleSec           1200                                    // 20*60 (20 min)
+pirebooter.rebootDeadSec            300                                     // 5*60 ( 5 min)
 
-
+Set your limits to your needs, and restart SISSM.
 

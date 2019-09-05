@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Product Summary
-JS Schroeder -- last updated:  2019.08.25
+JS Schroeder -- last updated:  2019.09.03
 
 
 SISSM Product Summary
@@ -43,7 +43,7 @@ Features:
 
 *  Al functional features are implemented by the individual plugins (see below)
 *  Designed for unattended Sandstorm server management (not a remote admin tool)
-*  Intended for Co-op modes, tactical servers (not tested under PvP modes yet)
+*  Intended for Co-op modes, tactical servers (not tested under PvP modes)
 *  Must run local on the server server running the game instance
 *  Developers: write your own plugins! (Example template is pre-installed and activated.)
 *  Single-threaded Event-Callback & API architecture 
@@ -51,7 +51,7 @@ Features:
 *  Individual plugins may configured/enabled/disabled by the .cfg file
 *  Creates a .log file, adjustible log level from the .cfg file
 *  Works with multiple game instances per server, each with different SISSM .cfg file
-*  [TBD] licensing with source code distribution, but not openly published
+*  MIT licensing with source code distribution
 
 
 SISSM Usage:
@@ -63,6 +63,12 @@ server are contained in this file.  The basic launch syntax:
     ./sissm sissm.cfg         ;; Linux
     ./sissm.exe sissm.cfg     ;; Windows PowerShell
     sissm.exe sissm.cfg       ;; Windows DOS
+
+Default configuration file:
+Configuration file named "sissm_default.cfg" will be read if the sissm execution binary and 
+launched without an argument:
+
+    ./sissm 
 
 
 Included Plugins
@@ -111,6 +117,11 @@ Plugin: "webgen"
 
 *  Periodically generates a rudimentary .html output of server status
 *  Provided as example code to be customized for your server
+
+Plugin: "cladmin"
+
+*  Allows admins to issue commmand through in-game chat, such as for changing bot counts
+*  Command prefix can be defined in sissm.cfg (e.g., "!", "sissm", "**", etc.)
 
 Plugin: "pit001"
 

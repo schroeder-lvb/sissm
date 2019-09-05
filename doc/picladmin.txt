@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PICLADMIN - User's Manual for the Assistant Administrators
-JS Schroeder -- last updated:  2019.08.31
+JS Schroeder -- last updated:  2019.09.04
 
 //
 // Only supported for Insurgency Sandstorm 1.4 and later!
@@ -100,6 +100,24 @@ Examples:  !k ober, !kick robert
 kickid (ki)
 Kick a player by SteamID64 
 Example:  !ki 76561123123123123, !kickid 76561123123123123
+
+========================
+
+rcon (rcon)
+Send a rcon message
+Example:  !rcon say hello
+
+========================
+
+gamemodeproperties (gmp)
+Set or read gamemodeproperties (vars)
+Example:  !gamemodeproperties minimumenemies 3, !gmp maximumenemies
+
+========================
+
+macro (m)
+Execute a macro of rcon command sequences specified in sissm.cfg file
+Example:  !m easymode, !macro ministry-pistolsonly
 
 
 

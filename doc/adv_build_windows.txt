@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Compiling SISSM from Source:  Windows
-JS Scheorder - last revised:  2019.08.25
+JS Scheorder - last revised:  2019.09.03 
 =====================
 
 1) Download and install Visual Studio
@@ -22,7 +22,12 @@ JS Scheorder - last revised:  2019.08.25
 
     Navigate to the 'src' folder via the cd command.
 
-3) Compile to generate 'sissm.exe'
+3) Change "#define SISSM_RESTRICTED" value (0 or 1) for the SISSM variant you wish to build.
+
+    notepad sissm.c
+
+
+4) Compile to generate 'sissm.exe'
 
     You must be defaulted to the 'src' folder.  Type:
 
