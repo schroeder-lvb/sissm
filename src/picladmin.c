@@ -48,6 +48,7 @@
 //
 
 #define NUM_RESPONSES  (5)
+#define NUM_MACROS     (10)
 
 static struct {
 
@@ -59,6 +60,8 @@ static struct {
 
     char cmdPrefix[CFS_FETCH_MAX];
 
+    char macros[NUM_MACROS][CFS_FETCH_MAX];
+
 } picladminConfig;
 
 
@@ -66,12 +69,13 @@ static struct {
 //  Jump Pointer Data Structure
 //
 
-int _cmdHelp( char *), _cmdVersion( char*);
-int _cmdBotFixed( char *), _cmdBotScaled( char *), _cmdBotDifficulty( char *);
-int _cmdKillFeed( char*), _cmdFriendlyFire( char *);
-int _cmdRestart( char *), _cmdEnd( char *), _cmdReboot( char *);
-int _cmdBan( char *), _cmdKick( char *);
-int _cmdBanId( char *), _cmdKickId( char *);
+int _cmdHelp(), _cmdVersion(), _cmdMacros();
+int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
+int _cmdKillFeed(), _cmdFriendlyFire();
+int _cmdRestart(), _cmdEnd(), _cmdReboot();
+int _cmdBan(), _cmdKick();
+int _cmdBanId(), _cmdKickId();
+int _cmdGameModeProperty(), _cmdRcon();
 
 struct {
 
@@ -88,9 +92,13 @@ struct {
     { "bf",     "botfixed",      "botfixed [2-60]",        _cmdBotFixed },
     { "bs",     "botscaled",     "botscaled [2-60]",       _cmdBotScaled },
     { "bd",     "botdifficulty", "botdifficulty [0-10]",   _cmdBotDifficulty },
+    { "m",      "macros",        "macros [alias]",         _cmdMacros },
 
     { "kf",     "killfeed",      "killfeed on|off",        _cmdKillFeed },
     { "ff",     "friendlyfire",  "friendlyfire on|off",    _cmdFriendlyFire },
+
+    { "gmp",   "gamemodeproperty",  "gmp [cvar] {value}",  _cmdGameModeProperty },
+    { "rcon",  "rcon",           "rcon [passthru]",        _cmdRcon },
 
     { "rr",     "roundrestart",  "roundrestart [now]",     _cmdRestart },
 //    { "re",     "roundend",      "roundend [now]",         _cmdEnd },
@@ -152,10 +160,32 @@ static char *_int2str( int numOut )
 //
 //
 
+// ===== "macros [alias]"
+//
+int _cmdMacros( char *arg, char *arg2, char *passThru ) 
+{
+    int i, j = 1, errCode = 1;
+    char *w;
+    char statusIn[ 1024 ];
+
+    for (i = 0; i<NUM_MACROS; i++) {
+        if ( 0 == strcmp( arg, getWord( picladminConfig.macros[i], 0, "::" ) )) {
+            while ( NULL != ( w = getWord( picladminConfig.macros[i], j++, "::" )) ) {
+                errCode = (0 == apiRcon( w, statusIn ));
+                if ( errCode ) break;
+            } 
+            break;
+        }
+    }
+    _stddResp( errCode );   // ok or error message to game
+
+    return 0;
+}
+
 
 // ===== "help [command]"
 //
-int _cmdHelp( char *arg ) 
+int _cmdHelp( char *arg, char *arg2, char *passThru ) 
 { 
     int i = 0, notFound = 1;
     char outStr[1024];
@@ -193,7 +223,7 @@ int _cmdHelp( char *arg )
 
 // ===== "version"
 //
-int _cmdVersion( char *arg ) 
+int _cmdVersion( char *arg, char *arg2, char *passThru ) 
 { 
     apiSay( sissmVersion() );
     return 0; 
@@ -201,7 +231,7 @@ int _cmdVersion( char *arg )
 
 // ===== "botfixed [2-60]"
 //
-int _cmdBotFixed( char *arg ) 
+int _cmdBotFixed( char *arg, char *arg2, char *passThru ) 
 {  
     int errCode = 1, botCount;
 
@@ -219,7 +249,7 @@ int _cmdBotFixed( char *arg )
 
 // ===== "botscaled [2-60]"
 //
-int _cmdBotScaled( char *arg ) 
+int _cmdBotScaled( char *arg, char *arg2, char *passThru ) 
 { 
     int errCode = 1, botCount;
 
@@ -238,7 +268,7 @@ int _cmdBotScaled( char *arg )
 
 // ===== "botdifficulty [0-10]"
 //
-int _cmdBotDifficulty( char *arg ) 
+int _cmdBotDifficulty( char *arg, char *arg2, char *passThru ) 
 { 
     int errCode = 1, botDifficulty;
     char strOut[256];
@@ -260,7 +290,7 @@ int _cmdBotDifficulty( char *arg )
 
 // ===== "killfeed on|off"
 //
-int _cmdKillFeed( char *arg ) 
+int _cmdKillFeed( char *arg, char *arg2, char *passThru  ) 
 { 
     int errCode = 0;
 
@@ -278,7 +308,7 @@ int _cmdKillFeed( char *arg )
 
 // ===== "friendlyfire on|off"
 //
-int _cmdFriendlyFire( char *arg ) 
+int _cmdFriendlyFire( char *arg, char *arg2, char *passThru ) 
 { 
     int errCode = 0;
 
@@ -296,7 +326,7 @@ int _cmdFriendlyFire( char *arg )
 
 // ===== "roundrestart [now]"
 //
-int _cmdRestart( char *arg ) 
+int _cmdRestart( char *arg, char *arg2, char *passThru  ) 
 {
     char cmdOut[256], statusIn[256];
     int errCode = 0;
@@ -314,7 +344,7 @@ int _cmdRestart( char *arg )
 
 // ===== "roundend [now]" 
 //
-int _cmdEnd( char *arg ) 
+int _cmdEnd( char *arg, char *arg2, char *passThru ) 
 { 
     char cmdOut[256], statusIn[256];
     int errCode = 0; 
@@ -332,7 +362,7 @@ int _cmdEnd( char *arg )
 
 // ===== "reboot [now]" 
 //
-int _cmdReboot( char *arg ) 
+int _cmdReboot( char *arg, char *arg2, char *passThru  ) 
 { 
     int errCode = 0;
 
@@ -349,7 +379,7 @@ int _cmdReboot( char *arg )
 // ===== "banid [steamid]"
 // target may be offline (ISS ver 1.4+ banid rcon command)
 //
-int _cmdBanId( char *arg ) 
+int _cmdBanId( char *arg, char *arg2, char *passThru  ) 
 { 
     int errCode = 1;
     char cmdOut[256], statusIn[256];
@@ -370,7 +400,7 @@ int _cmdBanId( char *arg )
 // ===== "kickid [steamid]"
 // target must be online
 //
-int _cmdKickId( char *arg ) 
+int _cmdKickId( char *arg, char *arg2, char *passThru  ) 
 { 
     int errCode = 1;
     char cmdOut[256], statusIn[256];
@@ -391,7 +421,7 @@ int _cmdKickId( char *arg )
 // ===== "ban [partial-name]"
 // target must be online
 //
-int _cmdBan( char *arg ) 
+int _cmdBan( char *arg, char *arg2, char *passThru  ) 
 { 
     int errCode = 1;
     char cmdOut[256], statusIn[256], steamID[256];
@@ -410,7 +440,7 @@ int _cmdBan( char *arg )
 // ===== "kick [partial-name]"
 // target must be online
 //
-int _cmdKick( char *arg ) 
+int _cmdKick( char *arg, char *arg2, char *passThru ) 
 { 
     int errCode = 1;
     char cmdOut[256], statusIn[256], steamID[256];
@@ -427,6 +457,68 @@ int _cmdKick( char *arg )
 }
 
 
+// ===== "gamemodeproperty [cvar] [value]"
+// Change or read gamemodeproperty
+//
+
+int _cmdGameModeProperty( char *arg, char *arg2, char *passThru ) 
+{ 
+    int  errCode = 1;
+    char statusIn[256], cmdOut[256];
+
+    // snprintf( cmdOut, 256, "kick %s", steamID );
+    if ( 0 != strlen( arg ) ) {
+        if ( 0 != strlen( arg2 ) ) {
+            apiGameModePropertySet( arg, arg2 );
+        }
+        strlcpy( statusIn, apiGameModePropertyGet( arg ), 256 );
+        if ( 0 == strlen( statusIn ) ) 
+           apiSay( "GMP Readback Error");
+        else {
+           snprintf( cmdOut, 256, "'%s' is set to '%s'", arg, statusIn );
+           apiSay( cmdOut );
+           errCode = 0;
+        }
+    }
+    else {
+        _stddResp( 1 );   // format error message to game
+    }
+    return errCode;
+}
+
+
+// ===== "rcon [passthru string]"
+// RCON Passthru - very dangerous but necessary for prototyping and test
+//
+int _cmdRcon( char *arg, char *arg2, char *passThru ) 
+{ 
+    int bytesRead, errCode = 1;
+    char statusIn[4096], cmdOut[256];
+    char *rconArgs;
+    int  i, supportedRconCommand = 1;
+    char *unsupportedRcon[] =  { "help", "listplayers", "listbans", "maps", "scenarios", "listgamemodeproperties", "*" };
+
+    supportedRconCommand = !foundMatch( arg, unsupportedRcon, 1 );
+
+    if ( supportedRconCommand ) {
+        rconArgs = strstr( passThru, " " );
+        if ( rconArgs != NULL ) {  
+            bytesRead = apiRcon( rconArgs, statusIn );
+            if ( bytesRead != 0 )  {
+                errCode = 0;
+                apiSay( statusIn );
+            }
+            else {
+                apiSay( "RCON Interface Error" );
+            }
+        }
+    }
+    else {
+        apiSay( "Unsupported RCON command" );
+    }
+    return errCode;
+}
+
 
 //  ==============================================================================================
 //  picladminInitConfig
@@ -442,23 +534,42 @@ int picladminInitConfig( void )
     // read "picladmin.pluginstate" variable from the .cfg file
     picladminConfig.pluginState = (int) cfsFetchNum( cP, "picladmin.pluginState", 0.0 );  // disabled by default
 
+    // Read the humanized responses for when a command is issued can was successfully executed
+    //
     strlcpy( picladminConfig.msgOk[0],       cfsFetchStr( cP, "picladmin.msgOk[0]",      "Ok!" ),             CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgOk[1],       cfsFetchStr( cP, "picladmin.msgOk[1]",      "Ok!" ),             CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgOk[2],       cfsFetchStr( cP, "picladmin.msgOk[2]",      "Ok!" ),             CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgOk[3],       cfsFetchStr( cP, "picladmin.msgOk[3]",      "Ok!" ),             CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgOk[4],       cfsFetchStr( cP, "picladmin.msgOk[4]",      "Ok!" ),             CFS_FETCH_MAX);
 
+    // Read the humanized responses for when a command has an error
+    //
     strlcpy( picladminConfig.msgErr[0],      cfsFetchStr( cP, "picladmin.msgErr[0]",     "Invalid Syntax!" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgErr[1],      cfsFetchStr( cP, "picladmin.msgErr[1]",     "Invalid Syntax!" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgErr[2],      cfsFetchStr( cP, "picladmin.msgErr[2]",     "Invalid Syntax!" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgErr[3],      cfsFetchStr( cP, "picladmin.msgErr[3]",     "Invalid Syntax!" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgErr[4],      cfsFetchStr( cP, "picladmin.msgErr[4]",     "Invalid Syntax!" ), CFS_FETCH_MAX);
 
+    // Read the humanized responses for when a non-admin tries to use a command
+    //
     strlcpy( picladminConfig.msgInvalid[0], cfsFetchStr( cP, "picladmin.msgInvalid[0]",  "Unauthorized!" ),   CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgInvalid[1], cfsFetchStr( cP, "picladmin.msgInvalid[1]",  "Unauthroized!" ),   CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgInvalid[2], cfsFetchStr( cP, "picladmin.msgInvalid[2]",  "Unauthroized!" ),   CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgInvalid[3], cfsFetchStr( cP, "picladmin.msgInvalid[3]",  "Unauthroized!" ),   CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgInvalid[4], cfsFetchStr( cP, "picladmin.msgInvalid[4]",  "Unauthorized!" ),   CFS_FETCH_MAX);
+
+    // Read the operator-specified "macro" (alias) sequence
+    //
+    strlcpy( picladminConfig.macros[0],     cfsFetchStr( cP, "picladmin.macros[0]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[1],     cfsFetchStr( cP, "picladmin.macros[1]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[2],     cfsFetchStr( cP, "picladmin.macros[2]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[3],     cfsFetchStr( cP, "picladmin.macros[3]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[4],     cfsFetchStr( cP, "picladmin.macros[4]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[5],     cfsFetchStr( cP, "picladmin.macros[5]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[6],     cfsFetchStr( cP, "picladmin.macros[6]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[7],     cfsFetchStr( cP, "picladmin.macros[7]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[8],     cfsFetchStr( cP, "picladmin.macros[8]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.macros[9],     cfsFetchStr( cP, "picladmin.macros[9]",  "" ),   CFS_FETCH_MAX);
 
     strlcpy( picladminConfig.cmdPrefix,      cfsFetchStr( cP, "picladmin.cmdPrefix",      "!" ),              CFS_FETCH_MAX);
 
@@ -526,8 +637,8 @@ int _commandExecute( char *cmdString, char *originID )
     //
     i = 0;
     while ( 1==1 ) {
-        if ( (0==strcmp( cmdTable[i].cmdShort, cmdOut )) || (0 == strcmp( cmdTable[i].cmdLong, cmdOut )) ) {
-            errCode = (*cmdTable[i].cmdFunction)( arg1Out );
+        if ( (0 == strcmp( cmdTable[i].cmdShort, cmdOut )) || (0 == strcmp( cmdTable[i].cmdLong, cmdOut )) ) {
+            errCode = (*cmdTable[i].cmdFunction)( arg1Out, arg2Out, cmdString );
             if ( errCode == 0 ) {
                 logPrintf( LOG_LEVEL_INFO, "picladmin", "Admin [%s] executed: %s", originID, cmdString );
             }
@@ -579,7 +690,7 @@ int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdSt
     if ( r != NULL ) strlcpy( cmdString, r, maxStringSize );         // extract Cmd without prefix
 
     if (( s != NULL ) && ( r != NULL )) { 
-        if ( (w + strlen( cmdPrefix)) ==  r ) {       // make sure prefix is the first char
+        if ( (w + strlen( cmdPrefix)) ==  r ) {              // make sure prefix is the first char
             parseError = 0; 
             strTrimInPlace( cmdString );
         }
@@ -602,7 +713,7 @@ int picladminChatCB( char *strIn )
 
     if ( 0 == _commandParse( strIn, 1024, clientGUID, cmdString )) {    // parse for valid format
         if (apiIsAdmin( clientGUID )) {                                    // check if authorized
-             _commandExecute( cmdString, clientGUID ) ;                     // execute the command
+            _commandExecute( cmdString, clientGUID ) ;                     // execute the command
         }
         else  {
             _respSay( picladminConfig.msgInvalid );                       // unauthorized message

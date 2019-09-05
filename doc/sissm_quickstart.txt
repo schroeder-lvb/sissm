@@ -1,12 +1,12 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Quick Start Guide for SISSM
-JS Schroeder -- last updated:  2019.09.01
+JS Schroeder -- last updated:  2019.09.05
 ===============================
 
 This is a quick-start install guide for SISSM, if -- 
 *  You are using pre-compiled executable package (Windows/Debian9/Ubuntu18)
 *  You already have a working Co-op mode Insurgency Sandstorm Server, and
-*  You have full control of your server for installing 3rd party software, 
+*  You have full control of your server (shell access) for installing 3rd party software, 
    e.g., home server or cloud-based VPS (but not a commercial game hosting service)
 
 ---------------------------------
@@ -44,22 +44,24 @@ http://cassandra.confluvium.info/sissm
 
 Download the latest 'quick-start' package and unzip to an empty folder:
 
-*  sissm                Linux executable
-*  sissm.exe            Windows executable
+*  sissm                  Linux executable
+*  sissm.exe              Windows executable
+*  sissm_restricted       Linux variant for GSPs - script execution is disabled for security
+*  sissm_restricted.exe   Windows variant for GSPs - script execution is disabled for security
 *  sissm_example.cfg    Starter configuration (from which you will make a copy and edit)
 
 SISSM must run on the same machine alongside your game server, with read access to 
 the game log (Insurgency.log) and Admins.txt files.
 
 First time: make your custom sissm.cfg by copying from the sisssm_example.cfg file.
-If you have multiple game instances on the same server you might call it 
+If you have multiple game instances on the same server you might name them as
 sissm1.cfg, sissm2.cfg, etc.
 
 ---------------------------------
 Step 3:  Edit your sissm.cfg file
 ---------------------------------
 
-Edit sissm.cfg, find and update four variables at the top.  "//" are comments.
+Edit sissm.cfg, find and update four variables at top.  "//" are comments.
 
 Linux example -- REPLACE WITH YOUR OWN:
 
@@ -88,13 +90,14 @@ Linux (bash):
     chmod +x sissm
     ./sissm sissm.cfg
 
-Windows Command.com (DOS shell):
+Windows command shell
     cd [your folder]
-    sissm sissm.cfg
+    sissm sissm.cfg (DOS shell) or ./sissm.exe sissm.cfg (PowerShell)
 
-Windows PowerShell:
-    cd [your folder]
-    ./sissm.exe sissm.cfg
+Windows for keybaord-challenged people:
+    Put sissm.exe and sissm.cfg in the same folder
+    Rename sissm.cfg to sissm_default.cfg
+    Double click on sissm.exe
 
 c)  Control-C to stop SISSM.
 
@@ -103,13 +106,11 @@ Step 5:  Customize Your SISSM.CFG file
 ---------------------------------
 
 SISSM comes with many powerful plugins.  Walk through your sissm.cfg file and 
-customize it for your own needs.  
+customize it for your own needs.
 
 Consult individual plugin documentations on how to setup various features.
 Note some plugins are disabled by default on the distribution package.
 
 Almost all of SISSM's messages sent to the game clients are defined in the SISSM.CFG file.
-Experiment with localization -- try translating various texts with that of your own language.
-
-
+Experiment with language localization according to your server location.
 

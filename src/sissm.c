@@ -13,7 +13,15 @@
 //
 //  ==============================================================================================
 //
-#define VERSION    "SISSM Version 0.0.23 Alpha 20190902 - Test & Eval Only"
+
+#define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
+
+#if SISSM_RESTRICTED
+#define VERSION    "SISSM v0.0.24 Alpha 20190904 - Test & Eval Only [Restricted Edition]"
+#else
+#define VERSION    "SISSM v0.0.24 Alpha 20190904 - Test & Eval Only"
+#endif
+
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
 
 #include <stdio.h>
@@ -208,7 +216,11 @@ int sissmInitLogAndConfig( char *configPath )
 
     // read the server restart script
     //
+#if SISSM_RESTRICTED
+    strcpy( sissmConfig.restartScript, "" );
+#else
     strlcpy( sissmConfig.restartScript, cfsFetchStr( cP, "sissm.restartscript", "" ), CFS_FETCH_MAX );
+#endif
     sissmConfig.restartDelay = (int) cfsFetchNum( cP, "sissm.restartdelay", 30.0 );
 
     // graceful exit - when enabled, SISSM will install a signal handler for terminating itself to 

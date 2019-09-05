@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 SISSM Architecture
-J.S Schroeder - last updated 2019.08.25
+J.S Schroeder - last updated 2019.09.03
 
 =======================================
 SISSM Architecture
@@ -47,7 +47,7 @@ SISSM Topology
       =============           =============               |
      |             |         |             |              |    piwebgen.c
      |   ftrack.c  |         |  events.c   |              |
-     |             |         |             |<-----------> |
+     |             |         |             |<-----------> |    picladmin.c
      |             |<------->|             |              |
      |   rdrv.c    |         |  alarm.c    |              |    pit001.c (template)
      |             |         |             |              |
@@ -97,6 +97,7 @@ piantirush.c    Sandstorm anti-rusher algorithm for 2-stage capture rate throttl
 pisoloplayer.c  Sandstorm counterattack disabler for solo players
 pioverride.c    Gameproperty Ruleset overrider e.g., controlling bot count for Frenzy
 piwebgen.c      Generates server status html file - periodic and/or change event driven
+picladmin.c     Admin command-line interface from in-game chat-box
 pit001.c        FUnctional example template for plugin developers
 
 

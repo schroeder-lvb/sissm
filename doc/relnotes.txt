@@ -1,4 +1,21 @@
 
+Alpha 24 (0.0.24) 20190904
+
+    Application changes:
+
+    Two variants of sissm executables are released for Linux and Windows (total 4 files) - the new 
+        sissm_restricted is same as the origial counterpart except "reboot by script" is disabled.
+
+    Cleanup RCON driver timing - re-wrote receive timeout loop for speed without compromising reliability.
+    Added gmp, rcon, and macro commands to picladmin plugin.
+
+    Example Config or Documentation changes:
+
+    Added table of user-defined macros for picladmin:  see picladmin.macros[*]    
+    General grammar/spelling cleanup 
+    Update procedures to upcoming ISS game version 1.4
+
+
 Alpha 23 (0.0.23) 20190902
 
     Application changes:
@@ -42,6 +59,29 @@ Alpha 20 (0.0.20) 20190825
     Win version: Stabilized game server dying mid run
 
 =========================================================================================
+
+////////////////////////////////
+////// SISSM.CFG Upgrading from Alpha23 to Alpha24
+//////
+////// Please check to make sure these entries are added to 
+////// the correct sections.  Depending on previous version# you may
+////// already have some of these in your existing .cfg file.
+////////////////////////////////
+
+
+Add to picladmin block:
+
+picladmin.macros[0]   "easy::say hello::gamemodeproperty minimumenemies 3::gamemodeproperty maximumenemies 3"
+picladmin.macros[1]   "hard::say bonjour::gamemodeproperty minimumenemies 12::gamemodeproperty maximumenemies 12"
+picladmin.macros[2]   "pistols::travel Ministry?Scenario=Scenario_Ministry_Checkpoint_Security?Mutators=PistolsOnly"
+picladmin.macros[3]   "normal::travel Ministry?Scenario=Scenario_Ministry_Checkpoint_Security?Mutators=none"
+picladmin.macros[4]   ""
+picladmin.macros[5]   ""
+picladmin.macros[6]   ""
+picladmin.macros[7]   ""
+picladmin.macros[8]   ""
+picladmin.macros[9]   ""
+
 
 ////////////////////////////////
 ////// SISSM.CFG Upgrading from Alpha22 to Alpha23

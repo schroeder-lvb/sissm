@@ -1,13 +1,12 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 SISSM Controlled Server Reboots
-JS Schroeder -- last updated:  2019.08.28
+JS Schroeder -- last updated:  2019.09.03
 
 ==========================
 
-The Sandstorm server doesn't have "restart" or a "reboot" command.  The best it can do is to "quit" or "terminate"
-the game server.
+The Sandstorm server doesn't have built-in "restart" or a "reboot" capability.  SISSM can only issue "quit" (RCON) or "terminate" (Operating System) actions to the game server.
 
-In order to implement a SISSM-initiated server reboot, your game launcher script must be placed in a
+In order to implement such SISSM-initiated server reboot, your game launcher script must be placed in a
 loop to look something like this:
 
 rem Windows version (.bat):
@@ -16,6 +15,7 @@ rem Windows version (.bat):
    timeout 20
    goto start
 
+
 # Linux version (.sh):
 while true
 do
@@ -23,17 +23,16 @@ do
     sleep 20 
 done
 
-In the above loop forms, after the Insurgency server binary is terminated normally (or abnormally), it halts for
-20 seconds, and the new server instance is started.  This is your 'restart' looop.
-
+In the above loop examples, when the running Insurgency server is terminated, it waits for
+20 seconds, then the new server instance is started.  This is your 'restart' loop.
 SISSM, therefore, needs to merely kill the existing game server instance to induce a "reboot".
 
-There are two methods SISSM uses to terminate the game server process - soft and hard.   In 'soft' kill,
-RCON command "quit" is sent to the game server, quick terminates the game server process.  In 'hard' kill,
-SISSM issues a command to the operatoring system (Linux or Windows) to kill the process.  
+There are two methods SISSM uses to terminate the game server process - soft and hard.   In the 
+'soft' kill method, RCON command "quit" is sent to the game server, shutting down the process.  
+In 'hard' kill option, SISSM issues a command to the operatoring system (Linux or Windows) to kill the process.  
 
 The 'soft' implementation is an easy one, and there is nothing extra to setup.  However, this is not a very 
-reliable way to force the game server to shut down, because if the game server is "hung" SISSM cannot
+reliable way to force the game server to shut down.  If the game server is "stuck", SISSM cannot
 communicate with the server to initiate the needed shutdown.
 
 The 'hard' kill approach is much better, but it requires the server operator to provide a script
@@ -49,6 +48,10 @@ If the same parameter has path to your script, then SISSM will call this wheneve
 is needed by one or more of the plugins.
 
 sissm.RestartScript  "/home/ins/scripts/restart1.sh"    // reboot script of your server
+
+The 'hard' kill option is not available if you are using the restricted version of SISSM.  This is to
+enhance cybersecurity for the Game Services Provider (GSP).
+
 
 -------------------
 Example Restart Loops

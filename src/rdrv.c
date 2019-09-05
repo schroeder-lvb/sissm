@@ -36,6 +36,27 @@
 #include "rdrv.h"
 #include "util.h"
 
+#if 1      // optimized
+#define RDRV_DELAY_PASSWORD         (1000000)     // delay between password send and response
+#define RDRV_DELAY_XMT2RCV          (  10000)     // delay between command transmit and receive
+#define RDRV_DELAY_RETRANSMIT        (500000)     // delay before re-transmit on no response
+#define RDRV_DELAY_CONN2XMT         ( 250000)     // delay between connect and first command out
+#define RDRV_DELAY_RETRY_DISC2CONN  (1000000)     // delay between retry disconnect & reconnect
+#define RDRV_DELAY_RETRY_CONN2XMT   (1000000)     // delay between retry reconnect and first send
+#define RDRV_DELAY_RCVPOLL20         (100000)     // receive polling interval per iteration (retried 5x)
+#endif
+
+#if 0       // stable but slow
+#define RDRV_DELAY_PASSWORD         (1000000)     // delay between password send and response
+#define RDRV_DELAY_XMT2RCV          (1000000)     // delay between command transmit and receive
+#define RDRV_DELAY_RETRANSMIT        (500000)     // delay before re-transmit on no response
+#define RDRV_DELAY_CONN2XMT         (1000000)     // delay between connect and first command out
+#define RDRV_DELAY_RETRY_DISC2CONN  (1000000)     // delay between retry disconnect & reconnect
+#define RDRV_DELAY_RETRY_CONN2XMT   (1000000)     // delay between retry reconnect and first send
+#define RDRV_DELAY_RCVPOLL20         (100000)     // receive polling interval per iteration (retried 10x)
+#endif
+
+
 //  ==============================================================================================
 //  SetSocketBlockingEnabled
 //
@@ -127,11 +148,15 @@ int rdrvReceive( rdrvObj *rPtr, char *bufin )
 {
     int n, i;
 
+    for ( i = 0; i<20; i++ ) {
 #ifdef _WIN32
-    n = recv( rPtr->sockfd, bufin, BUFSIZE_R, 0);
+        n = recv( rPtr->sockfd, bufin, BUFSIZE_R, 0);
 #else
-    n = read( rPtr->sockfd, bufin, BUFSIZE_R );
+        n = read( rPtr->sockfd, bufin, BUFSIZE_R );
 #endif
+        if ( n != -1 ) break;
+        usleep( RDRV_DELAY_RCVPOLL20 ); 
+   }
     if ( n != -1 ) {
 
 #if RDRV_DEBUGPRINT
@@ -228,7 +253,7 @@ int rdrvConnect( rdrvObj *rPtr )
     //
     if (0 == errCode ) {
         rdrvSend( rPtr, 3, rPtr->rconPassword );
-        usleep( 1000000 );
+        usleep( RDRV_DELAY_PASSWORD );
         rdrvReceive( rPtr, buf );
     }
 
@@ -306,10 +331,10 @@ int rdrvXmtRcv( rdrvObj *rPtr, int msgType, char *rconCmd, char *rconResp )
 
     while ( retryCount++ < 5 ) {
         if ( 0 == (errCode = rdrvSend( rPtr, msgType, rconCmd ))) {
-            usleep( 1000000 );
+            usleep( RDRV_DELAY_XMT2RCV );
             n = rdrvReceive( rPtr, rconResp );
             if ( n >= 0 ) break;
-            if ( n <  0 ) usleep( 500000 );
+            if ( n <  0 ) usleep( RDRV_DELAY_RETRANSMIT );
         }
     }
     if ( errCode || ( retryCount >= 5) ) n = -1;
@@ -341,12 +366,12 @@ static int _rdrvCommand( rdrvObj *rPtr, int msgType, char *rconCmd, char *rconRe
             // (re-)connect
             //
             rdrvConnect( rPtr );             // ignore the return error
-            usleep( 1000000 );
+            usleep( RDRV_DELAY_CONN2XMT );
         }
 
         if ( rPtr->isConnected ) {
             errCode = rdrvSend( rPtr, msgType, rconCmd );
-            usleep( 1000000 );
+            usleep( RDRV_DELAY_XMT2RCV );
             if ( 0 == errCode ) {
                 n = rdrvReceive( rPtr, rconResp );
                 if (n > 0)  {
@@ -363,9 +388,9 @@ static int _rdrvCommand( rdrvObj *rPtr, int msgType, char *rconCmd, char *rconRe
                 //
                 logPrintf( LOG_LEVEL_CRITICAL, "rdrv", "Warning: RCON comms lost - re-opening with new channel");
                 rdrvDisconnect( rPtr );  // ignore this error
-                usleep( 1000000 );
+                usleep( RDRV_DELAY_RETRY_DISC2CONN );
                 rdrvConnect( rPtr );     // ignore this error
-                usleep( 1000000 );
+                usleep( RDRV_DELAY_RETRY_CONN2XMT );
             }
         }
 
