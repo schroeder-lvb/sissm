@@ -1,4 +1,17 @@
 
+Alpha 25 (0.0.25) 20190908
+
+    Application changes:
+   
+    Fixed a bug in picladmin that was crashing SISSM if you were participating ISS 1.4 CTE.
+        Everyone must upgrade SISSM to the latest branch when official ISS 1.4 is released from NWI!
+    Added "!ml" or "!macroslist" command    
+    Added capability to announce connecting player as "admin" if enabled (pigreetings).
+
+    Example Config or Documentation Changes:
+
+    Added string variable: pigreetings.connnectedasadmin.
+
 Alpha 24 (0.0.24) 20190904
 
     Application changes:

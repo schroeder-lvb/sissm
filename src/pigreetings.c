@@ -61,6 +61,7 @@ static struct {
     char incognitoGUID[CFS_FETCH_MAX];
 
     char connected[CFS_FETCH_MAX];
+    char connectedAsAdmin[CFS_FETCH_MAX];
     char disconnected[CFS_FETCH_MAX];
 
 } pigreetingsConfig;
@@ -132,6 +133,7 @@ int pigreetingsInitConfig( void )
     // 
     strlcpy( pigreetingsConfig.connected, cfsFetchStr( cP, "pigreetings.connected", "connected" ), CFS_FETCH_MAX );
     strlcpy( pigreetingsConfig.disconnected, cfsFetchStr( cP, "pigreetings.disconnected", "disconnected" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.connectedAsAdmin, cfsFetchStr( cP, "pigreetings.connectedasadmin", "[admin] connected" ), CFS_FETCH_MAX );
 
     cfsDestroy( cP );
     return 0;
@@ -217,8 +219,14 @@ int pigreetingsClientSynthAddCB( char *strIn )
 
     rosterParsePlayerSynthConn( strIn, 256, playerName, playerGUID, playerIP );
     if (!_isIncognito( playerGUID )) {
-        if ( (apiTimeGet() - timeRestarted) > PIGREETINGS_RESTART_LOCKOUT_SEC )   // check if we are restarting
-            apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
+        if ( (apiTimeGet() - timeRestarted) > PIGREETINGS_RESTART_LOCKOUT_SEC ) {   // check if we are restarting
+       
+           if  ( apiIsAdmin( playerGUID ) && (0 != strlen( pigreetingsConfig.connectedAsAdmin)) ) 
+               apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connectedAsAdmin, apiPlayersGetCount() );
+           else
+               apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
+
+        }
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "Connected ::%s::%s::%s::", playerName, playerGUID, playerIP );
     }
     else {

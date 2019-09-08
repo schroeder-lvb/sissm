@@ -1,0 +1,41 @@
+SISSM Release Procedure 
+(Post-Testing Release Checklist)
+
+___ Remove all debug code, debug-markers from src/*
+___ Audit any embedded PIIs such as passwords
+___ Tag update with Version#/Date 
+___ Update Release Notes
+___ Example .CFG file update
+___ Example .CFG file update header w/ rev#
+___ Update Documentation if changes require it
+
+___ Linux version DOA Testing
+___ Build 2 Linux Versions for Quick Install:  Standard & Restricted
+___ Zip src/*, 2 binaries, example .CFG and upload to Windows test platform
+___ Turn-off SISSM_RESTRICTED flag in src/sissm.c
+
+___ Update the Windows sissm.cfg to reflect changes
+___ Windows version DOA Testing (cl *.c Ws2_32.lib /Fesissm.exe)
+___ Build 2 Windows Version for Quick Install:  Standard & Restricted
+
+___ Create Quick-Start package in Windows environment 
+    2 Windows binaries, 2 Linux binaries, Example sissm.txt, Example badwords.txt
+___ Post Quick-Start package to Cassandra
+
+___ Linux:  git status, verify no files added inadvertantly
+___ Linux:  Commit, Push -> Pull Request & Merge on Github
+
+    git branch              (display the branches)
+    git commit -a           (call it "v0.0.0 Alpha vs ISS vX.X CTE patch-1)
+    git push origin v0.0.0
+
+___ Announcement on Forums & Chats
+___ Create .zip archive for offline backup
+
+___ Cleanup local git copy and create a new branch for next time
+
+    git checkout master
+    git pull origin master
+    git branch -d v0.0.0     (old branch, -D to force)
+    git checkout -b v0.0.0      (create next branch)
+

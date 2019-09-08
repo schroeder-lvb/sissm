@@ -31,9 +31,9 @@ Examples:  !v sissm
 
 ========================
 
-help (h) [command]
+help (help) [command]
 Show list of available commands
-Examples:  !h list, !help banid
+Examples:  !help list, !help banid
 
 ========================
 
@@ -118,6 +118,12 @@ Example:  !gamemodeproperties minimumenemies 3, !gmp maximumenemies
 macro (m)
 Execute a macro of rcon command sequences specified in sissm.cfg file
 Example:  !m easymode, !macro ministry-pistolsonly
+
+========================
+
+macroslist(ml)
+Display a list of available macros configured by your administrator
+Example:  !ml, !macroslist
 
 
 

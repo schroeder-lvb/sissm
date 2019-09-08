@@ -69,7 +69,7 @@ static struct {
 //  Jump Pointer Data Structure
 //
 
-int _cmdHelp(), _cmdVersion(), _cmdMacros();
+int _cmdHelp(), _cmdVersion(), _cmdMacros(), _cmdMacrosList();
 int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
 int _cmdKillFeed(), _cmdFriendlyFire();
 int _cmdRestart(), _cmdEnd(), _cmdReboot();
@@ -86,13 +86,14 @@ struct {
 
 }  cmdTable[] =  {
 
-    { "h",      "help",    "help [command], help list",   _cmdHelp    },
+    { "help",   "help",          "help [command], help list",   _cmdHelp  },
     { "v",      "version",       "version [sissm]",        _cmdVersion },   
 
     { "bf",     "botfixed",      "botfixed [2-60]",        _cmdBotFixed },
     { "bs",     "botscaled",     "botscaled [2-60]",       _cmdBotScaled },
     { "bd",     "botdifficulty", "botdifficulty [0-10]",   _cmdBotDifficulty },
     { "m",      "macros",        "macros [alias]",         _cmdMacros },
+    { "ml",     "macroslist",    "macroslist",             _cmdMacrosList },
 
     { "kf",     "killfeed",      "killfeed on|off",        _cmdKillFeed },
     { "ff",     "friendlyfire",  "friendlyfire on|off",    _cmdFriendlyFire },
@@ -182,6 +183,31 @@ int _cmdMacros( char *arg, char *arg2, char *passThru )
     return 0;
 }
 
+// ===== "macroslist"
+//
+int _cmdMacrosList( char *arg, char *arg2, char *passThru ) 
+{
+    int i, errCode = 1;
+    char *w;
+    char listOut[ 1024 ];
+
+    strlcpy( listOut, "Macros: ", 1024 ); 
+
+    for (i = 0; i<NUM_MACROS; i++) {
+        if ( 0 != strlen( picladminConfig.macros[i] )) {
+            strlcat( listOut, getWord( picladminConfig.macros[i], 0, "::" ), 1024 );
+            strlcat( listOut, " ",                       1024 );
+            errCode = 0;
+        }
+    }
+    if ( errCode ) {
+        apiSay( "No Macros defined in config" );
+    }
+    else {
+        apiSay( listOut );
+    }
+    return 0;
+}
 
 // ===== "help [command]"
 //
@@ -628,7 +654,7 @@ int _commandExecute( char *cmdString, char *originID )
 
     // Handle special 'help' case for when no argument is specified
     // 
-    if ( 0 == strlen( arg1Out )) {
+    if ( (0 == strcmp("help", cmdOut)) && (0 == strlen( arg1Out )) ) {
         strlcpy( arg1Out, cmdOut, 256 );
         strlcpy( cmdOut, "help",  256 );
     } 
@@ -670,7 +696,7 @@ int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdSt
     int parseError = 1;
     char *t, *u, *v, *w, *s, *r;
 
-    t = u = v = w = s = NULL;
+    t = u = v = w = s = r = NULL;
     strcpy( clientGUID, "" );
     strcpy( cmdString, "" );
 
@@ -687,7 +713,7 @@ int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdSt
     if ( r != NULL ) r = &r[ strlen( cmdPrefix ) ];            // R points to command minus prefix
 
     if ( s != NULL ) strlcpy( clientGUID, s, 1+LOGSTEAMIDSIZE );            // extract Client GUID
-    if ( r != NULL ) strlcpy( cmdString, r, maxStringSize );         // extract Cmd without prefix
+    if ( r != NULL ) strlcpy( cmdString, r, maxStringSize );         // extract Cmd without prefix  
 
     if (( s != NULL ) && ( r != NULL )) { 
         if ( (w + strlen( cmdPrefix)) ==  r ) {              // make sure prefix is the first char
@@ -760,6 +786,5 @@ int picladminInstallPlugin( void )
     eventsRegister( SISSM_EV_CHAT,                 picladminChatCB );
     return 0;
 }
-
 
 
