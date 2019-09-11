@@ -19,7 +19,7 @@ ___ Windows version DOA Testing (cl *.c Ws2_32.lib /Fesissm.exe)
 ___ Build 2 Windows Version for Quick Install:  Standard & Restricted
 
 ___ Create Quick-Start package in Windows environment 
-    2 Windows binaries, 2 Linux binaries, Example sissm.txt, Example badwords.txt
+    2 Windows binaries, 2 Linux binaries, Example sissm.txt, Example badwords.txt, README
 ___ Post Quick-Start package to Cassandra
 
 ___ Linux:  git status, verify no files added inadvertantly

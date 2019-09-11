@@ -97,25 +97,25 @@ Examples:  !k ober, !kick robert
 
 ========================
 
-kickid (ki)
+kickid (ki) [SteamID64]
 Kick a player by SteamID64 
 Example:  !ki 76561123123123123, !kickid 76561123123123123
 
 ========================
 
-rcon (rcon)
+rcon (rcon) [valid rcon command string]
 Send a rcon message
 Example:  !rcon say hello
 
 ========================
 
-gamemodeproperties (gmp)
+gamemodeproperties (gmp) [property name {new_value}]
 Set or read gamemodeproperties (vars)
 Example:  !gamemodeproperties minimumenemies 3, !gmp maximumenemies
 
 ========================
 
-macro (m)
+macro (m) [macroname]
 Execute a macro of rcon command sequences specified in sissm.cfg file
 Example:  !m easymode, !macro ministry-pistolsonly
 
