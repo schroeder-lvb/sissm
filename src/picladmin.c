@@ -170,12 +170,15 @@ int _cmdMacros( char *arg, char *arg2, char *passThru )
     char statusIn[ 1024 ];
 
     for (i = 0; i<NUM_MACROS; i++) {
-        if ( 0 == strcmp( arg, getWord( picladminConfig.macros[i], 0, "::" ) )) {
-            while ( NULL != ( w = getWord( picladminConfig.macros[i], j++, "::" )) ) {
-                errCode = (0 == apiRcon( w, statusIn ));
-                if ( errCode ) break;
-            } 
-            break;
+        w = getWord( picladminConfig.macros[i], 0, "::");   // get the macro label
+        if ( w != NULL ) {                                  // skip blank entries (possible)
+            if ( 0 == strcmp( arg, w ) ) {                  // check if operator cmd match
+                while ( NULL != ( w = getWord( picladminConfig.macros[i], j++, "::" )) ) {
+                    errCode = (0 == apiRcon( w, statusIn ));
+                    if ( errCode ) break;
+                } 
+                break;
+            }
         }
     }
     _stddResp( errCode );   // ok or error message to game
@@ -194,7 +197,7 @@ int _cmdMacrosList( char *arg, char *arg2, char *passThru )
     strlcpy( listOut, "Macros: ", 1024 ); 
 
     for (i = 0; i<NUM_MACROS; i++) {
-        if ( 0 != strlen( picladminConfig.macros[i] )) {
+        if ( 0 != strlen( picladminConfig.macros[i] )) {    // skip blank entries (possible)
             strlcat( listOut, getWord( picladminConfig.macros[i], 0, "::" ), 1024 );
             strlcat( listOut, " ",                       1024 );
             errCode = 0;

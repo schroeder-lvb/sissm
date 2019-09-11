@@ -112,8 +112,8 @@ static void _pokeCvar( void )
         w2 = getWord( pioverrideConfig.cvar[i], 1, " " );
 
 	if (( w1 != NULL ) && ( w2 != NULL )) {
-            strlcpy( cvarStr, getWord( pioverrideConfig.cvar[i], 0, " " ), 256);
-            strlcpy( cvarVal, getWord( pioverrideConfig.cvar[i], 1, " " ), 256);
+            strlcpy( cvarStr, w1, 256);
+            strlcpy( cvarVal, w2, 256);
 
 	    if ( (0 != strlen(cvarStr)) && (0 != strlen(cvarVal)) ) {
                 apiGameModePropertySet( cvarStr, cvarVal );

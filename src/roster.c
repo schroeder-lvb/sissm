@@ -454,7 +454,7 @@ void rosterParsePlayerDisConn( char *connectString, int maxSize, char *playerNam
 {
     // Call this first THEN refresh the roster from RCON
     //
-    char *w;
+    char *w, *v;
 
     // parse the log string for disconnect - only has IP:port available
     // Example: [2019.07.26-01.47.06:457][106]LogNet: UChannel::Close: Sending CloseBunch. ChIndex == 0. 
@@ -465,7 +465,10 @@ void rosterParsePlayerDisConn( char *connectString, int maxSize, char *playerNam
     w = strstr( connectString, "RemoteAddr: " );
     if ( w != NULL ) {
         // extract player IP# (no port#)
-        strlcpy( playerIP, getWord( w, 1, " :," ), maxSize);
+        if ( NULL != ( v = getWord( w, 1, " :," ))) 
+            strlcpy( playerIP, v, maxSize);
+        else 
+            strlcpy( playerIP, "", maxSize );
 
         // Do a lookup of playerGUID and playerName
         strlcpy( playerName, rosterLookupNameFromIP( playerIP ), maxSize );

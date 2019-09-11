@@ -198,7 +198,8 @@ int pigreetingsClientSynthDelCB( char *strIn )
     logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynDel Client ::%s:: GUID ::%s:: IP ::%s::", playerName, playerGUID, playerIP );
     // 
     if (!_isIncognito( playerGUID )) {
-        apiSay( "%s %s [%d]", playerName, pigreetingsConfig.disconnected, apiPlayersGetCount() );
+        if ( 0 != strlen( pigreetingsConfig.disconnected ) ) 
+            apiSay( "%s %s [%d]", playerName, pigreetingsConfig.disconnected, apiPlayersGetCount() );
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "%s disconnected [%d]", playerName, apiPlayersGetCount() );
     }
 
@@ -223,7 +224,7 @@ int pigreetingsClientSynthAddCB( char *strIn )
        
            if  ( apiIsAdmin( playerGUID ) && (0 != strlen( pigreetingsConfig.connectedAsAdmin)) ) 
                apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connectedAsAdmin, apiPlayersGetCount() );
-           else
+           else if ( 0 != strlen( pigreetingsConfig.connected ))
                apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
 
         }
