@@ -216,7 +216,7 @@ int rosterCount( void )
 
     for (i=0; i<ROSTER_MAX; i++) {
         if ( strlen( masterRoster[i].netID ) ) {
-            if (( 0 != strcmp( masterRoster[i].steamID, "0")) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
+            if (( 0 != strcmp( masterRoster[i].steamID, "INVALID")) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
                 count++;
             }
         }
@@ -327,7 +327,7 @@ char *rosterPlayerList( int infoDepth, char *delimiter )
     strcpy( playerList, "" );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( strlen( masterRoster[i].netID ) ) {
-            if (( 0 != strcmp( masterRoster[i].steamID, "0")) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
+            if (( 0 != strcmp( masterRoster[i].steamID, "INVALID")) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
 		switch ( infoDepth ) {
 		case 1:   //  includes name + steamID for identifying names with alt-charsets, less privacy
                     snprintf( single, 256, "%s[%s]%s", masterRoster[i].playerName, masterRoster[i].steamID, delimiter );
@@ -502,7 +502,7 @@ void rosterParseMapname( char *mapLogString, int maxChars, char *mapName )
 //  poller.  In rare cases, events must be internally generated, hence the term
 //  synthetic event.  
 //
-//  This loop find a missing client data going from previous sample to the current, parse it, and 
+//  This loop finds missing client data going from previous sample to the current, parse it, and 
 //  invoke callback for each of the missing element.  Calling this routine in forward
 //  direction is 'disconnect'; calling it backwards finds 'new connections'
 //

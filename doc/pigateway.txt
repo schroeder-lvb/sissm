@@ -6,6 +6,12 @@ PIGATEWAY is a plugin that watches who connects to your server.  This plugin man
 Admin ports (reserved ports) so admins can join on a full server.  It is also capable of 
 auto-kicking profanity-named players upon attempted connection.
 
+PIGATEWAY relies on two files cotaining the list of SteamID64s: badnames.txt and admins.txt.
+The paths to these files are defined in sissm.cfg:
+
+
+
+
 =====================
 Enabling Admin Ports
 =====================
@@ -53,13 +59,26 @@ Adjust the numbers to meet your needs.
 Enabling Bad Name Kick
 =====================
 
-If you enable the badname kick option, SISSM looks up the new connecint player name
-and compares it against the 'profanity name' list.  Here are the 3 steps to make this work.
+If you enable the badname kick option, SISSM looks up the new connecting player name
+and compares it against the 'profanity name' list.  Players with profanity embedded
+in their name will be kicked by SISSM.
+
+Currently there is no plan to incorporate content filtering for in-game chat.  This is why:
+
+a.  The game itself is profanity laced by the manufacturer - in voice announcement 
+    as well as "tips" in opening page.  NWI seems to have future plans for profanity 
+    filter (unconfirmed).
+b.  Players naming themselves w/ profanity or vulgar sexual references are likely 
+    to exhibit problematic behavior to the community.
+c.  For tactical servers it is important to address players by posted name.  It is not
+    appropriate to call someone with profanity in name, or racist or sexual references.
+
+Here are the 3 steps to make the bad names filtering to work:
 
 1.  Create your own badwords.txt
 
 Create a file 'badwords.txt' somewhere on your drive that can be read by sissm at startup.
-The bad words should be entered one word per line, in lower case.  Comments are not 
+The bad words should be entered one word per line, in lower case.  Comments are NOT
 supported:
 
 -----------------
@@ -86,4 +105,13 @@ pigateway.enableBadNameFilter         1        // 1=enable kick on profanity nam
 This feature merely kicks bad-named players without specifying the reason.  This is done
 intentionally to discourage people from modiifying one or two letters in their name
 to circumvent the algorithm.
+
+4.  Restart SISSM.  
+
+You should see, in the first few lines of log, something like this::
+
+    2019-09-13 09:37:45::api::BadWords list 121 words from file /home/ins/scripts/badwords.txt
+
+If you see values like "0" or "-1", check your file path in sissm.cfg.
+
 

@@ -1,3 +1,19 @@
+
+Alpha 27 (0.0.27) 20190914
+
+    Application changes:
+
+    Fixed !kf command picladmin  
+    Fixed "!" prefix override to a custom string for picladmin command 
+    Exploratory fix of incorrect connect-disconnect greetings
+    Fixed picladmin chat intercept for both global & team chats (some admins were using team chats)
+
+    Example Config or Documentation Changes:
+
+    doc/issm_example.cfg: improved description in picladmin response string usage
+    doc/pigateway.txt: improved description of how to use bad words filter
+   
+
 Alpha 26 (0.0.26) 20190911
 
     Application changes:
