@@ -228,10 +228,10 @@ int pigreetingsClientSynthAddCB( char *strIn )
                apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
 
         }
-        logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "Connected ::%s::%s::%s::", playerName, playerGUID, playerIP );
+        logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynAdd Client ::%s::%s::%s::", playerName, playerGUID, playerIP );
     }
     else {
-        logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "Connected [incognito] ::%s::%s::%s::", playerName, playerGUID, playerIP );
+        logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynAdd Client [incognito] ::%s::%s::%s::", playerName, playerGUID, playerIP );
     }
     return 0;
 }

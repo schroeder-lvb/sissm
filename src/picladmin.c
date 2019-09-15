@@ -324,9 +324,9 @@ int _cmdKillFeed( char *arg, char *arg2, char *passThru  )
     int errCode = 0;
 
     if (0 == strcmp( "off", arg )) 
-        apiGameModePropertySet( "killfeed", "off" );
+        apiGameModePropertySet( "bKillFeed", "false" );
     else if (0 == strcmp( "on", arg )) 
-        apiGameModePropertySet( "killfeed", "on" );
+        apiGameModePropertySet( "bKillFeed", "true" );
     else 
         errCode = 1;
 
@@ -342,9 +342,9 @@ int _cmdFriendlyFire( char *arg, char *arg2, char *passThru )
     int errCode = 0;
 
     if (0 == strcmp( "off", arg )) 
-        apiGameModePropertySet( "friendlyfire", "off" );
+        apiGameModePropertySet( "bAllowFriendlyFire", "false" );
     else if (0 == strcmp( "on", arg )) 
-        apiGameModePropertySet( "friendlyfire", "on" );
+        apiGameModePropertySet( "bAllowFriendlyFire", "true" );
     else 
         errCode = 1;
 
@@ -686,19 +686,18 @@ int _commandExecute( char *cmdString, char *originID )
 //
 //  Parse the log line 'say' chat log into originator GUID and the said text string
 //  [2019.08.30-23.39.33:262][176]LogChat: Display: name(76561198000000001) Global Chat: !ver sissm
+//  [2019.09.15-03.44.03:500][993]LogChat: Display: name(76561190000000002) Team 0 Chat: !v
 //
 #define LOGCHATPREFIX  "LogChat: Display: "
-#define LOGCHATMIDDLE  "Global Chat: "
+#define LOGCHATMIDDLE  "Chat: "
 #define LOGSTEAMPREFIX "76561"
 #define LOGSTEAMIDSIZE  (17)
-
-char *cmdPrefix = "!";
 
 int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdString  )
 {
     int parseError = 1;
     char *t, *u, *v, *w, *s, *r;
-
+  
     t = u = v = w = s = r = NULL;
     strcpy( clientGUID, "" );
     strcpy( cmdString, "" );
@@ -708,18 +707,18 @@ int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdSt
     //   
     t = strstr( strIn, LOGCHATPREFIX );                         // T points to "LogChat: Display:"
     if ( t != NULL ) u = &t[ strlen( LOGCHATPREFIX ) ];          // U point to start of admin name
-    if ( u != NULL ) v = strstr( u, LOGCHATMIDDLE );        // Vnow points start of "Global Chat:"
+    if ( u != NULL ) v = strstr( u, LOGCHATMIDDLE );             // V now points start of "Chat: "
     if ( v != NULL ) w = &v[ strlen( LOGCHATMIDDLE ) ];            // W points to start of command
     if ( u != NULL ) s = strstr( u, LOGSTEAMPREFIX );              // S points to start of 7656...
 
-    if ( w != NULL ) r = strstr( w, cmdPrefix );                      
-    if ( r != NULL ) r = &r[ strlen( cmdPrefix ) ];            // R points to command minus prefix
+    if ( w != NULL ) r = strstr( w, picladminConfig.cmdPrefix );                      
+    if ( r != NULL ) r = &r[ strlen( picladminConfig.cmdPrefix ) ];   // R to command minus prefix
 
     if ( s != NULL ) strlcpy( clientGUID, s, 1+LOGSTEAMIDSIZE );            // extract Client GUID
     if ( r != NULL ) strlcpy( cmdString, r, maxStringSize );         // extract Cmd without prefix  
 
     if (( s != NULL ) && ( r != NULL )) { 
-        if ( (w + strlen( cmdPrefix)) ==  r ) {              // make sure prefix is the first char
+        if ( (w + strlen( picladminConfig.cmdPrefix)) ==  r ) {     // verify prefix is first char
             parseError = 0; 
             strTrimInPlace( cmdString );
         }

@@ -23,11 +23,13 @@ ___ Create Quick-Start package in Windows environment
 ___ Post Quick-Start package to Cassandra
 
 ___ Linux:  git status, verify no files added inadvertantly
-___ Linux:  Commit, Push -> Pull Request & Merge on Github
+___ Linux:  Commit, Push 
 
     git branch              (display the branches)
     git commit -a           (call it "v0.0.0 Alpha vs ISS vX.X CTE patch-1)
     git push origin v0.0.0
+
+___ Web:  Pull Request & Merge on Github
 
 ___ Announcement on Forums & Chats
 ___ Create .zip archive for offline backup
