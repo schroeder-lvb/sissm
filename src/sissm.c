@@ -17,9 +17,9 @@
 #define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.0.27 Alpha 20190914b - Test & Eval Only [Restricted Edition]"
+#define VERSION    "SISSM v0.0.28 Alpha 20190916 - Test & Eval Only [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.0.27 Alpha 20190914b - Test & Eval Only"
+#define VERSION    "SISSM v0.0.28 Alpha 20190916 - Test & Eval Only"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"

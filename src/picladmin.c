@@ -102,7 +102,7 @@ struct {
     { "rcon",  "rcon",           "rcon [passthru]",        _cmdRcon },
 
     { "rr",     "roundrestart",  "roundrestart [now]",     _cmdRestart },
-//    { "re",     "roundend",      "roundend [now]",         _cmdEnd },
+//  { "re",     "roundend",      "roundend [now]",         _cmdEnd },
     { "reboot", "reboot",        "reboot [now]",           _cmdReboot },
 
     { "b",      "ban",           "ban [partial name]",     _cmdBan },

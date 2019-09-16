@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "bsd.h"
 #include "log.h"
@@ -29,6 +30,32 @@
 
 static rconRoster_t masterRoster[ROSTER_MAX];
 static char rosterServerName[256], rosterMapName[256];
+
+
+
+//  ==============================================================================================
+//  rosterIsValidGUID
+//
+//  Returns non-zero if string is a valid 17-character SteamGUID
+//
+int rosterIsValidGUID( char *testGUID )
+{
+    int i, isValid = 1;
+
+    if (17 != strlen( testGUID )) {
+        isValid = 0;
+    }
+    else {
+        for (i=0; i<17; i++) {
+            if ( !isdigit( testGUID[i] )) {
+                isValid = 0;
+                break;
+            }
+        }
+    }
+    return( isValid );
+}
+
 
 //  ==============================================================================================
 //  rosterSetMapName
@@ -85,10 +112,12 @@ static int _copy3( char *dst, char *src, int maxChars )
 
     if ((src != NULL) && (dst != NULL)) {
         validFlag = 1;
-        if (0 == strncmp( src, " | ", 3)) 
-            strlcpy( dst, &src[3], maxChars );
-        else
-            strlcpy( dst, src, maxChars );  
+        if      (0 == strncmp( src, " | ", 3)) strlcpy( dst, &src[3], maxChars );
+#if 1
+        else if (0 == strncmp( src, "| ",  2)) strlcpy( dst, &src[2], maxChars );
+        else if (0 == strncmp( src, " |",  2)) strlcpy( dst, &src[2], maxChars );
+#endif
+        else                                   strlcpy( dst,  src,    maxChars );  
     }
     return( validFlag );
 }
@@ -179,13 +208,27 @@ int rosterParse( unsigned char *buf, int n )
 
         if ( NULL != atLeastOne ) {
             while ( 1 == 1 ) {
+
+                // parse through data fields that are tab-delimited
+                // _copy3 routine eliminates some field artifacts and checks if getWord return a NULL.
+                //
                 if (validFlag) validFlag = _copy3( masterRoster[j].netID,      getWord( recdStr, i++, "\011"), ROSTER_FIELD_MAX); 
                 if (validFlag) validFlag = _copy3( masterRoster[j].playerName, getWord( recdStr, i++, "\011"), ROSTER_FIELD_MAX); 
                 if (validFlag) validFlag = _copy3( masterRoster[j].steamID,    getWord( recdStr, i++, "\011"), ROSTER_FIELD_MAX); 
                 if (validFlag) validFlag = _copy3( masterRoster[j].IPaddress,  getWord( recdStr, i++, "\011"), ROSTER_FIELD_MAX); 
                 if (validFlag) validFlag = _copy3( masterRoster[j].score,      getWord( recdStr, i++, "\011"), ROSTER_FIELD_MAX); 
+
+                // getWord returning a NULL indicates end of buffer, resulting in validFlag being cleared.. Exit the loop.
+                //
                 if (!validFlag) break;
-                if ( ++j >= ROSTER_MAX) break;
+
+                // This block was added as safety in case the data is corrupted.  
+                // It has strict checking for valid Steam GUID before the data is saved.
+                //
+                if ( rosterIsValidGUID( masterRoster[j].steamID )) {   // safety stop
+                    if ( (++j) >= ROSTER_MAX) break;
+                }
+
             }
         }
         else {
@@ -216,7 +259,7 @@ int rosterCount( void )
 
     for (i=0; i<ROSTER_MAX; i++) {
         if ( strlen( masterRoster[i].netID ) ) {
-            if (( 0 != strcmp( masterRoster[i].steamID, "INVALID")) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
+            if (( rosterIsValidGUID(  masterRoster[i].steamID)) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
                 count++;
             }
         }
@@ -310,6 +353,8 @@ char *rosterLookupIPFromName( char *playerName )
     return( playerIP );
 }
 
+
+
 //  ==============================================================================================
 //  rosterPlayerList
 //
@@ -327,7 +372,7 @@ char *rosterPlayerList( int infoDepth, char *delimiter )
     strcpy( playerList, "" );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( strlen( masterRoster[i].netID ) ) {
-            if (( 0 != strcmp( masterRoster[i].steamID, "INVALID")) && ( 0 != strlen( masterRoster[i].IPaddress )) )  { 
+            if ( ( rosterIsValidGUID( masterRoster[i].steamID )) && ( 0 != strlen( masterRoster[i].IPaddress )) )  {   
 		switch ( infoDepth ) {
 		case 1:   //  includes name + steamID for identifying names with alt-charsets, less privacy
                     snprintf( single, 256, "%s[%s]%s", masterRoster[i].playerName, masterRoster[i].steamID, delimiter );
@@ -536,5 +581,79 @@ int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callba
     }
     return 0;
 }
+
+
+
+//  ==============================================================================================
+//  _rosterTest
+//
+//  Test/dev method that reads captured raw RCON data dump into 'buf' then parse.
+//  This routine is not called in operational program.
+//
+
+#if 0
+
+static int _rosterReadTest( char *binaryDumpFile, unsigned char *buf )
+{
+    int i, n;
+    FILE *fpr;
+    char *p;
+
+    fpr = fopen( binaryDumpFile, "rb" );
+    if ( fpr == NULL ) {
+        printf("\nOpen error\n");
+        abort();
+    }
+    n = fread( buf, 1, 8*4096, fpr );
+    printf("\nN = %d\n", n);
+    if (  p == NULL) printf("\nRead error\n");
+    fclose( fpr );
+
+    i = 0;
+    while (1)  {
+        printf("%c", buf[i++]);
+        // if (buf[i] == 0) break;
+        if (i == n) break;
+    }
+    printf("\n\n----------------------\n\n");
+    return( n );
+}
+
+
+int main()
+{
+    unsigned char buf[4*4096];  
+    int n;
+
+    // 275::Name::76560000000000001::111.22.33.44::470
+
+    rosterInit();
+    rosterReset();
+    n = _rosterReadTest( "dump.bin", buf );
+    _tabDumpDebug( buf, n );
+
+    printf("\n----------------\n");
+
+    rosterParse( buf, n );
+
+    rosterDump( 0, 0 );
+
+    printf("\n----------------\n");
+
+    printf("\nCount %d\n", rosterCount());
+
+    printf( "%s::%s::%s\n", 
+        rosterLookupNameFromIP( "100.36.84.54" ),
+        rosterLookupSteamIDFromName( "TestFlight" ),
+        rosterLookupIPFromName( "TestFlight" )
+    );
+
+    printf("Roster ::%s::\n", rosterPlayerList(2, " : "));
+
+    // rosterWeb();
+}
+
+#endif
+
 
 
