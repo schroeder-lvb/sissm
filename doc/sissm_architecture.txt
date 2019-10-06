@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 SISSM Architecture
-J.S Schroeder - last updated 2019.09.03
+J.S Schroeder - last updated 2019.10.05
 
 =======================================
 SISSM Architecture
@@ -47,27 +47,22 @@ SISSM Topology
       =============           =============               |
      |             |         |             |              |    piwebgen.c
      |   ftrack.c  |         |  events.c   |              |
-     |             |         |             |<-----------> |    picladmin.c
-     |             |<------->|             |              |
-     |   rdrv.c    |         |  alarm.c    |              |    pit001.c (template)
-     |             |         |             |              |
-      ============           |             |              |
-       (I/O layer)           |  cfs.c      |
-                             |             |
-                             |             |
+     |             |<------->|             |<-----------> |    picladmin.c
+     |   rdrv.c    |         |  alarm.c    |              |    
+     |             |         |             |              |    pit001.c (template)
+      ============           |  cfs.c      |              |
+       (I/O layer)           |             |
                              |  util.c     |
-                             |             | 
-                             |             | 
+                             |             |
                              |  log.c      | 
-                             |             | 
                              |             | 
                              |  bsd.c      | 
                              |             | 
-                             |             | 
                              |  winport.c  | 
                              |             | 
+                             |  p2p.c      | 
+                             |             | 
                               =============
-
 
 
 =======================================
@@ -89,6 +84,7 @@ util.c          Generic tools subroutines
 bsd.c           BSD-compatible methods
 winport.c       Windows-compatible methods
 log.c           Generic file logger with adjustible severity level
+p2p.c           Plugin-to-Plugin communication/data exchanger
 
 pigreetings.c   Player connection/disconnection in-game notifications
 pigateway.c     Reserved slots control & bad-name player auto-kick
@@ -99,6 +95,4 @@ pioverride.c    Gameproperty Ruleset overrider e.g., controlling bot count for F
 piwebgen.c      Generates server status html file - periodic and/or change event driven
 picladmin.c     Admin command-line interface from in-game chat-box
 pit001.c        FUnctional example template for plugin developers
-
-
 

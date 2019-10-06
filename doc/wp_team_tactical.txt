@@ -1,0 +1,17 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Elements of Style: Team-Tactical Servers
+JS Scheorder - last revised:  2019.10.05
+=====================
+
+Playing on a team-tactical immersive server means: "You care about your teammates more than the objectives." This is the opposite of "play the objective" mantra practiced on the matchmaking servers. Here, think "Special Operations Squad" instead of "8 John Wicks". Tactical servers emphasize 1) communications, 2) methodical combat stealth movements , and 3) team synchronization. First two are self-explanatory.
+
+Team Synchronize means you wait for all teammates. This applies especially when 1) entering a territorial capture zone, and 2) destroying an enemy weapons cache. You wait because your team may be engaged in any of the following activities: a) returning to the previous cache for heal & supply, b) in an active firefight and near death (dying immediately after your premature cache destruction denies them respawn for the following segment), c) Commander planning a support call 20 seconds prior to objective capture, d) Sniper in transit to an overwatch position, e) Demolition setting up C4s on the road for the enemy/truck, and f) your team positioning to cover all chokepoints, de-conflicting angles for friendly line-of-fire.
+
+All this activity is quite common in tactical servers.
+
+It is quite easy to play on team-tactical servers as long as you exercise a little restraint, and communicate your intentions and give others the chance to yell "Wait!" You don't need to use VoIP as long as you can type into the text chat.
+
+* Before entering the territorial objective zone: "Breaching in 10 seconds -- any objections say so now! "
+* Before exploding the weapons cache: "Exploding cache in 10 seconds -- any objections say so now!"
+
+Tactical Servers are very special in that you quickly establish camaraderie with those you play. This is because you learn to trust and respect each other, covering each other while still performing your individual role responsibilities. We hope you find this more rewarding and intellectually stimulating than the arcade-style run-and-gun gaming. 

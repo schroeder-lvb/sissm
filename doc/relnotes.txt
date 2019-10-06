@@ -1,3 +1,34 @@
+
+Beta 01 (0.1.0) 20191006
+
+    Major: Restructured for the new "auth" module that allows  multiple operator-defined priv groups 
+    Documentation: doc/sissmquickstart.txt has been updated due to the new AUTH module (easier for initial runs)
+    Documantation: doc/sissm_auth.txt added, describing the new AUTH system
+    Picladmin commmand name change: !m to !x (!macros to !execute) -- let your admins know!
+    Added "ads" timer-based in-game messaging with operator settable text and timing (frequency), max 10 texts
+    Added command "spam on|off" to enable/disable displaying of greetings, connections, rules and ads
+    Expand macros table to max 64 entries (formerly 10)
+    Added command "!info" to display current bot count/difficulty settings
+    Added optional operator-defined win/defeat messages to be shown at end of each round
+    pirebooter - add "hung server" detect to auto-reboot "95% stuck" conditions with ghost (non-existent) players in roster
+    Added command "!allowin" to temporarly open pigateway to let specified (or *) players join on full server
+    Modified pisoloplayers to allow setting # of player threshold for disabling CounterAttack (formerly hard-coded to  "1")
+    Added option to suppress player "Disconnected" message for n seconds after round/game end
+    Added command "!fast on|off" to enable/disable piantirush capture-timer-throttling interactively
+    Developers: add apiSay string limit clipping, add p2p plugin-to-plugin data exchange module, add auth system, add more EHs
+
+    Removed from sissm.cfg (deprecated):
+        sissm.adminListFilePath:  Replaced by new AUTH module
+
+    Added to sissm.cfg (see sissm_example.cfg)
+        sissm.rootname sissm.rootguids 
+        sissm.everyoneattr sissm.everyonecmds
+        sissm.groupname[0-5] sissm.groupattr[0-5] sissm.groupcmds[0-5] sissm.groupguid[0-5] 
+        pirebooter.rebootHungSec   
+        pisoloplayer.soloPlayerThreshold
+        pigreetings.showAds pigreetings.adsDelay pigreetings.adsInterval pigreetings.serverads[0-9]
+        pigateway.allowInWindowTimeSec 
+
 Alpha 28 (0.0.28) 20190915
 
     Application changes:

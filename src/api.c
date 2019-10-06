@@ -42,9 +42,13 @@
 #include "roster.h"
 
 #include "api.h"
+#include "p2p.h"
+
+#define API_MAX_GROUPS                  ( 6 )                    // max number of privilege groups 
 
 #define API_R_BUFSIZE                (4*1024)
 #define API_T_BUFSIZE                (4*1024)
+#define API_MAXSAY                      (256)       // Maximum string that can be printed by "say"
 
 #define API_LOG2RCON_DELAY_MICROSEC  (250000)          // system delay between log to rcon (tuned) 
 #define API_LISTPLAYERS_PERIOD           (10)     // #seconds periodic for listserver roster fetch
@@ -70,11 +74,24 @@ static long lastRosterSuccessTime = 0L;            // marks last time listplayer
 //  Table of admins list - can be used by any plugins to identify if 
 //  a transction is originated from an admin.  See: apiIdListCheck().
 //
-static idList_t adminIdList;                                                       // Admins list 
-static char adminListFilePath[ API_LINE_STRING_MAX ];             // full file path to admins.txt
+char rootguids[ API_LINE_STRING_MAX ];                     // separate list for root owner GUIDs
+char rootname[ API_LINE_STRING_MAX ];                               // name of root group 'root'
+char everyoneCmds[ API_LINE_STRING_MAX ];             // list of commands enabled for 'everyone'
+char everyoneAttr[ API_LINE_STRING_MAX ];           // list of attributes enabled for 'everyone'
+
+struct {
+    char groupname[ API_LINE_STRING_MAX ];           // name of the group e.g., "sradmin, admin"
+    char groupcmds[ API_LINE_STRING_MAX ];         // allowed commands e.g., "rcon help version"
+    char groupattr[ API_LINE_STRING_MAX ];                        // privileges e.g.,  "priport"
+    char groupguid[ API_LINE_STRING_MAX ];            // filepath of GUIDs "/home/my/admins.txt"
+    idList_t groupIdList;                                                         // Admins list 
+} groups[ API_MAX_GROUPS ];
+
+// static idList_t adminIdList;                                                  // Admins list 
+// static char adminListFilePath[ API_LINE_STRING_MAX ];        // full file path to admins.txt
 
 static wordList_t badWordsList;                                               // Bad words list
-static char badWordsFilePath[ API_LINE_STRING_MAX ];             // full file path to admins.txt
+static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file path to admins.txt
 
 
 //  ==============================================================================================
@@ -144,7 +161,7 @@ int apiWordListCheck( char *stringTested, wordList_t wordList )
 //
 int apiIdListRead( char *listFile, idList_t idList )
 {
-    int i;
+    int  i;
     char tmpLine[1024], *w;
     FILE *fpr;
 
@@ -202,18 +219,6 @@ int apiIdListCheck( char *connectID, idList_t idList )
     }
     return( isMatch );
 }
-
-//  ==============================================================================================
-//  apiIsAdmin
-//
-//  Returns 1 if the GUID is an admin, 0 if not 
-//  
-//  
-int apiIsAdmin( char *connectID )
-{
-    return( apiIdListCheck( connectID, adminIdList ) );
-}
-
 
 
 //  ==============================================================================================
@@ -361,6 +366,19 @@ int _apiMapChangeCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  _apiTravelCB
+//
+//  Call-back function dispatched when the game system log file indicates a travel.
+//  Simply update the name which can be read back from Plugins via the API at later time.
+//
+int _apiTravelCB( char *strIn )
+{
+    rosterSetTravel( strIn );
+    return 0;
+}
+
+
 
 //  ==============================================================================================
 //  apiInit
@@ -371,8 +389,9 @@ int _apiMapChangeCB( char *strIn )
 int apiInit( void )
 {
     cfsPtr cP;
+    char varImg[256];
     char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
-    int    myPort, adminCount, badWordsCount;
+    int    count, i, myPort, adminCount, badWordsCount;
     char   serverName[API_LINE_STRING_MAX], webFileName[API_LINE_STRING_MAX];
 
     // Read the "sissm" systems configuration variables
@@ -382,7 +401,7 @@ int apiInit( void )
     myPort = (int) cfsFetchNum( cP, "sissm.RconPort", 27015 );            
     strlcpy( myIP, cfsFetchStr( cP, "sissm.RconIP", "127.0.0.1"), API_LINE_STRING_MAX );
     strlcpy( myRconPassword, cfsFetchStr( cP, "sissm.RconPassword", ""), API_LINE_STRING_MAX );
-    strlcpy( adminListFilePath, cfsFetchStr( cP, "sissm.adminListFilePath", "Admins.txt"), API_LINE_STRING_MAX );
+    // strlcpy( adminListFilePath, cfsFetchStr( cP, "sissm.adminListFilePath", "Admins.txt"), API_LINE_STRING_MAX );
 
     strlcpy( serverName, cfsFetchStr( cP, "sissm.ServerName", "Unknown Server" ), API_LINE_STRING_MAX );
 
@@ -390,6 +409,31 @@ int apiInit( void )
     //
     strlcpy( badWordsFilePath, cfsFetchStr( cP, "sissm.badWordsFilePath", "" ), CFS_FETCH_MAX );
 
+    // read the AUTH related permission block
+    //
+    strlcpy( rootguids, cfsFetchStr( cP, "sissm.rootguids", ""), API_LINE_STRING_MAX );
+    strlcpy( rootname,  cfsFetchStr( cP, "sissm.rootname",  ""), API_LINE_STRING_MAX );
+    strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonecmds", "" ), API_LINE_STRING_MAX );
+    strlcpy( everyoneAttr, cfsFetchStr( cP, "sissm.everyoneattr", "" ), API_LINE_STRING_MAX );
+
+    for (i=0; i<API_MAX_GROUPS; i++) {
+        snprintf( varImg, 256, "sissm.groupname[%d]", i);
+            strlcpy( groups[i].groupname, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+        snprintf( varImg, 256, "sissm.groupcmds[%d]", i);
+            strlcpy( groups[i].groupcmds, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+        snprintf( varImg, 256, "sissm.groupattr[%d]", i);
+            strlcpy( groups[i].groupattr, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+        snprintf( varImg, 256, "sissm.groupguid[%d]", i);
+            strlcpy( groups[i].groupguid, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+
+        if (( 0 != strlen( groups[i].groupguid ) ) && ( 0 != strlen( groups[i].groupname ) )) {
+            count = apiIdListRead( groups[i].groupguid, groups[i].groupIdList );
+            logPrintf(LOG_LEVEL_INFO, "api", "Read Group List ::%s:: count %d", groups[i].groupname, count );
+        }
+    }
+
+    //  Close the configuration file reader
+    //
     cfsDestroy( cP );
 
     // Set map to unknown
@@ -405,6 +449,7 @@ int apiInit( void )
     eventsRegister( SISSM_EV_CLIENT_ADD, _apiPlayerConnectedCB );
     eventsRegister( SISSM_EV_CLIENT_DEL, _apiPlayerDisconnectedCB );
     eventsRegister( SISSM_EV_MAPCHANGE,  _apiMapChangeCB );
+    eventsRegister( SISSM_EV_TRAVEL,     _apiTravelCB );
 
     // Setup Alarm (periodic callbacks) for fetching roster from RCON
     // 
@@ -420,8 +465,8 @@ int apiInit( void )
 
     // Read the admin list
     //
-    adminCount = apiIdListRead( adminListFilePath, adminIdList );
-    logPrintf( LOG_LEVEL_CRITICAL, "api", "Admin list %d clients from file %s", adminCount, adminListFilePath );
+    // adminCount = apiIdListRead( adminListFilePath, adminIdList );
+    // logPrintf( LOG_LEVEL_CRITICAL, "api", "Admin list %d clients from file %s", adminCount, adminListFilePath );
 
     // Read the Bad Words list
     //
@@ -535,13 +580,39 @@ int apiSay( const char * format, ... )
     int bytesRead;
 
     va_list args;
-    va_start( args, format );
-    vsnprintf( buffer, API_T_BUFSIZE, format, args );
+    va_start( args, format ); 
+    vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
 
     snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
-    if ( 0 != strlen( buffer ) )   // say only when something to be said
-        rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+    if ( 0 != strlen( buffer ) )  {  // say only when something to be said
+        if ( 0 == (int) p2pGetF("api.p2p.sayDisable", 0.0 ) ) {
+            rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+        }
+    }
+    va_end (args);
+    return 0;
+}
 
+//  ==============================================================================================
+//  apiSaySys
+//
+//  Same as apiSay, except this routine is called to carry system critical information
+//  that cannot be masked by api.p2p.sayDisable.
+//
+int apiSaySys( const char * format, ... )
+{
+    static char buffer[API_T_BUFSIZE];
+    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
+    int bytesRead;
+
+    va_list args;
+    va_start( args, format ); 
+    vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
+
+    snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
+    if ( 0 != strlen( buffer ) )  {  // say only when something to be said
+        rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+    }
     va_end (args);
     return 0;
 }
@@ -635,5 +706,130 @@ char *apiGetMapName( void )
     return ( rosterGetMapName() );
 }
 
+
+//  ==============================================================================================
+//  (internal) _apiAuthCheck
+//
+//  
+//  
+//
+static int _apiAuthCheck( char *playerGUID, char *item, char *itemList, idList_t listOfGUID )
+{
+    int isAuthorized = 0;
+
+    // check first if 'item' is in 'itemList'
+    //
+    if ( NULL !=  strstr( itemList, item ) ) {
+        // check if 'playerGUID' is in 'listOfGUID' 
+        //
+        isAuthorized = apiIdListCheck( playerGUID, listOfGUID );
+    }
+    return isAuthorized;
+}
+
+//  ==============================================================================================
+//  apiAuthIsAllowedCommand
+//
+//  Checks privilegte if command (e.g., picladmin) can be executed by an admin via the guid.
+//
+//
+int apiAuthIsAllowedCommand( char *playerGUID, char *command )
+{
+    int i, isAuthorized = 0;
+
+    // check if playerGUID is 'root'
+    //
+    if ( NULL != strstr( rootguids, playerGUID )) {
+        isAuthorized = 1;
+    }
+
+    // check if command is for 'everyone'
+    //
+    else if ( NULL != strstr( everyoneCmds, command ))  {
+        isAuthorized = 1;
+    }
+
+    // check the priv tables to see if guid-command pair is authorized
+    //
+    else {
+        for (i=0; i<API_MAX_GROUPS; i++) {
+            if ( NULL != strstr( groups[i].groupcmds, command )) {
+                if ( apiIdListCheck( playerGUID, groups[i].groupIdList ) ) {
+                    isAuthorized = 1;
+                    break;
+                }
+            }
+        }
+    }
+    return( isAuthorized );
+}
+
+
+//  ==============================================================================================
+//  apiAuthIsAttribute
+//
+//  Checks if specific privilegte is granted to an admin via the guid.
+//
+int apiAuthIsAttribute( char *playerGUID, char *attribute )
+{
+    int i, isAuthorized = 0;
+
+    // check if playerGUID is 'root'
+    //
+    if ( NULL != strstr( rootguids, playerGUID )) {
+        isAuthorized = 1;
+    }
+    else {
+        for (i=0; i<API_MAX_GROUPS; i++) {
+            if ( NULL != strstr( groups[i].groupattr, attribute)) {
+                if ( apiIdListCheck( playerGUID, groups[i].groupIdList ) ) {
+                    isAuthorized = 1;
+                    break;
+                }
+            }
+        }
+    }
+    return( isAuthorized );
+}
+
+
+//  ==============================================================================================
+//  apiAuthGetRank
+//
+//  Checks if specific privilegte is granted to an admin via the guid.
+//
+char *apiAuthGetRank( char *playerGUID )
+{
+    static char rank[ 256 ];
+    int i, isAuthorized = 0;
+
+    // check if playerGUID is 'root'
+    //
+    strcpy( rank, "" );
+    if ( NULL != strstr( rootguids, playerGUID )) {
+        strlcpy( rank, rootname, 256 );
+    }
+    else {
+        for (i=0; i<API_MAX_GROUPS; i++) {
+            if ( apiIdListCheck( playerGUID, groups[i].groupIdList ) ) {
+                strlcpy( rank, groups[i].groupname, 256 );
+                break;
+            }
+        }
+    }
+    return( rank );
+}
+
+
+//  ==============================================================================================
+//  apiIsAdmin
+//
+//  Returns 1 if the GUID is in a group with 'admin' attribute, 0 if not 
+//  
+//  
+int apiIsAdmin( char *connectID )
+{
+    return ( apiAuthIsAttribute( connectID, "admin" ));
+}
 
 

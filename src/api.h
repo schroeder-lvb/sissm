@@ -20,6 +20,7 @@ extern int   apiServerRestart( void );
 extern int   apiGameModePropertySet( char *gameModeProperty, char *value );
 extern char *apiGameModePropertyGet( char *gameModeProperty );
 extern int   apiSay( const char * format, ... );
+extern int   apiSaySys( const char * format, ... );
 extern int   apiKickOrBan( int isBan, char *playerGUID, char *reason );
 extern int   apiRcon( char *commandOut, char *statusIn );
 extern int   apiPlayersGetCount( void );
@@ -43,7 +44,12 @@ extern int   apiBadNameCheck( char *nameIn );
 typedef char idList_t[IDLISTMAXELEM][IDLISTMAXSTRSZ];
 extern int   apiIdListRead( char *listFile, idList_t idList );
 extern int   apiIdListCheck( char *connectID, idList_t idList );
+
 extern int   apiIsAdmin( char *connectID );
+extern int   apiAuthIsAllowedCommand( char *playerGUID, char *command );
+extern int   apiAuthIsAttribute( char *playerGUID, char *attriute );
+extern char *apiAuthGetRank( char *playerGUID );
+
 
 typedef char wordList_t[WORDLISTMAXELEM][WORDLISTMAXSTRSZ];
 extern int apiWordListRead( char *listFile, wordList_t wordList );

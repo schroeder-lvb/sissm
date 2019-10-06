@@ -36,6 +36,7 @@
 
 #include "roster.h"
 #include "api.h"
+#include "p2p.h"
 #include "sissm.h"
 
 #include "piantirush.h"
@@ -87,6 +88,10 @@ static void _captureSpeed( int isSlow )
     if ( apiPlayersGetCount() <=  piantirushConfig.nPlayerExemption )
         isSlowCopy = 0;
 
+    if ( 0 != (int) p2pGetF( "piantirush.p2p.fast", 0.0 ) ) {
+        isSlowCopy = 0;
+    }
+
     if (lastState != isSlowCopy) {
         switch ( isSlowCopy ) {
 	case 1:    // slow rate when moderate number of people are in game
@@ -106,7 +111,7 @@ static void _captureSpeed( int isSlow )
         default:    // normal case: expected value '0' 
             apiGameModePropertySet( "ObjectiveCaptureTime", piantirushConfig.fastObjectiveCaptureTime );
             apiGameModePropertySet( "ObjectiveSpeedup"    , piantirushConfig.fastObjectiveSpeedup );
-            apiSay( piantirushConfig.fastPrompt );
+            if ( lastState != 0 ) apiSay( piantirushConfig.fastPrompt );
             logPrintf(LOG_LEVEL_INFO, "piantirush", "**Set Capture Time to NORMAL");
             lastState = 0;
             break;
@@ -210,12 +215,12 @@ void _startOfEverything( void )
     currentPlayerCount = apiPlayersGetCount();
     if (currentPlayerCount >= piantirushConfig.nPlayerLockThreshold ) {
         alarmReset( aPtr, piantirushConfig.lockIntervalSec );
-        logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start LOCK alarm set %d", piantirushConfig.lockIntervalSec);
+        // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start LOCK alarm set %d", piantirushConfig.lockIntervalSec);
         _captureSpeed( 2 );
     }
     else  {
         alarmReset( aPtr, piantirushConfig.slowIntervalSec );
-        logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start SLOW alarm set %d", piantirushConfig.lockIntervalSec);
+        // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start SLOW alarm set %d", piantirushConfig.lockIntervalSec);
         _captureSpeed( 1 );
     }
     return;
@@ -343,13 +348,28 @@ int piantirushCapturedCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushPeriodicCB
 //
-//  ...
-//  ...
+//  1.0 Hz periodic handler 
+//  Look for change in admin command that changes piantirush.p2p.fast
 //
 int piantirushPeriodicCB( char *strIn )
 {
+    static int lastFastState = -1;
+    int currFastState;
+
+    currFastState = (int) p2pGetF( "piantirush.p2p.fast", 0.0 ) ;
+ 
+    // if last state is "slow" (default) and admin wishes to run "fast"
+    // (antirush-disable), then immediately disable the slow rate via
+    // the RCON
+    // 
+    if ( (lastFastState == 0) && (currFastState != 0) ) {
+        _captureSpeedForceNext();
+        _captureSpeed( 0 );
+    }
+    lastFastState = currFastState;
+
     return 0;
 }
 

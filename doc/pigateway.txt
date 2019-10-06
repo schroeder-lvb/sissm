@@ -1,16 +1,10 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PIGATEWAY Plugin
-JS Schroeder -- last updated:  2019.09.03
+JS Schroeder -- last updated:  2019.10.06
 
 PIGATEWAY is a plugin that watches who connects to your server.  This plugin manages
-Admin ports (reserved ports) so admins can join on a full server.  It is also capable of 
-auto-kicking profanity-named players upon attempted connection.
-
-PIGATEWAY relies on two files cotaining the list of SteamID64s: badnames.txt and admins.txt.
-The paths to these files are defined in sissm.cfg:
-
-
-
+Priority ports (reserved ports) so admins and privileged users can join on a full server.  
+It is also capable of auto-kicking profanity-named players upon attempted connection.
 
 =====================
 Enabling Admin Ports
@@ -47,7 +41,8 @@ pigateway.pluginState                 1                 // 1=enable plugin, 0=di
 pigateway.firstAdminSlotNo            9        // first open slot# non-admins will be kicked
 
 This tells SISSM that everything above slot 9 is for Admins only.  When the 9th player tries to connect,
-SISSM will look up the SteamID (typically Admins.txt).  If the player is not on the list, s/he is 
+the SISSM auth module will check if the user is a member of a group with attribute 'priport' 
+is specified (note: this includes the root group members).  If the player is not on the list, s/he is 
 kicked with the message "Server_Full" (and it realy is, as indicated in the game browser).
 
 What this also means is that when an Admin sees 8/8 full on the game browser, s/he may be able to join.

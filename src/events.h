@@ -33,6 +33,8 @@
 #define SISSM_EV_SHUTDOWN                   (13)
 #define SISSM_EV_CHAT                       (14)
 #define SISSM_EV_SIGTERM                    (15)
+#define SISSM_EV_WINLOSE                    (16)
+#define SISSM_EV_TRAVEL                     (17)
 
 
 // Following substring in log file triggers an event
@@ -48,6 +50,9 @@
 #define SS_SUBSTR_CAPTURE      "LogSpawning: Spawnzone '"
 #define SS_SUBSTR_SHUTDOWN     "LogExit: Game engine shut down"
 #define SS_SUBSTR_CHAT         "LogChat: Display:"
+#define SS_SUBSTR_WINLOSE      "LogGameMode: Display: Round Over: Team"
+#define SS_SUBSTR_TRAVEL       "LogGameMode: ProcessServerTravel:"
+
 
 extern int eventsInit( void );
 extern int eventsRegister( int eventID, int (*callBack)( char * ));

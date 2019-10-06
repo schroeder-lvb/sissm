@@ -109,8 +109,8 @@ static char *_convertNameToHyperlink( char *identString )
 
     strlcpy( retStr, STEAM_PROFILE, 256 );                                    // copy the template
     strncpy( &retStr[44], identString, 17 );                        // insert/substitute SteamID64
-    strcat( retStr, &identString[34 ] );                                // append name (text part)
-    strcat( retStr, "</a>" );                                                   // close with </a>
+    strlcat( retStr, &identString[34 ], 256 );                          // append name (text part)
+    strlcat( retStr, "</a>", 256 );                                             // close with </a>
     return( retStr );
 }
 

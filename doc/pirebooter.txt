@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PIREBOOTER Plugin
-JS Schroeder -- last updated:  2019.09.03
+JS Schroeder -- last updated:  2019.10.05
 
 The PIREBOOTER plugin 
 
@@ -28,6 +28,11 @@ in the server logs.  Dead servers should be rebooted as soon as possible - ZZ mi
 upon initial detection.  We don't want immediate action for various reasons, one of which
 is to avoid being in a "high speed reboot loop" due to a corrupt server image/configuration.
 
+4.  Reboot the server when it is hung.  Hung servers are characterised by a) functioning
+RCON, b) functioning log activity.  In this state, the server may read back empty or 
+"ghost" (non-existent) players.  Clients trying to connect to hung servers typically
+see "95% stuck" problem during connection.
+
 Setup:
 
 First enable the REBOOTER plugin in your sissm.cfg file by turning on pirebooter.logUpdateSec.  
@@ -44,6 +49,7 @@ Program it to your liking.
 pirebooter.rebootBusySec          18000                                 // 5*60*60 (5 hours)
 pirebooter.rebootIdleSec           1200                                    // 20*60 (20 min)
 pirebooter.rebootDeadSec            300                                     // 5*60 ( 5 min)
+pirebooter.rebootHungSec           1200                                    // 20*60 (20 min)
 
 Set your limits to your needs, and restart SISSM.
 
