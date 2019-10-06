@@ -41,7 +41,6 @@
 
 #include "pigreetings.h"
 
-
 //  ==============================================================================================
 //  Data definition 
 //
@@ -52,21 +51,34 @@ static struct {
 
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
 
-    int  showConnDisconn;
-    int  showRules;
+    int  showConnDisconn;                 // non-zero value to enable "connect/disconnect" notices
+    int  maskdisconnsec;                        // mask disconnect notice for n sec; 0=always show
 
-    char serverGreetings[2][CFS_FETCH_MAX];
-    char serverRules[10][CFS_FETCH_MAX];
+    int  showRules;                                    // non-zero value to enable "rules" display
+    int  showAds;                                        // non-zero value to enable "Ads" display
+    int  adsDelay, adsInterval;                      // initial and interval for showing ads (sec)
 
-    char incognitoGUID[CFS_FETCH_MAX];
+    char serverGreetings[2][CFS_FETCH_MAX];                // 2 lines of Greeting - start of round
+    char serverRules[10][CFS_FETCH_MAX];           // Rules - start of objective, 10 lines rotated
+    char serverAds[10][CFS_FETCH_MAX];                // Ads - periodic mid-game, 10 lines rotated
 
-    char connected[CFS_FETCH_MAX];
-    char connectedAsAdmin[CFS_FETCH_MAX];
-    char disconnected[CFS_FETCH_MAX];
+    char incognitoGUID[CFS_FETCH_MAX];         // space delimited GUID list of connect notice mask
+
+    char connected[CFS_FETCH_MAX];                      // player connected suffix "xxx connected"
+    char connectedAsAdmin[CFS_FETCH_MAX];            // admin connect suffix "yyy admin connected"
+    char disconnected[CFS_FETCH_MAX];               // player disconnect suffix "xxx disconnected"
+
+    char roundLoseMsg[CFS_FETCH_MAX];                             // end of round message COOP-Win
+    char roundWinMsg[CFS_FETCH_MAX];                             // end of round message COOP-Lose
+    char roundPvPMsg[CFS_FETCH_MAX];                  // end of round message COOP firstmap or PvP
 
 } pigreetingsConfig;
 
 static unsigned long timeRestarted = 0L;
+static unsigned long lastRoundEndTime = 0L;
+
+static alarmPtr alarmAds;          // create the alarm object handle for periodic 'ads' processing
+
 
 //  ==============================================================================================
 //  _isIncognito
@@ -82,6 +94,23 @@ static int _isIncognito( char *playerGUID )
     return isIncognito;
 }
 
+//  ==============================================================================================
+//  _isMaskDisconnect
+//
+//  Check if player disconnect is happening at end of the round.  This module does not 
+//  announce player disconnect for "n" seconds after end-of-round if so specified by the config
+// 
+static int _isMaskDisconnect( void )
+{
+    int isMaskDisconnect = 0;
+    
+    if (pigreetingsConfig.maskdisconnsec != 0) {
+        if ( (apiTimeGet() - lastRoundEndTime) < pigreetingsConfig.maskdisconnsec ) {
+            isMaskDisconnect = 1;
+        }
+    } 
+    return( isMaskDisconnect );
+}
 
 
 //  ==============================================================================================
@@ -100,8 +129,10 @@ int pigreetingsInitConfig( void )
     pigreetingsConfig.pluginState = (int) cfsFetchNum( cP, "pigreetings.pluginState", 0.0 );  // disabled by default
 
     // read the connection/disconnection display enabler
+    // if maskdisconnsec is nonzero, the disconnect notices are masked for 'n' seconds after round-end
     //
     pigreetingsConfig.showConnDisconn = (int) cfsFetchNum( cP, "pigreetings.showconndisconn", 1.0 );
+    pigreetingsConfig.maskdisconnsec  = (int) cfsFetchNum( cP, "pigreetings.maskdisconnsec",  0.0 );
 
     // read the 2-line greeting messages
     // 
@@ -125,6 +156,25 @@ int pigreetingsInitConfig( void )
     strlcpy( pigreetingsConfig.serverRules[8], cfsFetchStr( cP, "pigreetings.serverrules[8]", "" ), CFS_FETCH_MAX );
     strlcpy( pigreetingsConfig.serverRules[9], cfsFetchStr( cP, "pigreetings.serverrules[9]", "" ), CFS_FETCH_MAX );
 
+    // read the ads display enabler and display timing parameters
+    //
+    pigreetingsConfig.showAds         = (int) cfsFetchNum( cP, "pigreetings.showads", 0.0 );
+    pigreetingsConfig.adsDelay        = (int) cfsFetchNum( cP, "pigreetings.adsdelay", 0.0 );
+    pigreetingsConfig.adsInterval     = (int) cfsFetchNum( cP, "pigreetings.adsinterval", 0.0 );
+
+    // read the 10 ads lines
+    // 
+    strlcpy( pigreetingsConfig.serverAds[0],   cfsFetchStr( cP, "pigreetings.serverads[0]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[1],   cfsFetchStr( cP, "pigreetings.serverads[1]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[2],   cfsFetchStr( cP, "pigreetings.serverads[2]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[3],   cfsFetchStr( cP, "pigreetings.serverads[3]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[4],   cfsFetchStr( cP, "pigreetings.serverads[4]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[5],   cfsFetchStr( cP, "pigreetings.serverads[5]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[6],   cfsFetchStr( cP, "pigreetings.serverads[6]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[7],   cfsFetchStr( cP, "pigreetings.serverads[7]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[8],   cfsFetchStr( cP, "pigreetings.serverads[8]", "" ),   CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.serverAds[9],   cfsFetchStr( cP, "pigreetings.serverads[9]", "" ),   CFS_FETCH_MAX );
+
     // read the list of incognito GUIDs
     //
     strlcpy( pigreetingsConfig.incognitoGUID, cfsFetchStr( cP, "pigreetings.incognitoGUID", "" ), CFS_FETCH_MAX );
@@ -134,6 +184,12 @@ int pigreetingsInitConfig( void )
     strlcpy( pigreetingsConfig.connected, cfsFetchStr( cP, "pigreetings.connected", "connected" ), CFS_FETCH_MAX );
     strlcpy( pigreetingsConfig.disconnected, cfsFetchStr( cP, "pigreetings.disconnected", "disconnected" ), CFS_FETCH_MAX );
     strlcpy( pigreetingsConfig.connectedAsAdmin, cfsFetchStr( cP, "pigreetings.connectedasadmin", "[admin] connected" ), CFS_FETCH_MAX );
+
+    // read round win and lose messages, set to "" to disable
+    // 
+    strlcpy( pigreetingsConfig.roundWinMsg,  cfsFetchStr( cP, "pigreetings.roundwinmsg",  "" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.roundLoseMsg, cfsFetchStr( cP, "pigreetings.roundlosemsg", "" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.roundPvPMsg,  cfsFetchStr( cP, "pigreetings.roundpvpmsg",  "" ), CFS_FETCH_MAX );
 
     cfsDestroy( cP );
     return 0;
@@ -181,10 +237,9 @@ int pigreetingsClientDelCB( char *strIn )
 //  ==============================================================================================
 //  pigreetingsClientSynthDelCB
 //
-//  Use SyntheticDel event to reliably announced disconnecting players.  SyntheticDel events
+//  Use SyntheticDel event to reliably announce disconnecting players.  SyntheticDel events
 //  are derived from two consecutive samples of player roster from RCON, and 'core' 
 //  synthetically creates change events for call-backs.
-//  ...
 //
 //  strIn:  in the format: "~SYNTHDEL~ 76561000000000000 001.002.003.004 NameOfPlayer"
 //
@@ -192,12 +247,13 @@ int pigreetingsClientSynthDelCB( char *strIn )
 {
     char playerName[256], playerGUID[256], playerIP[256];
 
+
     rosterParsePlayerSynthDisConn( strIn, 256, playerName, playerGUID, playerIP );
     // rosterParsePlayerDisConn( strIn, playerName, playerGUID, playerIP );
     // logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynDel Raw ::%s::", strIn );
     logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynDel Client ::%s:: GUID ::%s:: IP ::%s::", playerName, playerGUID, playerIP );
     // 
-    if (!_isIncognito( playerGUID )) {
+    if (!_isIncognito( playerGUID ) && !_isMaskDisconnect() ) {
         if ( 0 != strlen( pigreetingsConfig.disconnected ) ) 
             apiSay( "%s %s [%d]", playerName, pigreetingsConfig.disconnected, apiPlayersGetCount() );
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "%s disconnected [%d]", playerName, apiPlayersGetCount() );
@@ -207,10 +263,11 @@ int pigreetingsClientSynthDelCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  pigreetingsClientSynthAddCB
 //
-//  ...
-//  ...
+//  Use SyntheticAdd event to reliably announce connecting players.  SyntheticAdd events
+//  are derived from two consecutive samples of player roster from RCON, and 'core' 
+//  synthetically creates change events for call-backs.
 //
 //  strIn:  in the format: "~SYNTHADD~ 76561000000000000 001.002.003.004 NameOfPlayer"
 //
@@ -289,6 +346,7 @@ int pigreetingsGameStartCB( char *strIn )
 //
 int pigreetingsGameEndCB( char *strIn )
 {
+    // apiSay("pigreeting Test: End of Game");
     return 0;
 }
 
@@ -304,18 +362,28 @@ int pigreetingsRoundStartCB( char *strIn )
         apiSay( "%s", pigreetingsConfig.serverGreetings[0] );
     if ( 0 != strlen(pigreetingsConfig.serverGreetings[1] )) 
         apiSay( "%s", pigreetingsConfig.serverGreetings[1] );
+
+    // start the 'ads' periodic printing service
+    //
+    if ( 0 != pigreetingsConfig.adsDelay )
+        alarmReset( alarmAds, pigreetingsConfig.adsDelay );
+
     return 0;
 }
 
 //  ==============================================================================================
-//  ...
+//  pigreetingsRoundEndCB
 //
-//  ...
-//  ...
+//  Callback for End of Round processing
 //
 int pigreetingsRoundEndCB( char *strIn )
 {
+    // cancel the 'ads' alarm
+    //
+    alarmCancel( alarmAds );
+    lastRoundEndTime = apiTimeGet();
     logPrintf( LOG_LEVEL_INFO, "pigreetings", "Round End Event" );
+    // apiSay("pigreeting Test: End of Round");
     return 0;
 }
 
@@ -345,6 +413,12 @@ int pigreetingsCapturedCB( char *strIn )
             lastTimeCaptured = apiTimeGet();
         }
     }
+
+    // start the 'ads' periodic printing service
+    //
+    if ( 0 != pigreetingsConfig.adsDelay )
+        alarmReset( alarmAds, pigreetingsConfig.adsDelay );
+
     return 0;
 }
 
@@ -359,6 +433,58 @@ int pigreetingsPeriodicCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  pigreetingsWinLoseCB
+//
+//  Callback handler for end of round Win-Lose event
+//
+int pigreetingsWinLoseCB( char *strIn )
+{
+    int isTeam0, humanSide;
+    char outStr[256];
+
+    humanSide = rosterGetCoopSide();
+    isTeam0   = (NULL != strstr( strIn, "Team 0" ));
+    strlcpy( outStr, pigreetingsConfig.roundWinMsg, 256 );
+
+    switch ( humanSide ) {
+    case 0: 
+        if ( !isTeam0 ) strlcpy( outStr, pigreetingsConfig.roundLoseMsg, 256 );
+        break;
+    case 1:
+        if (  isTeam0 ) strlcpy( outStr, pigreetingsConfig.roundLoseMsg, 256 );
+        break;
+    default:
+        strlcpy( outStr, pigreetingsConfig.roundPvPMsg, 256 );
+        break;
+    }
+
+    apiSay( outStr );
+
+    return 0;
+}
+
+//  ==============================================================================================
+//  pigreetingsAlarmCB
+//
+//  Alarm handler for printing periodic "ads" to the screen
+//
+int pigreetingsAlarmCB( char *alarmMsg )
+{
+    static int lastIndex = 0;
+
+    if ( 0 != pigreetingsConfig.adsInterval )
+        alarmReset( alarmAds, (unsigned long) pigreetingsConfig.adsInterval );
+
+    // only display rules when enabled (commonly disabled for private servers
+    //
+    if ( pigreetingsConfig.showAds ) {
+        if ( 0 != strlen(pigreetingsConfig.serverAds[lastIndex] )) 
+            apiSay( "%s", pigreetingsConfig.serverAds[lastIndex] );
+        lastIndex = ( lastIndex + 1 ) % 10;
+    }
+    return 0;
+}
 
 
 //  ==============================================================================================
@@ -391,6 +517,7 @@ int pigreetingsInstallPlugin( void )
     eventsRegister( SISSM_EV_ROUND_END,            pigreetingsRoundEndCB );
     eventsRegister( SISSM_EV_OBJECTIVE_CAPTURED,   pigreetingsCapturedCB );
     eventsRegister( SISSM_EV_PERIODIC,             pigreetingsPeriodicCB );
+    eventsRegister( SISSM_EV_WINLOSE,              pigreetingsWinLoseCB );
 
     // Synthetic Delete - this one is generated by RCON roster
     // poller, since player ident from logfile informatino is non-deterministic.
@@ -401,6 +528,10 @@ int pigreetingsInstallPlugin( void )
     // Remember restart time
     //
     timeRestarted = apiTimeGet();   
+
+    // Reserve alarm handler for periodic "ad" messaging
+    //
+    alarmAds = alarmCreate( pigreetingsAlarmCB );
   
     return 0;
 }

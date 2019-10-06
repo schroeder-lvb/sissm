@@ -37,6 +37,7 @@
 
 #include "roster.h"
 #include "api.h"
+#include "p2p.h"
 #include "sissm.h"
 
 #include "pigateway.h"
@@ -56,6 +57,8 @@ static struct {
     char adminListFilePath[CFS_FETCH_MAX];
     int  gameChangeLockoutSec;
     int  enableBadNameFilter;
+
+    int  allowInWindowTimeSec;                          // picladmin !allow window time in seconds
 
     int  adminPortDisable;                   // for disable admin port blocking during game change
     alarmObj *aPtr;                                 // create a 'lockout' alarm druing game change
@@ -77,16 +80,10 @@ static int _isPriority( char *connectID )
     int i;
     int isMatch = 0;
 
-    // check if system admin
+    // check if player has "priport" attribute
     //
-    isMatch = apiIsAdmin( connectID );
-
-    // Reserved for future expansion - can be expanded to admit players from 
-    // 2nd or even 3rd list to access reserved slots.
-    //
-    ;; 
-    ;;
-    ;;
+    // isMatch = apiIsAdmin( connectID );
+    isMatch = apiAuthIsAttribute( connectID, "priport" );
 
     return( isMatch );
 }
@@ -140,6 +137,7 @@ int pigatewayInitConfig( void )
     pigatewayConfig.gameChangeLockoutSec = (int) cfsFetchNum( cP, "pigateway.gameChangeLockoutSec", 120 );
     strlcpy( pigatewayConfig.adminListFilePath,  
         cfsFetchStr( cP, "pigateway.adminListFilePath",  "admins.txt" ), CFS_FETCH_MAX);
+    pigatewayConfig.allowInWindowTimeSec = (int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 120 );
 
     cfsDestroy( cP );
 
@@ -151,6 +149,31 @@ int pigatewayInitConfig( void )
 
     return 0;
 }
+
+//  ==============================================================================================
+//  (internal) _allowInExemption
+//
+//  Returns true if playerName is under special full-server join grant by admin-command (picladmin) 
+//  
+static int _allowInExemption( char *playerName )
+{
+    unsigned long timeMarked;
+    int allowIn = 0;
+    char *allowSubstring;
+
+    timeMarked = p2pGetL( "picladmin.p2p.allowTimeStart", 0L );
+    allowSubstring = p2pGetS( "picladmin.p2p.allowInPattern", "" );
+
+    if (( apiTimeGet() - timeMarked ) < pigatewayConfig.allowInWindowTimeSec ) {
+        if (0 == strcmp( allowSubstring, "*" )) 
+            allowIn = 1;
+        else if ( NULL != strstr( playerName, allowSubstring )) 
+            allowIn = 1;
+    }
+
+    return( allowIn );
+}
+
 
 //  ==============================================================================================
 //  pigatewayClientSynthAddCB
@@ -167,7 +190,11 @@ int pigatewayClientSynthAddCB( char *strIn )
         playerName, playerIP, playerGUID );
 
     if (apiPlayersGetCount() >= pigatewayConfig.firstAdminSlotNo ) {         // check if these are admin-only slots
-        if ( !_isPriority( playerGUID ) && (pigatewayConfig.adminPortDisable == 0) ) {     // check if this is an admin
+        if ( _allowInExemption( playerName ) ) {
+            logPrintf( LOG_LEVEL_CRITICAL, "pigateway", "Special full server join granted by admin ::%s::%s::%s::", 
+                    playerName, playerGUID, playerIP );
+        }
+        else if ( !_isPriority( playerGUID ) && (pigatewayConfig.adminPortDisable == 0) ) {     // check if this is an admin
 
             if ( (apiTimeGet() - timeRestarted) > PIGATEWAY_RESTART_LOCKOUT_SEC ) {  // check if we are restarting
                 apiKickOrBan( 0, playerGUID, "Server_Full" );

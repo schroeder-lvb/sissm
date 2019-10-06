@@ -122,6 +122,7 @@ Plugin: "cladmin"
 
 *  Allows admins to issue commmand through in-game chat, such as for changing bot counts
 *  Command prefix can be defined in sissm.cfg (e.g., "!", "sissm", "**", etc.)
+*  Up to 6 custom group can be defined and associated with allowed commands
 
 Plugin: "pit001"
 

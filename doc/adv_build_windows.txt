@@ -9,7 +9,7 @@ JS Scheorder - last revised:  2019.09.03
     Download Visual Studio -> Community Edition installer
     Run the downloaded installer
     Choose: "Desktop development with C++" which includes the Core, MSVC and Windows 10 SDK.
-    (Only the command line "msvc" is quired)
+    (Only the command line "msvc" is required)
     Reboot your PC
 
 2) Unzip sissm/src

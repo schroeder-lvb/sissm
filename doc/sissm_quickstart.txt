@@ -29,9 +29,7 @@ Windows -
 InsurgencyServer-Win64-Shipping [ ...your params... ] -log -LogCmds="LogGameplayEvents Log"
 
 
-NOTE1:  "LogGameplayEvents" is for ISS ver 1.4+, do not use for ver 1.3
-
-NOTE2:  If you are hosting multiple server instances *FROM THE SAME INSTALL FOLDER* you
+NOTE: If you are hosting multiple server instances *FROM THE SAME INSTALL FOLDER* you
 must specify unique log file for each.  Do this by changing "-log" with e.g., "-log=server1.log",
 creating s server1.log file instead of Insurgency.log.  This applies to "Sandstorm Admin 
 Wrapper (SAW)" users hosting more than one instance of the game.
@@ -67,14 +65,14 @@ Linux example -- REPLACE WITH YOUR OWN:
 
 sissm.RconPort           27015 
 sissm.RconPassword       "mysecretpassword"
-sissm.adminListFilePath  "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
+sissm.rootguids          "76560000000000001"      // your SteamID ("root user")
 sissm.GameLogFile        "/home/ins/iss/Insurgency/Saved/Logs/Insurgency.log"
 
 Windows example -- REPLACE WITH YOUR OWN:
 
 sissm.RconPort           27015 
 sissm.RconPassword       "mysecretpassword"
-sissm.adminListFilePath  "C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server\Insurgency\Config\Server\Admins.txt"
+sissm.rootguids          "76560000000000001"      // your SteamID ("root user")
 sissm.GameLogFile        "C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server\Insurgency\Saved\Logs\Insurgency.log"
 
 ---------------------------------

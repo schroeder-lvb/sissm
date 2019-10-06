@@ -49,6 +49,7 @@ static struct {
 
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
 
+    int  soloPlayerThreshold;              // # of players for 'solo', default 1.
     char multiWarning[CFS_FETCH_MAX];
     char soloWarning[CFS_FETCH_MAX];
 
@@ -58,8 +59,7 @@ static struct {
 //  ==============================================================================================
 //  pisoloplayerInitConfig
 //
-//  ...
-//  ...
+//  Read the configuration for this plugin
 //
 int pisoloplayerInitConfig( void )
 {
@@ -69,6 +69,10 @@ int pisoloplayerInitConfig( void )
 
     // read "pisoloplayer.pluginstate" variable from the .cfg file
     pisoloplayerConfig.pluginState = (int) cfsFetchNum( cP, "pisoloplayer.pluginState", 0.0 );  // disabled by default
+
+    // how players constitute "solo"?  Typically '1' but you may override to higher player count
+    //
+    pisoloplayerConfig.soloPlayerThreshold = (int) cfsFetchNum( cP, "pisoloplayer.soloPlayerThreshold", 1.0 ); 
 
     strlcpy( pisoloplayerConfig.soloWarning, 
         cfsFetchStr( cP, "pisoloplayer.soloWarning", "Counterattack disabled for a single player" ), CFS_FETCH_MAX);
@@ -89,7 +93,7 @@ int pisoloplayerInitConfig( void )
 //
 static int _singlePlayerNoCounter( void )
 {
-    if ( 1 == apiPlayersGetCount() ) {
+    if ( pisoloplayerConfig.soloPlayerThreshold >= apiPlayersGetCount() ) {
         apiGameModePropertySet( "DefendTimer", "1");
 	apiSay( pisoloplayerConfig.soloWarning );
         logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack disabled for a single player" );

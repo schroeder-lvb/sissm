@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Introduction to SISSM
-JS Schroeder -- last updated:  2019.09.03
+JS Schroeder -- last updated:  2019.10.05
 
 
 What is it?
@@ -21,11 +21,12 @@ SISSM is a server application designed to run alongside your Insurgency Sandstor
 *  Provides in-game chat-box command line interface for the admins
 *  Generates a player connection log to help facilitate after-the-fact ban
 *  Configured through a single .cfg file, per server.  All plugins can be enabled/disabled individually.
+*  Setup custom admin privilege levels each group with attributes and list of allowed commands
 
 Miscellaneous Features:
 
 *  All functional features are implemented through plugins.  You can write your own, or modify an existing one!
-*  Localization: All SISSM messages sent to your game clients are all in SISSM's config file.  This makes localization possible.
+*  Localization: Most SISSM messages sent to your game clients are all in SISSM's config file.  This makes localization possible.
 
 
 How does it work?

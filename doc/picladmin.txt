@@ -115,15 +115,40 @@ Example:  !gamemodeproperties minimumenemies 3, !gmp maximumenemies
 
 ========================
 
-macro (m) [macroname]
+execute (x) [macroname]
 Execute a macro of rcon command sequences specified in sissm.cfg file
-Example:  !m easymode, !macro ministry-pistolsonly
+Example:  !x easymode, !execute ministry-pistolsonly
 
 ========================
 
-macroslist(ml)
+macroslist (ml)
 Display a list of available macros configured by your administrator
 Example:  !ml, !macroslist
 
+========================
+
+info (info)
+Display a list of available macros configured by your administrator
+Example:  !ml, !macroslist
+
+========================
+
+spam (sp) on|off
+Turns on/off in-game display of server greetings, rules, ads, and player connection 
+Example:  !spam on, !sp off
+
+========================
+
+fast (fast) on|off
+Turns on/off piantirush capture-rate throttling algorithm
+Example:  !fast on, !fast off
+
+========================
+
+allowin (al) { [partial-name] | * }
+Allows non-admin players to join a full server for short window of time (def 120 seconds).
+Partial name or * may be specified for any player names.  If no parameter is specified 
+the join window will close immediately.
+Example:  !allowin jullie, !allowin *, !allowin
 
 

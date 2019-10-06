@@ -1,0 +1,85 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+SISSM Authorization System "Auth"
+JS Schroeder -- last updated:  2019.10.05
+
+If you are running a server with small group of trusted admins, use of this module is
+optional - you may find it more convenient to list all your admins as root users (sissm.rootguids).  Root user
+will autoamtically granted all privileges and commands.
+
+If you have large number of admins, requiring tighter control of privilges, you may setup
+the SISSM auth module.
+
+The auth module supports custom creation of up to 6 groups [0] to [5].  For example,
+you may choose to define them to be: Senior Admins, Regular Admins, Moderators, Patrons, Developers, 
+Unbanned Parolees, etc.
+
+In addition to the 6 custom groups, picladmin defines two reserved groups: 'root' and 'everyone',
+to total 8 distinct groups.
+
+For each group you may specify allowed list of picladmin commands and list of attributes (privileges)
+used by various SISSM plugins.  The user list format is compatible with Admin.txt file
+used by Sandstorm dedicated server comprised of list of Steam GUIDs.  
+
+A single player may belong to multiple lists for stackable privileges.
+
+*  'Root' group (you may specify more than one) has ALL privileges and may use ALL commands.  Therefore, there are
+no entries for command or privilege lists.
+
+*  'Everyone' group describe all unprivileged clients, therefore there are no entries for GUIDs.  
+'Everyone' group describe all visitors to your server without any special privileges.  You may
+specify list of unprivileged commands and attributes that you grant to your general community.
+
+*  Custom group is described by four fields:  1) name of group, 2) attributes, 3) list of allowed commands, and
+4) path to file containing list of GUIDs (user IDs).
+
+Follow the example sissm.cfg (see below) to configure your custom groups and privileges.
+
+Here are some example sissm.groupguid[*] paths to help you, for both Linux and Windows servers:
+
+sissm.groupguid[0] "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
+sissm.groupguid[0] "C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server\Insurgency\Config\Server\Admins.txt"
+
+
+
+
+=====================
+Appendix:  Auth Section Example of sissm.cfg 
+=====================
+
+sissm.rootname     "Root"
+sissm.rootguids    "72000000000001 72000000000002 72000000000003 76561198127294362"
+
+sissm.groupname[0] "SrAdmin"
+sissm.groupattr[0] "admin priport"
+sissm.groupcmds[0] "help version botfixed botscaled botdifficulty macros macroslist killfeed friendlyfire gamemodeproperty rcon roundrestart reboot ban kick banid kickid spam allowin info fast"
+sissm.groupguid[0] "/home/ins/iss/Insurgency/Config/Server/Admins-Senior.txt"
+
+sissm.groupname[1] "Admin"
+sissm.groupattr[1] "admin priport"
+sissm.groupcmds[1] "help version botfixed botscaled botdifficulty macros macroslist killfeed friendlyfire roundrestart reboot ban kick banid kickid spam allowin info fast"
+sissm.groupguid[1] "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
+
+sissm.groupname[2] "Moderator"
+sissm.groupattr[2] "priport"
+sissm.groupcmds[2] "help version botscaled botdifficulty kick kickid"
+sissm.groupguid[2] "/home/ins/iss/Insurgency/Config/Server/Admins-Moerators.txt"
+
+sissm.groupname[3] "Patron"
+sissm.groupattr[3] "priport"
+sissm.groupcmds[3] "help version botscaled kick kickid"
+sissm.groupguid[3] "/home/ins/scripts/Patrons.txt"
+
+sissm.groupname[4] ""
+sissm.groupattr[4] ""
+sissm.groupcmds[4] ""
+sissm.groupguid[4] ""
+
+sissm.groupname[5] ""
+sissm.groupattr[5] ""
+sissm.groupcmds[5] ""
+sissm.groupguid[5] ""
+
+sissm.everyoneattr ""
+sissm.everyonecmds "help version info"
+
+

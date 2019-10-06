@@ -27,18 +27,20 @@ typedef struct {
 
 } rconRoster_t;
 
-
-// extern void rosterSetWebFile( char *webFileName );
-
+int rosterIsValidGUID( char *testGUID );
 extern void rosterSetMapName( char *mapName );
 extern char *rosterGetMapName( void );
+
+extern void rosterSetTravel( char *travelName );
+extern int  rosterGetCoopSide( void );
+extern char *rosterGetScenario( void );
+extern char *rosterGetMutator( void );
 
 extern void rosterSetServerName( char *serverName );
 extern char *rosterGetServerName( void );
 
 extern void rosterReset( void );
 extern void rosterInit( void );
-// extern void rosterSetWebFilename( char *webFile );
 extern int  rosterParse( unsigned char *buf, int n );
 extern int  rosterCount( void );
 extern char *rosterLookupNameFromIP( char *playerIP );
@@ -47,7 +49,6 @@ extern char *rosterLookupSteamIDFromPartialName( char *partialName );
 extern char *rosterLookupIPFromName( char *playerName );
 extern char *rosterPlayerList( int infoDepth, char *delimeter );
 extern void rosterDump( int humanFlag, int npcFlag );
-// extern int rosterWeb( void );
 
 extern void rosterParsePlayerConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
 extern void rosterParsePlayerDisConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
@@ -58,4 +59,6 @@ extern void rosterParsePlayerSynthDisConn( char *connectString, int maxChars, ch
 extern void rosterParseMapname( char *mapLogString, int maxChars, char *mapName );
 
 extern int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *));
+
+
 

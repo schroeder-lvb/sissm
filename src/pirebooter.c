@@ -57,9 +57,11 @@ static struct {
     long int  rebootIdleSec;       
     long int  rebootBusySec;
     long int  rebootDeadSec;
+    long int  rebootHungSec;
 
     long int  timeLastReboot;             // when last rebooted
     long int  timeFirstIdle;              // when first saw '0' player
+    long int  timeLastProgress;           // 'hung' detection (iface ok, ghost players)
 
     char rebootWarning[ CFS_FETCH_MAX ];  // warning message 
 
@@ -83,6 +85,8 @@ int pirebooterInitConfig( void )
     pirebooterConfig.rebootIdleSec = (long int) cfsFetchNum( cP, "pirebooter.rebootidlesec", (double)   20*60 );
     pirebooterConfig.rebootBusySec = (long int) cfsFetchNum( cP, "pirebooter.rebootbusysec", (double) 5*60*60 );
     pirebooterConfig.rebootDeadSec = (long int) cfsFetchNum( cP, "pirebooter.rebootdeadsec", (double)    5*60 );
+    pirebooterConfig.rebootHungSec = (long int) cfsFetchNum( cP, "pirebooter.reboothungsec", (double)   20*60 );
+
     pirebooterConfig.logUpdateSec  = (int)      cfsFetchNum( cP, "pirebooter.logUpdateSec",  (double)      60 );
 
     strlcpy( pirebooterConfig.rebootWarning, 
@@ -92,6 +96,7 @@ int pirebooterInitConfig( void )
     cfsDestroy( cP );
     
     pirebooterConfig.timeLastReboot = apiTimeGet();
+    pirebooterConfig.timeLastProgress = apiTimeGet();
     pirebooterConfig.timeFirstIdle  = 0;
 
     return 0;
@@ -130,6 +135,7 @@ int pirebooterClientDelCB( char *strIn )
 int pirebooterInitCB( char *strIn )
 {
     pirebooterConfig.timeLastReboot = apiTimeGet();
+    pirebooterConfig.timeLastProgress = apiTimeGet();
     pirebooterConfig.timeFirstIdle  = 0;
 
     return 0;
@@ -155,6 +161,7 @@ int pirebooterRestartCB( char *strIn )
 int pirebooterMapChangeCB( char *strIn )
 {
     pirebooterConfig.timeFirstIdle  = 0;
+    pirebooterConfig.timeLastProgress = apiTimeGet();
     return 0;
 }
 
@@ -167,6 +174,7 @@ int pirebooterMapChangeCB( char *strIn )
 int pirebooterGameStartCB( char *strIn )
 {
     pirebooterConfig.timeFirstIdle  = 0;
+    pirebooterConfig.timeLastProgress = apiTimeGet();
 
     // Sometimes the server does not appear to generate the End of Game event.
     // This is a duplicate code (see pirebooterGameEndCB) as a 2nd trap
@@ -189,6 +197,7 @@ int pirebooterGameStartCB( char *strIn )
 int pirebooterGameEndCB( char *strIn )
 {
     pirebooterConfig.timeFirstIdle  = 0L;
+    pirebooterConfig.timeLastProgress = apiTimeGet();
 
     // Check if the server has been running long, and reboot only at
     // end-of-game to be least intrusive.
@@ -212,9 +221,10 @@ int pirebooterGameEndCB( char *strIn )
 int pirebooterRoundStartCB( char *strIn )
 {
     pirebooterConfig.timeFirstIdle  = 0L;
+    pirebooterConfig.timeLastProgress = apiTimeGet();
 
     if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() )
-	apiSay( pirebooterConfig.rebootWarning );
+	apiSaySys( pirebooterConfig.rebootWarning );
 
     return 0;
 }
@@ -226,6 +236,7 @@ int pirebooterRoundStartCB( char *strIn )
 //
 int pirebooterRoundEndCB( char *strIn )
 {
+    pirebooterConfig.timeLastProgress = apiTimeGet();
     pirebooterConfig.timeFirstIdle  = 0L;
     return 0;
 }
@@ -243,12 +254,14 @@ int pirebooterCapturedCB( char *strIn )
 {
     static long lastTime = 0L;
 
+    pirebooterConfig.timeLastProgress = apiTimeGet();
+
     pirebooterConfig.timeFirstIdle  = 0L;
     
     if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
 	if ( (lastTime + 10) < apiTimeGet() ) {
 	    lastTime = apiTimeGet();
-	    apiSay( pirebooterConfig.rebootWarning );
+	    apiSaySys( pirebooterConfig.rebootWarning );
 	}
     }
     return 0;
@@ -277,6 +290,7 @@ int pirebooterPeriodicCB( char *strIn )
 {
     static int skipTime = 0;
     unsigned long lastValidTimeListPlayers;
+
     // if currently in IDLE
     //
     if ( 0 == apiPlayersGetCount()) {
@@ -313,22 +327,32 @@ int pirebooterPeriodicCB( char *strIn )
         }
     }
 
+    // Check for "hung" server - RCON working, players 95% stuck, phantom players online
+    //
+    if ( (apiTimeGet() - pirebooterConfig.timeLastProgress) > pirebooterConfig.rebootHungSec ) {
+        pirebooterConfig.timeLastProgress = apiTimeGet();
+        pirebooterConfig.timeFirstIdle = 0L;
+        apiServerRestart();
+    }
+
     // Log some status for debug and monitoring 
     // 
     if ( (++skipTime) > pirebooterConfig.logUpdateSec ) {
 	skipTime = 0;
         if ( 0 == pirebooterConfig.timeFirstIdle ) {
-            logPrintf( LOG_LEVEL_INFO, "pirebooter", "nPlayers %d; Reboot timers: idle n/a, busy %ld, dead %ld", 
+            logPrintf( LOG_LEVEL_INFO, "pirebooter", "nPlayers %d; Reboot timers: idle n/a, busy %ld, dead %ld, hung %ld", 
                 apiPlayersGetCount(),
                 apiTimeGet() - pirebooterConfig.timeLastReboot,
-                apiTimeGet() - apiGetLastRosterTime() );
+                apiTimeGet() - apiGetLastRosterTime(),
+                apiTimeGet() - pirebooterConfig.timeLastProgress );
 	}
 	else {
-            logPrintf( LOG_LEVEL_INFO, "pirebooter", "nPlayers %d; Reboot timers: idle %ld, busy %ld, dead %ld", 
+            logPrintf( LOG_LEVEL_INFO, "pirebooter", "nPlayers %d; Reboot timers: idle %ld, busy %ld, dead %ld, hung %ld", 
                 apiPlayersGetCount(),
                 apiTimeGet() - pirebooterConfig.timeFirstIdle, 
 		apiTimeGet() - pirebooterConfig.timeLastReboot, 
-                apiTimeGet() - apiGetLastRosterTime() );
+                apiTimeGet() - apiGetLastRosterTime(),
+                apiTimeGet() - pirebooterConfig.timeLastProgress );
 	}
     }
 

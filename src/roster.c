@@ -29,7 +29,7 @@
 #include "winport.h"   // strcasestr
 
 static rconRoster_t masterRoster[ROSTER_MAX];
-static char rosterServerName[256], rosterMapName[256];
+static char rosterServerName[256], rosterMapName[256], rosterTravel[256];
 
 
 
@@ -78,6 +78,68 @@ char *rosterGetMapName( void )
     return( rosterMapName );
 }
 
+//  ==============================================================================================
+//  rosterSetTravel
+//
+//  Set current map name
+//
+void rosterSetTravel( char *travelName )
+{
+    strlcpy( rosterTravel, travelName, 256 );     
+    return;
+}
+
+//  ==============================================================================================
+//  rosterGetCoopSide
+//
+//  Returns the human team side for PvE coop game (-1=unknown or PvP, 0=Security, 1=Insurgents)
+//
+int rosterGetCoopSide( void )
+{
+    int retVal = -1;
+
+    if ( NULL != strstr( rosterTravel, "Checkpoint_Security" ))   retVal = 0;
+    if ( NULL != strstr( rosterTravel, "Checkpoint_Insurgents" )) retVal = 1;
+
+    return( retVal );
+}
+
+//  ==============================================================================================
+//  rosterGetScenario
+//
+//  Return the scenario traveler string
+// 
+//  Reference:
+//  [2019.10.04-01.40.21:979][973]LogGameMode: ProcessServerTravel: Ministry?Scenario=Scenario_Ministry_Checkpoint_Security?Mutators=PistolsOnly
+//
+char *rosterGetScenario( void )
+{
+    char *pivot;
+    static char nullString[2] = {0, 0};
+
+    if (NULL == ( pivot = strstr( rosterTravel, "ProcessServerTravel: " ))) 
+        pivot = nullString;
+    else  
+        pivot += strlen( "ProcesServerTravel: " );
+    return( pivot );
+}
+
+//  ==============================================================================================
+//  rosterGetMutator
+//
+//  Return the mutator stack
+//
+char *rosterGetMutator( void )
+{
+    char *pivot;
+    static char nullString[2] = {0, 0};
+
+    if (NULL == ( pivot = strstr( rosterTravel, "?Mutators=" ))) 
+        pivot = nullString;
+    else  
+        pivot += strlen( "?Mutators=" );
+    return( pivot );
+}
 
 //  ==============================================================================================
 //  rosterSetServerName
@@ -113,10 +175,8 @@ static int _copy3( char *dst, char *src, int maxChars )
     if ((src != NULL) && (dst != NULL)) {
         validFlag = 1;
         if      (0 == strncmp( src, " | ", 3)) strlcpy( dst, &src[3], maxChars );
-#if 1
         else if (0 == strncmp( src, "| ",  2)) strlcpy( dst, &src[2], maxChars );
         else if (0 == strncmp( src, " |",  2)) strlcpy( dst, &src[2], maxChars );
-#endif
         else                                   strlcpy( dst,  src,    maxChars );  
     }
     return( validFlag );
@@ -590,9 +650,6 @@ int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callba
 //  Test/dev method that reads captured raw RCON data dump into 'buf' then parse.
 //  This routine is not called in operational program.
 //
-
-#if 0
-
 static int _rosterReadTest( char *binaryDumpFile, unsigned char *buf )
 {
     int i, n;
@@ -619,41 +676,27 @@ static int _rosterReadTest( char *binaryDumpFile, unsigned char *buf )
     return( n );
 }
 
-
-int main()
+int roster_test_main()
 {
     unsigned char buf[4*4096];  
     int n;
 
     // 275::Name::76560000000000001::111.22.33.44::470
-
     rosterInit();
     rosterReset();
     n = _rosterReadTest( "dump.bin", buf );
     _tabDumpDebug( buf, n );
-
     printf("\n----------------\n");
-
     rosterParse( buf, n );
-
     rosterDump( 0, 0 );
-
     printf("\n----------------\n");
-
     printf("\nCount %d\n", rosterCount());
-
     printf( "%s::%s::%s\n", 
         rosterLookupNameFromIP( "100.36.84.54" ),
         rosterLookupSteamIDFromName( "TestFlight" ),
         rosterLookupIPFromName( "TestFlight" )
     );
-
     printf("Roster ::%s::\n", rosterPlayerList(2, " : "));
-
     // rosterWeb();
 }
-
-#endif
-
-
 

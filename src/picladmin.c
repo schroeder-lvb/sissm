@@ -34,6 +34,7 @@
 #include "cfs.h"
 #include "util.h"
 #include "alarm.h"
+#include "p2p.h"
 
 #include "roster.h"
 #include "api.h"
@@ -48,7 +49,7 @@
 //
 
 #define NUM_RESPONSES  (5)
-#define NUM_MACROS     (10)
+#define NUM_MACROS     (64)
 
 static struct {
 
@@ -76,6 +77,7 @@ int _cmdRestart(), _cmdEnd(), _cmdReboot();
 int _cmdBan(), _cmdKick();
 int _cmdBanId(), _cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
+int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast();
 
 struct {
 
@@ -87,31 +89,36 @@ struct {
 }  cmdTable[] =  {
 
     { "help",   "help",          "help [command], help list",   _cmdHelp  },
-    { "v",      "version",       "version [sissm]",        _cmdVersion },   
+    { "v",      "version",       "version [sissm]",         _cmdVersion },   
 
-    { "bf",     "botfixed",      "botfixed [2-60]",        _cmdBotFixed },
-    { "bs",     "botscaled",     "botscaled [2-60]",       _cmdBotScaled },
-    { "bd",     "botdifficulty", "botdifficulty [0-10]",   _cmdBotDifficulty },
-    { "m",      "macros",        "macros [alias]",         _cmdMacros },
-    { "ml",     "macroslist",    "macroslist",             _cmdMacrosList },
+    { "bf",     "botfixed",      "botfixed [2-60]",         _cmdBotFixed },
+    { "bs",     "botscaled",     "botscaled [2-60]",        _cmdBotScaled },
+    { "bd",     "botdifficulty", "botdifficulty [0-10]",    _cmdBotDifficulty },
+    { "x",      "execute",       "execute [alias]",         _cmdMacros },
+    { "ml",     "macroslist",    "macroslist",              _cmdMacrosList },
 
-    { "kf",     "killfeed",      "killfeed on|off",        _cmdKillFeed },
-    { "ff",     "friendlyfire",  "friendlyfire on|off",    _cmdFriendlyFire },
+    { "kf",     "killfeed",      "killfeed on|off",         _cmdKillFeed },
+    { "ff",     "friendlyfire",  "friendlyfire on|off",     _cmdFriendlyFire },
 
-    { "gmp",   "gamemodeproperty",  "gmp [cvar] {value}",  _cmdGameModeProperty },
-    { "rcon",  "rcon",           "rcon [passthru]",        _cmdRcon },
+    { "gmp",   "gamemodeproperty",  "gmp [cvar] {value}",   _cmdGameModeProperty },
+    { "rcon",  "rcon",           "rcon [passthru]",         _cmdRcon },
 
-    { "rr",     "roundrestart",  "roundrestart [now]",     _cmdRestart },
-//  { "re",     "roundend",      "roundend [now]",         _cmdEnd },
-    { "reboot", "reboot",        "reboot [now]",           _cmdReboot },
+    { "rr",     "roundrestart",  "roundrestart [now]",      _cmdRestart },
+//  { "re",     "roundend",      "roundend [now]",          _cmdEnd },
+    { "reboot", "reboot",        "reboot [now]",            _cmdReboot },
 
-    { "b",      "ban",           "ban [partial name]",     _cmdBan },
-    { "k",      "kick",          "kick [partial name]",    _cmdKick },
+    { "b",      "ban",           "ban [partial name]",      _cmdBan },
+    { "k",      "kick",          "kick [partial name]",     _cmdKick },
 
-    { "bi",     "banid",         "banid [steamid64]",      _cmdBanId },
-    { "ki",     "kickid",        "kickid [steamid64]",     _cmdKickId },
+    { "bi",     "banid",         "banid [steamid64]",       _cmdBanId },
+    { "ki",     "kickid",        "kickid [steamid64]",      _cmdKickId },
 
-    { "*",      "*",             "*",                      NULL }
+    { "info",   "info",          "info",                    _cmdInfo },
+    { "al",     "allowin",       "allowin [partial name]",  _cmdAllowIn },
+    { "sp",     "spam",          "spam on|off",             _cmdSpam },
+    { "fast",   "fast",          "fast on|off",             _cmdFast },
+
+    { "*",      "*",             "*",                       NULL }
 
 };
 
@@ -122,7 +129,7 @@ static int _respSay( char msgArray[NUM_RESPONSES][CFS_FETCH_MAX] )
     int msgIndex ;
 
     msgIndex = rand() % NUM_RESPONSES;
-    apiSay( msgArray[ msgIndex ] );       
+    apiSaySys( msgArray[ msgIndex ] );       
 
     return 0;
 }
@@ -204,10 +211,10 @@ int _cmdMacrosList( char *arg, char *arg2, char *passThru )
         }
     }
     if ( errCode ) {
-        apiSay( "No Macros defined in config" );
+        apiSaySys( "No Macros defined in config" );
     }
     else {
-        apiSay( listOut );
+        apiSaySys( listOut );
     }
     return 0;
 }
@@ -224,7 +231,7 @@ int _cmdHelp( char *arg, char *arg2, char *passThru )
     if ( 0 != strlen( arg ) ) {
         while ( 1 == 1 ) {
             if ( ( 0 == strcmp( arg, cmdTable[i].cmdShort )) || ( 0 == strcmp( arg, cmdTable[i].cmdLong )) ) {
-                apiSay("'%s' or %s", cmdTable[i].cmdShort, cmdTable[i].cmdHelp);
+                apiSaySys("'%s' or %s", cmdTable[i].cmdShort, cmdTable[i].cmdHelp);
                 notFound = 0;
                 break;
             }
@@ -239,12 +246,12 @@ int _cmdHelp( char *arg, char *arg2, char *passThru )
         strlcpy( outStr, "help [cmd], avail: ", 1024);
         i = 0;           
         while ( 1 == 1 ) {
-            strcat( outStr, cmdTable[i].cmdLong );
-            strcat( outStr, " " );
+            strlcat( outStr, cmdTable[i].cmdLong, 1024 );
+            strlcat( outStr, " ", 1024 );
             i++;
             if ( 0 == strcmp( "*", cmdTable[i].cmdShort )) break; 
         }
-        apiSay( outStr );
+        apiSaySys( outStr );
     }
    
     return 0; 
@@ -254,7 +261,7 @@ int _cmdHelp( char *arg, char *arg2, char *passThru )
 //
 int _cmdVersion( char *arg, char *arg2, char *passThru ) 
 { 
-    apiSay( sissmVersion() );
+    apiSaySys( sissmVersion() );
     return 0; 
 }
 
@@ -502,10 +509,10 @@ int _cmdGameModeProperty( char *arg, char *arg2, char *passThru )
         }
         strlcpy( statusIn, apiGameModePropertyGet( arg ), 256 );
         if ( 0 == strlen( statusIn ) ) 
-           apiSay( "GMP Readback Error");
+           apiSaySys( "GMP Readback Error");
         else {
            snprintf( cmdOut, 256, "'%s' is set to '%s'", arg, statusIn );
-           apiSay( cmdOut );
+           apiSaySys( cmdOut );
            errCode = 0;
         }
     }
@@ -535,19 +542,117 @@ int _cmdRcon( char *arg, char *arg2, char *passThru )
             bytesRead = apiRcon( rconArgs, statusIn );
             if ( bytesRead != 0 )  {
                 errCode = 0;
-                apiSay( statusIn );
+                apiSaySys( statusIn );
             }
             else {
-                apiSay( "RCON Interface Error" );
+                apiSaySys( "RCON Interface Error" );
             }
         }
     }
     else {
-        apiSay( "Unsupported RCON command" );
+        apiSaySys( "Unsupported RCON command" );
     }
     return errCode;
 }
 
+// ===== "info"
+// Provide general info 
+//
+int _cmdInfo( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    char *s, strOut[256];
+    double botDiff;
+    int botMin, botMax;
+
+    strcpy( strOut, "" );
+
+    // get bot counts and difficulty 
+    //
+    s = apiGameModePropertyGet( "minimumenemies" ); 
+    strlcat( strOut, s, 256 );
+    s = apiGameModePropertyGet( "maximumenemies" ); 
+    strlcat( strOut, ":", 256 );  strlcat( strOut, s, 256 );
+    s = apiGameModePropertyGet( "aidifficulty" ); 
+    strlcat( strOut, ":", 256 );  strlcat( strOut, s, 256 );
+
+    if ( 3 == sscanf( strOut, "%d:%d:%lf", &botMin, &botMax, &botDiff )) {
+        if ( botMin != botMax ) 
+            apiSaySys("AI scaled count %d:%d Difficulty %3.1lf", botMin*2, botMax*2, botDiff*10.0 );
+        else
+            apiSaySys("AI fixed count %d Difficulty %3.1lf", botMax*2, botDiff*10.0 );
+    }
+    else {
+        apiSaySys( "Retrieval error ::%s::", strOut );
+    }
+
+    // _stddResp( errCode );   // ok or error message to game
+    return errCode; 
+}
+
+// ===== "allowin"
+// Send "allowin" info to pigateway plugin
+//
+int _cmdAllowIn( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    char cmdOut[256], statusIn[256], steamID[256];
+
+    if ( 0 != strlen( arg ) ) {
+        p2pSetS( "picladmin.p2p.allowInPattern", arg );
+        p2pSetL( "picladmin.p2p.allowTimeStart", apiTimeGet() );
+        apiSaySys("Allow-in '%s' for a brief moment", p2pGetS( "picladmin.p2p.allowInPattern","" ));
+    }
+    else {
+        p2pSetS( "picladmin.p2p.allowInPattern", "" );
+        p2pSetL( "picladmin.p2p.allowTimeStart", 0L );
+        apiSaySys("Allow-in closed");
+    }
+
+    // _stddResp( errCode );   // ok or error message to game
+    return errCode; 
+}
+
+// ===== "spam"
+// Send "spam" info to API module (apiSaySys)
+//
+int _cmdSpam( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+
+    if (0 == strcmp( "off", arg )) {
+        p2pSetF("api.p2p.sayDisable", 1.0 );
+        _stddResp( 0 );   // ok message to game
+    }
+    else if (0 == strcmp( "on", arg )) {
+        p2pSetF("api.p2p.sayDisable", 0.0 );
+        _stddResp( 0 );   // ok message to game
+    }
+    else {
+        _stddResp( 1 );   // error message to game
+    }
+    return errCode;
+}
+
+// ===== "fast"
+// Send "fast" info to piantirush plugin
+//
+int _cmdFast( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+
+    if (0 == strcmp( "off", arg )) {
+        p2pSetF("piantirush.p2p.fast", 0.0 );
+        apiSaySys("Anti-Rushing algorithm will be enabled after the next objective");
+    }
+    else if (0 == strcmp( "on", arg )) {
+        p2pSetF("piantirush.p2p.fast", 1.0 );
+        apiSaySys("Anti-Rushing algorithm is disabled by admin");
+    }
+    else {
+        _stddResp( 1 );   // ok or error message to game
+    }
+}
 
 //  ==============================================================================================
 //  picladminInitConfig
@@ -557,6 +662,8 @@ int _cmdRcon( char *arg, char *arg2, char *passThru )
 int picladminInitConfig( void )
 {
     cfsPtr cP;
+    int i;
+    char varArray[256];
 
     cP = cfsCreate( sissmGetConfigPath() );
 
@@ -589,16 +696,10 @@ int picladminInitConfig( void )
 
     // Read the operator-specified "macro" (alias) sequence
     //
-    strlcpy( picladminConfig.macros[0],     cfsFetchStr( cP, "picladmin.macros[0]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[1],     cfsFetchStr( cP, "picladmin.macros[1]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[2],     cfsFetchStr( cP, "picladmin.macros[2]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[3],     cfsFetchStr( cP, "picladmin.macros[3]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[4],     cfsFetchStr( cP, "picladmin.macros[4]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[5],     cfsFetchStr( cP, "picladmin.macros[5]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[6],     cfsFetchStr( cP, "picladmin.macros[6]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[7],     cfsFetchStr( cP, "picladmin.macros[7]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[8],     cfsFetchStr( cP, "picladmin.macros[8]",  "" ),   CFS_FETCH_MAX);
-    strlcpy( picladminConfig.macros[9],     cfsFetchStr( cP, "picladmin.macros[9]",  "" ),   CFS_FETCH_MAX);
+    for ( i=0; i<NUM_MACROS; i++ ) {
+        snprintf( varArray, 256, "picladmin.macros[%d]", i );
+        strlcpy( picladminConfig.macros[i],     cfsFetchStr( cP, varArray,  "" ),   CFS_FETCH_MAX);
+    }
 
     strlcpy( picladminConfig.cmdPrefix,      cfsFetchStr( cP, "picladmin.cmdPrefix",      "!" ),              CFS_FETCH_MAX);
 
@@ -613,6 +714,30 @@ int picladminInitConfig( void )
 
 
 //  ==============================================================================================
+//  _resetP2PVars
+//
+//  Reset all P2P (Plugin-to-Plugin) variables - this happens at start/end of Game, and
+//  map change.
+//
+static void _resetP2PVars( void )
+{
+    p2pSetF( "piantirush.p2p.fast", 0.0 );
+    p2pSetF( "api.p2p.sayDisable", 0.0 );
+
+    // Don't reset allowin because the player may join between map change
+    //
+    // p2pSetS( "picladmin.p2p.allowInPattern", "" );
+    // p2pSetL( "picladmin.p2p.allowTimeStart", 0L );
+
+    return ;
+}
+
+int picladminGameStartCB( char *strIn ) { _resetP2PVars(); return 0; }
+int picladminMapChangeCB( char *strIn ) { _resetP2PVars(); return 0; }
+int picladminGameEndCB( char *strIn )   { _resetP2PVars(); return 0; }
+
+
+//  ==============================================================================================
 //  (Unused Callback methods)
 //
 //  Left here for future expansion
@@ -621,9 +746,6 @@ int picladminClientAddCB( char *strIn ) { return 0; }
 int picladminClientDelCB( char *strIn ) { return 0; }
 int picladminInitCB( char *strIn ) { return 0; }
 int picladminRestartCB( char *strIn ) { return 0; }
-int picladminMapChangeCB( char *strIn ) { return 0; }
-int picladminGameStartCB( char *strIn ) { return 0; }
-int picladminGameEndCB( char *strIn ) { return 0; }
 int picladminRoundStartCB( char *strIn ) { return 0; }
 int picladminRoundEndCB( char *strIn ) { return 0; }
 int picladminCapturedCB( char *strIn ) { return 0; }
@@ -667,6 +789,17 @@ int _commandExecute( char *cmdString, char *originID )
     i = 0;
     while ( 1==1 ) {
         if ( (0 == strcmp( cmdTable[i].cmdShort, cmdOut )) || (0 == strcmp( cmdTable[i].cmdLong, cmdOut )) ) {
+
+            // check if this admin has enough privilege to execute this command
+            //
+            if ( ! apiAuthIsAllowedCommand( originID, cmdTable[i].cmdLong ) ) {
+                logPrintf( LOG_LEVEL_INFO, "picladmin", "Insufficient priv for [%s] to execute %s", originID, cmdString );
+                _respSay( picladminConfig.msgInvalid );                       // unauthorized message
+                break;
+            }
+
+            // execute the command
+            //
             errCode = (*cmdTable[i].cmdFunction)( arg1Out, arg2Out, cmdString );
             if ( errCode == 0 ) {
                 logPrintf( LOG_LEVEL_INFO, "picladmin", "Admin [%s] executed: %s", originID, cmdString );
@@ -740,6 +873,14 @@ int picladminChatCB( char *strIn )
     char clientGUID[1024], cmdString[1024];
 
     if ( 0 == _commandParse( strIn, 1024, clientGUID, cmdString )) {    // parse for valid format
+        _commandExecute( cmdString, clientGUID ) ;                     // execute the command
+    }
+
+#if 0
+    // pre-auth method using simple apiIsAdmin call - deprecated but left here for short term
+    // just in case a revert is needed for test purposes.
+    //
+    if ( 0 == _commandParse( strIn, 1024, clientGUID, cmdString )) {    // parse for valid format
         if (apiIsAdmin( clientGUID )) {                                    // check if authorized
             _commandExecute( cmdString, clientGUID ) ;                     // execute the command
         }
@@ -747,6 +888,8 @@ int picladminChatCB( char *strIn )
             _respSay( picladminConfig.msgInvalid );                       // unauthorized message
         }
     }
+#endif
+
     return 0;
 }
 
@@ -786,6 +929,7 @@ int picladminInstallPlugin( void )
     eventsRegister( SISSM_EV_CLIENT_ADD_SYNTH,     picladminClientSynthAddCB );
     eventsRegister( SISSM_EV_CLIENT_DEL_SYNTH,     picladminClientSynthDelCB );
     eventsRegister( SISSM_EV_CHAT,                 picladminChatCB );
+
     return 0;
 }
 

@@ -17,9 +17,9 @@
 #define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.0.28 Alpha 20190916 - Test & Eval Only [Restricted Edition]"
+#define VERSION    "SISSM v0.1.0 Beta 20191006 - Test & Eval Only [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.0.28 Alpha 20190916 - Test & Eval Only"
+#define VERSION    "SISSM v0.1.0 Beta 20191006 - Test & Eval Only"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -49,6 +49,7 @@
 
 // Plugins INTERNAL 
 //
+#include "p2p.h"
 #include "api.h"
 
 // Plugins EXTERNAL
@@ -271,6 +272,7 @@ int sissmInitPlugins( void )
 
     // "SISSM" core internal plugins - do not touch
     //
+    p2pInit();                           // initialize the plugin-to-plugin communications
     apiInit();                                             // must be first one called!!!!
 
     // "Included" - for customizations
