@@ -1,5 +1,8 @@
 
 Beta 01 (0.1.0) 20191006
+    Github resubmit to synchornize Alpha-29 to Beta-01
+
+Beta 01 (0.1.0) 20191006 (aka Alpha 29)
 
     Major: Restructured for the new "auth" module that allows  multiple operator-defined priv groups 
     Documentation: doc/sissmquickstart.txt has been updated due to the new AUTH module (easier for initial runs)
