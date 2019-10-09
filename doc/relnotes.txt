@@ -1,5 +1,12 @@
 
+Beta 01.1 (0.1.1) 20191008 hotfix
+
+    Change QuickStart binary package for MSVC for "release" to minimize antivirus false-positive
+    Minor code fixes, updated build-procedure (doc/adv_build_windows.txt) to go with above
+    Changed GUID file reader so that Admins.txt, Moderators.txt, etc. may now embed in-line comment 
+
 Beta 01 (0.1.0) 20191006
+
     Github resubmit to synchornize Alpha-29 to Beta-01
 
 Beta 01 (0.1.0) 20191006 (aka Alpha 29)

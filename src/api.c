@@ -69,7 +69,7 @@ static alarmObj *_apiPollAlarmPtr  = NULL;      // used to periodically poll ros
 //  
 char rosterPrevious[ API_ROSTER_STRING_MAX ];    
 char rosterCurrent[ API_ROSTER_STRING_MAX ];
-static long lastRosterSuccessTime = 0L;            // marks last time listplayer read was success 
+static unsigned long lastRosterSuccessTime = 0L;  // marks last time listplayer read was success 
 
 //  Table of admins list - can be used by any plugins to identify if 
 //  a transction is originated from an admin.  See: apiIdListCheck().
@@ -103,7 +103,7 @@ static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file pat
 int apiWordListRead( char *listFile, wordList_t wordList )
 {
     int i;
-    char tmpLine[1024], *w;
+    char tmpLine[1024];
     FILE *fpr;
 
     for (i=0; i<WORDLISTMAXELEM; i++) strcpy( wordList[i], "" );
@@ -174,7 +174,7 @@ int apiIdListRead( char *listFile, idList_t idList )
             if (NULL != fgets( tmpLine, 1024, fpr )) {
                 tmpLine[ strlen( tmpLine ) - 1] = 0;
                 if ( 0 != strlen( tmpLine ) ) {
-                    w = getWord( tmpLine, 0, " \012\015\011");
+                    w = getWord( tmpLine, 0, " \012\015\011/\\;:");
                     if (strlen(w) == IDSTEAMID64LEN) {
                         strlcpy( idList[i], w, IDSTEAMID64LEN+1 );
                         i++;
@@ -391,8 +391,8 @@ int apiInit( void )
     cfsPtr cP;
     char varImg[256];
     char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
-    int    count, i, myPort, adminCount, badWordsCount;
-    char   serverName[API_LINE_STRING_MAX], webFileName[API_LINE_STRING_MAX];
+    int    count, i, myPort, badWordsCount;
+    char   serverName[API_LINE_STRING_MAX];
 
     // Read the "sissm" systems configuration variables
     //
@@ -508,9 +508,9 @@ int apiServerRestart( void )
 //
 //  Called from a Plugin, this method fetches EPOC time, resolution 1 second.
 //
-unsigned int apiTimeGet( void )
+unsigned long int apiTimeGet( void )
 {
-    return( time(NULL) );
+    return( (unsigned long) time(NULL) );
 }
 
 //  ==============================================================================================
@@ -553,7 +553,7 @@ char *apiGameModePropertyGet( char *gameModeProperty )
 {
     static char value[16*1024];
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead;
+    unsigned int bytesRead;
 
     strcpy( value, "" );
 

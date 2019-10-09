@@ -82,7 +82,7 @@ static int lastState = -1;                          // last state of capture rat
 // 
 static void _captureSpeed( int isSlow )
 {
-    int isSlowCopy, i;
+    int isSlowCopy;
     isSlowCopy = isSlow;
 
     if ( apiPlayersGetCount() <=  piantirushConfig.nPlayerExemption )

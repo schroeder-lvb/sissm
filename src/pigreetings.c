@@ -103,9 +103,9 @@ static int _isIncognito( char *playerGUID )
 static int _isMaskDisconnect( void )
 {
     int isMaskDisconnect = 0;
-    
+ 
     if (pigreetingsConfig.maskdisconnsec != 0) {
-        if ( (apiTimeGet() - lastRoundEndTime) < pigreetingsConfig.maskdisconnsec ) {
+        if ( (apiTimeGet() - lastRoundEndTime) < (unsigned long) pigreetingsConfig.maskdisconnsec ) {
             isMaskDisconnect = 1;
         }
     } 
@@ -396,7 +396,7 @@ int pigreetingsRoundEndCB( char *strIn )
 //
 int pigreetingsCapturedCB( char *strIn )
 {
-    static long int lastTimeCaptured = 0L;
+    static unsigned long int lastTimeCaptured = 0L;
     static int lastIndex = 0;
 
     // only display rules when enabled (commonly disabled for private servers

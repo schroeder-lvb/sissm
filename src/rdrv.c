@@ -108,7 +108,8 @@ void rdrvLogFile( char *buf, int n, char *fileName )
 int rdrvSend( rdrvObj *rPtr, int msgtype, char *rconcmd )
 {
     char buf[BUFSIZE_T];
-    int  errCode, i, outlen;
+    int  errCode, outlen;
+    // int  i;
 
     // bzero( buf, BUFSIZE_T );
     memset( buf, 0, BUFSIZE_T );
@@ -189,8 +190,7 @@ int rdrvReceive( rdrvObj *rPtr, char *bufin )
 //
 int rdrvConnect( rdrvObj *rPtr )
 {
-    struct timeval tv;
-    struct hostent *server;
+    struct hostent *server = NULL;
     int errCode = 1;
     char buf[BUFSIZE_T];
 
@@ -269,7 +269,6 @@ rdrvObj *rdrvInit( char *hostName, int portNo, char *rconPassword )
 {
 #ifdef _WIN32
     WSADATA  wsaData;
-    SOCKET   SendingSocket;
 #endif
     rdrvObj *rPtr;
 

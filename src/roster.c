@@ -32,7 +32,6 @@ static rconRoster_t masterRoster[ROSTER_MAX];
 static char rosterServerName[256], rosterMapName[256], rosterTravel[256];
 
 
-
 //  ==============================================================================================
 //  rosterIsValidGUID
 //
@@ -225,8 +224,8 @@ void rosterInit( void )
 //
 static int _tabDumpDebug( unsigned char *buf, int n )
 {
-    int i, j, validFlag;
-    char *w, *headStr, *recdStr;
+    int i;
+    char *headStr, *recdStr;
 
     headStr = strstr( &buf[32], "========================" );    // look for start of separator
     recdStr = &headStr[80];                                      // look for start of first record
@@ -251,10 +250,10 @@ static int _tabDumpDebug( unsigned char *buf, int n )
 //  Case 2:  valid record with zero players -> update DB with zero player
 //  Case 3:  invalid record -> don't update DB (assume Interface Error)
 //
-int rosterParse( unsigned char *buf, int n )
+int rosterParse( char *buf, int n )
 {
     int i, j, validFlag;
-    char *w, *headStr, *recdStr, *atLeastOne;
+    char *headStr, *recdStr, *atLeastOne;
 
     validFlag = 1;  i = 0;  j = -1;
     
@@ -650,11 +649,13 @@ int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callba
 //  Test/dev method that reads captured raw RCON data dump into 'buf' then parse.
 //  This routine is not called in operational program.
 //
+
+#if 0
 static int _rosterReadTest( char *binaryDumpFile, unsigned char *buf )
 {
     int i, n;
     FILE *fpr;
-    char *p;
+    char *p = NULL;
 
     fpr = fopen( binaryDumpFile, "rb" );
     if ( fpr == NULL ) {
@@ -700,3 +701,4 @@ int roster_test_main()
     // rosterWeb();
 }
 
+#endif

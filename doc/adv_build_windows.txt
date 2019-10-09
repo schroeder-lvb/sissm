@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Compiling SISSM from Source:  Windows
-JS Scheorder - last revised:  2019.09.03 
+JS Scheorder - last revised:  2019.10.08 
 =====================
 
 1) Download and install Visual Studio
@@ -32,4 +32,10 @@ JS Scheorder - last revised:  2019.09.03
     You must be defaulted to the 'src' folder.  Type:
 
     cl *.c Ws2_32.lib /Fesissm.exe
+
+    If the resulting sissm.exe file fails antivirus security check, try compiling it as "release":
+
+    cl *.c Ws2_32.lib /permissive- /GS /GL /analyze- /W3 /Gy /Zc:wchar_t /Zi /Gm- /O2 /sdl /Zc:inline /fp:precise /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /Gd /Oy- /Oi /MD /FC /EHsc /nologo /diagnostics:column /D "_CRT_SECURE_NO_WARNINGS" /D "_WINSOCK_DEPRECATED_NO_WARNINGS" /Fesissm.exe
+
+
 

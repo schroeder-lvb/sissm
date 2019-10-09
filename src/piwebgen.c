@@ -320,7 +320,7 @@ int piwebgenCapturedCB( char *strIn )
 //
 int piwebgenPeriodicCB( char *strIn )
 {
-    static int intervalCount = 0;
+    static unsigned int intervalCount = 0;
 
     if ( 0 != piwebgenConfig.updateIntervalSec ) {
 

@@ -53,7 +53,8 @@ void usleep( __int64 usec )
 //
 void sleep( int secWait )
 {
-    _sleep( secWait * 1000 );
+    // _sleep( secWait * 1000 ); // deprecated
+    Sleep( secWait * 1000 );
     return;
 }
 
@@ -69,7 +70,7 @@ char *strcasestr(const char *haystack, const char *needle)
 {
     char haystackCopy[ STRSTRMAX ], needleCopy[ STRSTRMAX ];
     char *p;
-    int i;
+    unsigned int i;
 
     memset( haystackCopy, 0, STRSTRMAX );
     memset( needleCopy,   0, STRSTRMAX );

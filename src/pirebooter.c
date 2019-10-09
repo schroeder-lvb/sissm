@@ -54,14 +54,14 @@ static struct {
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
     int  logUpdateSec;                // how often, in seconds, to show periodic status to logfile
 
-    long int  rebootIdleSec;       
-    long int  rebootBusySec;
-    long int  rebootDeadSec;
-    long int  rebootHungSec;
+    unsigned long int  rebootIdleSec;       
+    unsigned long int  rebootBusySec;
+    unsigned long int  rebootDeadSec;
+    unsigned long int  rebootHungSec;
 
-    long int  timeLastReboot;             // when last rebooted
-    long int  timeFirstIdle;              // when first saw '0' player
-    long int  timeLastProgress;           // 'hung' detection (iface ok, ghost players)
+    unsigned long int  timeLastReboot;             // when last rebooted
+    unsigned long int  timeFirstIdle;              // when first saw '0' player
+    unsigned long int  timeLastProgress;           // 'hung' detection (iface ok, ghost players)
 
     char rebootWarning[ CFS_FETCH_MAX ];  // warning message 
 
@@ -252,14 +252,13 @@ int pirebooterRoundEndCB( char *strIn )
 //
 int pirebooterCapturedCB( char *strIn )
 {
-    static long lastTime = 0L;
+    static unsigned long lastTime = 0L;
 
     pirebooterConfig.timeLastProgress = apiTimeGet();
-
     pirebooterConfig.timeFirstIdle  = 0L;
     
     if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
-	if ( (lastTime + 10) < apiTimeGet() ) {
+	if ( (lastTime + 10L) < apiTimeGet() ) {
 	    lastTime = apiTimeGet();
 	    apiSaySys( pirebooterConfig.rebootWarning );
 	}
