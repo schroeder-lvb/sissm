@@ -198,7 +198,6 @@ int _cmdMacros( char *arg, char *arg2, char *passThru )
 int _cmdMacrosList( char *arg, char *arg2, char *passThru ) 
 {
     int i, errCode = 1;
-    char *w;
     char listOut[ 1024 ];
 
     strlcpy( listOut, "Macros: ", 1024 ); 
@@ -529,9 +528,9 @@ int _cmdGameModeProperty( char *arg, char *arg2, char *passThru )
 int _cmdRcon( char *arg, char *arg2, char *passThru ) 
 { 
     int bytesRead, errCode = 1;
-    char statusIn[4096], cmdOut[256];
+    char statusIn[4096];
     char *rconArgs;
-    int  i, supportedRconCommand = 1;
+    int  supportedRconCommand = 1;
     char *unsupportedRcon[] =  { "help", "listplayers", "listbans", "maps", "scenarios", "listgamemodeproperties", "*" };
 
     supportedRconCommand = !foundMatch( arg, unsupportedRcon, 1 );
@@ -596,7 +595,6 @@ int _cmdInfo( char *arg, char *arg2, char *passThru )
 int _cmdAllowIn( char *arg, char *arg2, char *passThru ) 
 { 
     int errCode = 0;
-    char cmdOut[256], statusIn[256], steamID[256];
 
     if ( 0 != strlen( arg ) ) {
         p2pSetS( "picladmin.p2p.allowInPattern", arg );
@@ -652,6 +650,8 @@ int _cmdFast( char *arg, char *arg2, char *passThru )
     else {
         _stddResp( 1 );   // ok or error message to game
     }
+
+    return errCode;
 }
 
 //  ==============================================================================================

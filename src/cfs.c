@@ -83,8 +83,7 @@ void cfsDestroy( cfsPtr pCfs )
 static char *_cfsStrWash( char *w )
 {
     static char retStr[CFS_FETCH_MAX];
-    char *v;
-    int   i, j, inQuote;
+    unsigned int i, j, inQuote;
 
     strlcpy( retStr, w, CFS_FETCH_MAX );
 

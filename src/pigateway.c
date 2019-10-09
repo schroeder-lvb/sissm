@@ -58,7 +58,7 @@ static struct {
     int  gameChangeLockoutSec;
     int  enableBadNameFilter;
 
-    int  allowInWindowTimeSec;                          // picladmin !allow window time in seconds
+    unsigned int  allowInWindowTimeSec;                 // picladmin !allow window time in seconds
 
     int  adminPortDisable;                   // for disable admin port blocking during game change
     alarmObj *aPtr;                                 // create a 'lockout' alarm druing game change
@@ -77,7 +77,6 @@ static unsigned long timeRestarted = 0L;
 //
 static int _isPriority( char *connectID )
 {
-    int i;
     int isMatch = 0;
 
     // check if player has "priport" attribute
@@ -96,7 +95,6 @@ static int _isPriority( char *connectID )
 //
 static int _isBadName( char *playerName )
 {
-    int i;
     int isBad = 0;
 
     isBad = apiBadNameCheck( playerName );
@@ -137,7 +135,7 @@ int pigatewayInitConfig( void )
     pigatewayConfig.gameChangeLockoutSec = (int) cfsFetchNum( cP, "pigateway.gameChangeLockoutSec", 120 );
     strlcpy( pigatewayConfig.adminListFilePath,  
         cfsFetchStr( cP, "pigateway.adminListFilePath",  "admins.txt" ), CFS_FETCH_MAX);
-    pigatewayConfig.allowInWindowTimeSec = (int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 120 );
+    pigatewayConfig.allowInWindowTimeSec = (unsigned long int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 120 );
 
     cfsDestroy( cP );
 

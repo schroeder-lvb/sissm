@@ -63,7 +63,7 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
 #ifdef _WIN32
     TCHAR Path[FTRACK_FILENAME_MAX];
     HANDLE hFile;
-    DWORD dwRet;
+    // DWORD dwRet;
     int count;
 
     // arg4: VOLUME_NAME_DOS, VOLUME_NAME_GUID, VOLUME_NAME_NONE, VOLUME_NAME_NT
@@ -71,7 +71,7 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
     hFile = (HANDLE) _get_osfhandle( _fileno( fp ) );
     count = GetFinalPathNameByHandle( hFile, Path, FTRACK_FILENAME_MAX, VOLUME_NAME_NT );
     if ( count != 0 )
-        strlcpy( fileName, Path, FTRACK_FILENAME_MAX );
+        strlcpy( fileName, (char *) Path, FTRACK_FILENAME_MAX );
     else
         logPrintf( LOG_LEVEL_CRITICAL, "ftrack", "OS Error getting filename ::%s::", GetLastError() );
     return( count == 0 );
@@ -97,7 +97,6 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
 #endif
 }
 
-
 //  ==============================================================================================
 //  _ftrackIsChanged (local)
 //
@@ -105,6 +104,7 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
 //  if the host application usess a rename ("mv") method to archive the active logfile to 
 //  a rotated one.
 //
+#if 0
 static int _ftrackIsChanged( FILE *fp, char *baselineName )
 {
     int  isChanged = 1;
@@ -117,6 +117,7 @@ static int _ftrackIsChanged( FILE *fp, char *baselineName )
     }
     return( isChanged );
 }
+#endif
 
 
 //  ==============================================================================================
@@ -164,7 +165,6 @@ unsigned long int _ftrackGetFileSize( ftrackObj *fPtr )
 {
 #ifdef _WIN32
     HANDLE hFile;
-    DWORD dwRet;
     LARGE_INTEGER count;
     unsigned long retValue;
 

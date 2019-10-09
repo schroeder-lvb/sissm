@@ -41,7 +41,7 @@ extern char *rosterGetServerName( void );
 
 extern void rosterReset( void );
 extern void rosterInit( void );
-extern int  rosterParse( unsigned char *buf, int n );
+extern int  rosterParse( char *buf, int n );
 extern int  rosterCount( void );
 extern char *rosterLookupNameFromIP( char *playerIP );
 extern char *rosterLookupSteamIDFromName( char *playerName );

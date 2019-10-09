@@ -27,7 +27,7 @@ extern int   apiPlayersGetCount( void );
 extern char *apiPlayersRoster( int infoDepth, char *delimeter );
 extern char *apiGetServerName( void );
 extern char *apiGetMapName( void );
-extern unsigned int apiTimeGet( void );
+extern unsigned long apiTimeGet( void );
 extern char  *apiTimeGetHuman( void );
 extern unsigned long apiGetLastRosterTime( void );
 extern int   apiBadNameCheck( char *nameIn );

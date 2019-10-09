@@ -112,7 +112,7 @@ int alarmDestroy( alarmObj *aPtr )
 //
 int alarmReset( alarmObj *aPtr, unsigned long timeSec)
 {
-    aPtr->alarmTime = timeSec + time(NULL); 
+    aPtr->alarmTime = timeSec + (unsigned long) time(NULL); 
     return 0; 
 }
 
@@ -142,7 +142,7 @@ long int alarmStatus( alarmObj *aPtr )
     unsigned long retValue = 0L;
     unsigned long timeNow;
 
-    timeNow = time(NULL);
+    timeNow = (unsigned long) time(NULL);
     if ( aPtr->alarmTime > timeNow ) retValue = aPtr->alarmTime - timeNow;
     return retValue; 
 }
@@ -162,7 +162,7 @@ void alarmDispatch( void )
     unsigned long timeNow;
     int i;
  
-    timeNow = time(NULL);
+    timeNow = (unsigned long) time(NULL);
 
     for (i = 0; i<SISSM_MAXALARMS; i++) {
         aPtr = alarmTable[ i ];

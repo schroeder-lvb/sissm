@@ -233,7 +233,7 @@ int pit001RoundEndCB( char *strIn )
 //
 int pit001CapturedCB( char *strIn )
 {
-    static long int lastTimeCaptured = 0L;
+    static unsigned long int lastTimeCaptured = 0L;
     // logPrintf( LOG_LEVEL_INFO, "pit001", "Captured Objective Event ::%s::", strIn );
     logPrintf( LOG_LEVEL_INFO, "pit001", "Captured Objective Event" );
 

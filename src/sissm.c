@@ -17,9 +17,9 @@
 #define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.1.0 Beta 20191006 - Test & Eval Only [Restricted Edition]"
+#define VERSION    "SISSM v0.1.1 Beta 20191008 - Test & Eval Only [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.1.0 Beta 20191006 - Test & Eval Only"
+#define VERSION    "SISSM v0.1.1 Beta 20191008 - Test & Eval Only"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -348,9 +348,13 @@ int sissmRestartServer( void )
         strcpy( cmdOut, "quit" );
         apiRcon( cmdOut, statusIn );
     }
+
+#if SISSM_RESTRICTED==0
     else {
         system( sissmConfig.restartScript );                       // hard restart from OS
     }
+#endif
+
     sleep( sissmConfig.restartDelay );
 
     return errCode;
@@ -436,7 +440,7 @@ int sissmMainLoop( void )
         logPrintf(LOG_LEVEL_CRITICAL, "sissm", "** Warning: Console '^C' may take several seconds to process");
     logPrintf(LOG_LEVEL_INFO, "sissm", "State - SM_STARTUP" );
 
-    timePrev = time( NULL );
+    timePrev = (unsigned long) time( NULL );
 
     for ( ;; ) {
 
@@ -504,7 +508,7 @@ int sissmMainLoop( void )
         if ( timePrev != time( NULL ) ) {
 	    alarmDispatch();
             eventsDispatch( "~PERIODIC~" );
-            timePrev = time( NULL );
+            timePrev = (unsigned int) time( NULL );
             ftrackResync( fPtr );                          // check for log file rotate and follow
         }
     }
