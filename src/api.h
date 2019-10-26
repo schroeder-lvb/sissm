@@ -27,6 +27,7 @@ extern int   apiPlayersGetCount( void );
 extern char *apiPlayersRoster( int infoDepth, char *delimeter );
 extern char *apiGetServerName( void );
 extern char *apiGetMapName( void );
+extern char *apiGetSessionID( void );
 extern unsigned long apiTimeGet( void );
 extern char  *apiTimeGetHuman( void );
 extern unsigned long apiGetLastRosterTime( void );
@@ -47,6 +48,7 @@ extern int   apiIdListCheck( char *connectID, idList_t idList );
 
 extern int   apiIsAdmin( char *connectID );
 extern int   apiAuthIsAllowedCommand( char *playerGUID, char *command );
+extern int   apiAuthIsAllowedMacro( char *playerGUID, char *command );
 extern int   apiAuthIsAttribute( char *playerGUID, char *attriute );
 extern char *apiAuthGetRank( char *playerGUID );
 

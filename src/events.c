@@ -72,6 +72,7 @@ struct {
     { SISSM_EV_SIGTERM,             15, "~SIGTERM~"           },
     { SISSM_EV_WINLOSE,             16, SS_SUBSTR_WINLOSE     },
     { SISSM_EV_TRAVEL,              17, SS_SUBSTR_TRAVEL      },
+    { SISSM_EV_SESSIONLOG,          17, SS_SUBSTR_SESSIONLOG  },
     { -1,                           -1, "*"                   },
 
 };

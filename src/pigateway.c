@@ -65,7 +65,7 @@ static struct {
 
 } pigatewayConfig;
 
-static char prioritySteamID[PRILISTMAX][80];
+// static char prioritySteamID[PRILISTMAX][80];
 
 static unsigned long timeRestarted = 0L;
 

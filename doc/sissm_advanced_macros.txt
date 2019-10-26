@@ -1,0 +1,65 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+SISSM Advanced Macros Setup Note
+JS Schroeder -- last updated:  2019.10.26
+
+This appnote is for advanced users of SISSM, with large gaming community and many admins.
+This procedure uses SISSM core, picladmin, and piclgreeting to extend your server with custom commands
+and assigning each to different privileges.
+
+* * * 
+
+SISSM picladmin plugin supports many built-in commands for your admins to change server behavior
+through the in-game chat text.  For example:
+
+     !bs 8 32 
+
+sets the scaled bot count for minimumenemies=4 and maximumenemies=16 (yes, it's divided by 2, because
+there are two waves per objectives).
+
+SISSM also has auth module (sissm core) that lets you grant each SISSM with various privilege levels.
+For example you don't want everyone issuing RCON server reboot - perhaps Senior-Admins only.
+
+PICLADMIN module also allows operators to create and define macros, a series of rcon commands you can 
+string together to let your admins do some powerful things, for example, if you specify in sissm.cfg:
+
+...
+picladmin.macros[32]  "bots_default::say Normal::gamemodeproperty minimumenemies 4::gamemodeproperty maximumenemies 17"
+picladmin.macros[33]  "rules::say Please visit  http://www.example.com/rules"
+...
+
+It lets anyone with "execute" privilege run these as:
+
+!x bots_default
+!x rules
+
+This is where it gets interesting.  What if you want to add commands for your Moderators
+or "everyone", but you don't want to give entire Execute privilege to lower level users 
+(which is very dangerous).  So by extending the above macros examples, add these to the
+SISSM's auth block like so:
+
+...
+sissm.groupname[2]   "Moderator"
+sissm.groupattr[2]   "priport"
+sissm.groupcmds[2]   "help version botscaled botdifficulty kick kickid"
+sissm.groupmcrs[2]   "rules bots_default"
+sissm.groupguid[2]   "/home/ins/iss/Insurgency/Config/Server/Admins-Moderators.txt"
+...
+sissm.everyoneattr   ""
+sissm.everyonecmds   "help version info"
+sissm.everyonemacros "rules"
+
+
+Now Moderators can type "!bots_default" to reset bot count of your server.
+
+Everyone can type "!rules" at any time to see the web URL of where you posted the server rules.
+You should probably publish this by using pigreetings plugin, like so:
+
+...
+pigreetings.showads           1
+pigreetings.adsDelay         15
+pigreetings.adsInterval       0
+pigreetings.serverads[0]     "Welcome new players. Type !rules"
+...
+
+
+

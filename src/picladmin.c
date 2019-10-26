@@ -63,6 +63,8 @@ static struct {
 
     char macros[NUM_MACROS][CFS_FETCH_MAX];
 
+    int botMaxAllowed, botMinDefault;
+
 } picladminConfig;
 
 
@@ -75,7 +77,7 @@ int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
 int _cmdKillFeed(), _cmdFriendlyFire();
 int _cmdRestart(), _cmdEnd(), _cmdReboot();
 int _cmdBan(), _cmdKick();
-int _cmdBanId(), _cmdKickId();
+int _cmdBanId(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast();
 
@@ -111,6 +113,7 @@ struct {
     { "k",      "kick",          "kick [partial name]",     _cmdKick },
 
     { "bi",     "banid",         "banid [steamid64]",       _cmdBanId },
+    { "ub",     "unbanid",       "unbanid [steamid64]",     _cmdUnBanId },
     { "ki",     "kickid",        "kickid [steamid64]",      _cmdKickId },
 
     { "info",   "info",          "info",                    _cmdInfo },
@@ -177,10 +180,10 @@ int _cmdMacros( char *arg, char *arg2, char *passThru )
     char statusIn[ 1024 ];
 
     for (i = 0; i<NUM_MACROS; i++) {
-        w = getWord( picladminConfig.macros[i], 0, "::");   // get the macro label
-        if ( w != NULL ) {                                  // skip blank entries (possible)
-            if ( 0 == strcmp( arg, w ) ) {                  // check if operator cmd match
-                while ( NULL != ( w = getWord( picladminConfig.macros[i], j++, "::" )) ) {
+        w = getWord( picladminConfig.macros[i], 0, "\007");                // get the macro label
+        if ( w != NULL ) {                                       // skip blank entries (possible)
+            if ( 0 == strcmp( arg, w ) ) {                         // check if operator cmd match
+                while ( NULL != ( w = getWord( picladminConfig.macros[i], j++, "\007" )) ) {
                     errCode = (0 == apiRcon( w, statusIn ));
                     if ( errCode ) break;
                 } 
@@ -204,8 +207,12 @@ int _cmdMacrosList( char *arg, char *arg2, char *passThru )
 
     for (i = 0; i<NUM_MACROS; i++) {
         if ( 0 != strlen( picladminConfig.macros[i] )) {    // skip blank entries (possible)
-            strlcat( listOut, getWord( picladminConfig.macros[i], 0, "::" ), 1024 );
-            strlcat( listOut, " ",                       1024 );
+            strlcat( listOut, getWord( picladminConfig.macros[i], 0, "\007" ), 1024 );
+            strlcat( listOut, " ", 1024 );
+            if ( strlen( listOut ) > 40 ) {
+                apiSaySys( listOut );
+                strclr( listOut );
+            }
             errCode = 0;
         }
     }
@@ -213,7 +220,7 @@ int _cmdMacrosList( char *arg, char *arg2, char *passThru )
         apiSaySys( "No Macros defined in config" );
     }
     else {
-        apiSaySys( listOut );
+        if (0 != strlen( listOut )) apiSaySys( listOut );
     }
     return 0;
 }
@@ -247,10 +254,14 @@ int _cmdHelp( char *arg, char *arg2, char *passThru )
         while ( 1 == 1 ) {
             strlcat( outStr, cmdTable[i].cmdLong, 1024 );
             strlcat( outStr, " ", 1024 );
+            if ( strlen(outStr) > 40 ) {
+                apiSaySys( outStr );
+                strclr( outStr );
+            }
             i++;
             if ( 0 == strcmp( "*", cmdTable[i].cmdShort )) break; 
         }
-        apiSaySys( outStr );
+        if (0 != strlen( outStr ))  apiSaySys( outStr );
     }
    
     return 0; 
@@ -271,9 +282,10 @@ int _cmdBotFixed( char *arg, char *arg2, char *passThru )
     int errCode = 1, botCount;
 
     if (1 == sscanf( arg, "%d", &botCount )) {
-        if ((botCount <= 60) && (botCount >= 2)) {
+        if ( ( botCount <=  picladminConfig.botMaxAllowed ) && ( botCount >= 2 ) ) {
            apiGameModePropertySet( "minimumenemies", _int2str( botCount/2 ) ); 
            apiGameModePropertySet( "maximumenemies", _int2str( botCount/2 ) );  
+           apiGameModePropertySet( "soloenemies", _int2str( botCount ) );  
            errCode = 0;
         }
     }
@@ -283,19 +295,30 @@ int _cmdBotFixed( char *arg, char *arg2, char *passThru )
 }
 
 // ===== "botscaled [2-60]"
+// polymorphic: !botscaled [max], or !botscaled [min max]
 //
 int _cmdBotScaled( char *arg, char *arg2, char *passThru ) 
 { 
-    int errCode = 1, botCount;
+    int errCode = 1, botCount, botCountMin, botCountMax;
 
-    if (1 == sscanf( arg, "%d", &botCount )) {
-        if ((botCount <= 60) && (botCount >= 2)) {
-           apiGameModePropertySet( "minimumenemies", "3" );
-           apiGameModePropertySet( "maximumenemies", _int2str( botCount / 2 ) );
-           errCode = 0;
+    if (1 == sscanf( arg, "%d", &botCountMax )) {    // assume single param case
+        if ( (botCountMax <= picladminConfig.botMaxAllowed) && (botCountMax >= 2) ) {
+            botCountMin = picladminConfig.botMinDefault;
+            errCode = 0;
+            if ( 1 == sscanf( arg2, "%d", &botCount )) {  // check for 2nd param
+                botCountMin = botCountMax;
+                botCountMax = botCount;
+                if ( botCountMin > botCountMax ) errCode = 1;
+                if ( botCountMax > 60 )          errCode = 1;
+                if ( botCountMax <  2 )          errCode = 1;
+            }
         }
     }
-
+    if ( 0 == errCode ) {
+        apiGameModePropertySet( "minimumenemies", _int2str( botCountMin / 2 ) );
+        apiGameModePropertySet( "maximumenemies", _int2str( botCountMax / 2 ) );
+        apiGameModePropertySet( "soloenemies", _int2str( botCountMax ) );  
+    }
     _stddResp( errCode );   // ok or error message to game
 
     return errCode; 
@@ -305,14 +328,14 @@ int _cmdBotScaled( char *arg, char *arg2, char *passThru )
 //
 int _cmdBotDifficulty( char *arg, char *arg2, char *passThru ) 
 { 
-    int errCode = 1, botDifficulty;
+    int errCode = 1;
     char strOut[256];
     double botDifficultyF;
 
-    if (1 == sscanf( arg, "%d", &botDifficulty )) {
-        if ((botDifficulty <= 10) && (botDifficulty >= 0)) {
-           botDifficultyF = ((double) botDifficulty ) / 10.0;
-           snprintf( strOut, 256, "%4.1lf", botDifficultyF);
+    if (1 == sscanf( arg, "%lf", &botDifficultyF )) {
+        if ((botDifficultyF <= 10.0) && (botDifficultyF >= 0.0)) {
+           botDifficultyF /= 10.0;
+           snprintf( strOut, 256, "%6.3lf", botDifficultyF);
            apiGameModePropertySet( "aidifficulty", strOut );
            errCode = 0;
         }
@@ -423,11 +446,34 @@ int _cmdBanId( char *arg, char *arg2, char *passThru  )
         if (NULL != strstr( arg, "765611" )) {
             snprintf( cmdOut, 256, "banid %s", arg );
             apiRcon( cmdOut, statusIn );
+            apiSay( statusIn );
             errCode = 0;
         }
     }
 
-    _stddResp( errCode );   // ok or error message to game
+    if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
+
+    return errCode; 
+}
+
+// ===== "unbanid [steamid]"
+// target may be offline (ISS ver 1.4+ unbanid rcon command)
+//
+int _cmdUnBanId( char *arg, char *arg2, char *passThru  ) 
+{ 
+    int errCode = 1;
+    char cmdOut[256], statusIn[256];
+
+    if ( 17==strlen( arg ) ) {
+        if (NULL != strstr( arg, "765611" )) {
+            snprintf( cmdOut, 256, "unban %s", arg );
+            apiRcon( cmdOut, statusIn );
+            apiSay( statusIn );
+            errCode = 0;
+        }
+    }
+
+    if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
 
     return errCode; 
 }
@@ -464,10 +510,11 @@ int _cmdBan( char *arg, char *arg2, char *passThru  )
     if ( 0 != strlen( steamID ) ) {
         snprintf( cmdOut, 256, "ban %s", steamID );
         apiRcon( cmdOut, statusIn );
+        apiSay( statusIn );
         errCode = 0;
     }
 
-    _stddResp( errCode );   // ok or error message to game
+    if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
 
     return errCode; 
 }
@@ -483,10 +530,11 @@ int _cmdKick( char *arg, char *arg2, char *passThru )
     if ( 0 != strlen( steamID ) ) {
         snprintf( cmdOut, 256, "kick %s", steamID );
         apiRcon( cmdOut, statusIn );
+        apiSay( statusIn );
         errCode = 0;
     }
 
-    _stddResp( errCode );   // ok or error message to game
+    if ( errCode != 0) _stddResp( errCode );   // ok or error message to game
 
     return errCode; 
 }
@@ -564,7 +612,7 @@ int _cmdInfo( char *arg, char *arg2, char *passThru )
     double botDiff;
     int botMin, botMax;
 
-    strcpy( strOut, "" );
+    strclr( strOut );
 
     // get bot counts and difficulty 
     //
@@ -577,15 +625,14 @@ int _cmdInfo( char *arg, char *arg2, char *passThru )
 
     if ( 3 == sscanf( strOut, "%d:%d:%lf", &botMin, &botMax, &botDiff )) {
         if ( botMin != botMax ) 
-            apiSaySys("AI scaled count %d:%d Difficulty %3.1lf", botMin*2, botMax*2, botDiff*10.0 );
+            apiSaySys("AI scaled count %d:%d Difficulty %6.3lf", botMin*2, botMax*2, botDiff*10.0 );
         else
-            apiSaySys("AI fixed count %d Difficulty %3.1lf", botMax*2, botDiff*10.0 );
+            apiSaySys("AI fixed count %d Difficulty %6.3lf", botMax*2, botDiff*10.0 );
     }
     else {
         apiSaySys( "Retrieval error ::%s::", strOut );
     }
 
-    // _stddResp( errCode );   // ok or error message to game
     return errCode; 
 }
 
@@ -655,6 +702,27 @@ int _cmdFast( char *arg, char *arg2, char *passThru )
 }
 
 //  ==============================================================================================
+// 
+//  (Internal)  _replaceDoubleColonWithBell
+//
+//
+static void  _replaceDoubleColonWithBell( char *strInOut )
+{
+    int i;
+
+    if ( strlen( strInOut ) > 1  ) {
+        for (i=0; i<strlen( strInOut )-1; i++) {
+            if (( strInOut[i] == ':' ) && ( strInOut[i+1] == ':'))  {
+                strInOut[i] = '\007';
+                strInOut[i+1] = '\007';
+            }
+        }
+    }
+    return;
+}
+
+
+//  ==============================================================================================
 //  picladminInitConfig
 //
 //  Initialize configuration variables for this plugin
@@ -699,6 +767,7 @@ int picladminInitConfig( void )
     for ( i=0; i<NUM_MACROS; i++ ) {
         snprintf( varArray, 256, "picladmin.macros[%d]", i );
         strlcpy( picladminConfig.macros[i],     cfsFetchStr( cP, varArray,  "" ),   CFS_FETCH_MAX);
+        _replaceDoubleColonWithBell( picladminConfig.macros[i] );
     }
 
     strlcpy( picladminConfig.cmdPrefix,      cfsFetchStr( cP, "picladmin.cmdPrefix",      "!" ),              CFS_FETCH_MAX);
@@ -706,7 +775,15 @@ int picladminInitConfig( void )
     // if nil cmdPrefix is in the .cfg file, this will cause every command to be admin command, so
     // we override that here.
     //
-    if ( 0 == strlen( picladminConfig.cmdPrefix )) strcpy( picladminConfig.cmdPrefix, "!" );
+    if ( 0 == strlen( picladminConfig.cmdPrefix )) strlcpy( picladminConfig.cmdPrefix, "!", CFS_FETCH_MAX );
+
+    // Set bot count max and default min values 
+    // if Max value is set too high and admin issues a !bf or !bs, servers & clients may crash
+    //
+    picladminConfig.botMaxAllowed = (int) cfsFetchNum( cP, "picladmin.botMaxAllowed", 60.0 );
+    picladminConfig.botMinDefault = (int) cfsFetchNum( cP, "picladmin.botMinDefault",  6.0 );
+    if ( picladminConfig.botMaxAllowed < 2.0 ) picladminConfig.botMaxAllowed = 4.0;
+    if ( picladminConfig.botMinDefault < 2.0 ) picladminConfig.botMinDefault = 2.0;
 
     cfsDestroy( cP );
     return 0;
@@ -765,10 +842,11 @@ int _commandExecute( char *cmdString, char *originID )
 {   
     char *p, cmdOut[256], arg1Out[256], arg2Out[256];
     int i, errCode = 1;
+    int isCommand = 0;
 
     // zero the physical stores
     //
-    strcpy( cmdOut, "" );  strcpy( arg1Out, "");  strcpy( arg2Out, "" );
+    strclr( cmdOut );  strclr( arg1Out );  strclr( arg2Out );
 
     // The input string cmdString will be in the format, e.g., "botfixed 30"
     // parse command vs arguments and invoke the string-matched function 
@@ -790,6 +868,8 @@ int _commandExecute( char *cmdString, char *originID )
     while ( 1==1 ) {
         if ( (0 == strcmp( cmdTable[i].cmdShort, cmdOut )) || (0 == strcmp( cmdTable[i].cmdLong, cmdOut )) ) {
 
+            isCommand = 1;
+
             // check if this admin has enough privilege to execute this command
             //
             if ( ! apiAuthIsAllowedCommand( originID, cmdTable[i].cmdLong ) ) {
@@ -802,7 +882,7 @@ int _commandExecute( char *cmdString, char *originID )
             //
             errCode = (*cmdTable[i].cmdFunction)( arg1Out, arg2Out, cmdString );
             if ( errCode == 0 ) {
-                logPrintf( LOG_LEVEL_INFO, "picladmin", "Admin [%s] executed: %s", originID, cmdString );
+                logPrintf( LOG_LEVEL_INFO, "picladmin", "Admin [%s] executed command: %s", originID, cmdString );
             }
             break;
         }
@@ -810,6 +890,25 @@ int _commandExecute( char *cmdString, char *originID )
         if ( 0==strcmp( cmdTable[i].cmdShort, "*") )
             break;
     }
+
+    // check if the command was not in standard commands table -- if not
+    // it may be a operator added macro.
+    // 
+    if ( !isCommand ) {
+
+        // check if this admin has enough privilege to execute this command
+        //
+        if ( apiAuthIsAllowedMacro( originID, cmdOut ) ) {
+        
+            // execute the macro
+            //
+            _cmdMacros( cmdOut, "", "" );
+            if ( errCode == 0 ) {
+                logPrintf( LOG_LEVEL_INFO, "picladmin", "Admin [%s] executed macro: %s", originID, cmdOut );
+            }
+        }
+    }
+
     return errCode; 
 }
 
@@ -832,8 +931,8 @@ int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdSt
     char *t, *u, *v, *w, *s, *r;
   
     t = u = v = w = s = r = NULL;
-    strcpy( clientGUID, "" );
-    strcpy( cmdString, "" );
+    strclr( clientGUID );
+    strclr( cmdString );
 
     // Parse the string to produce clientGUID and cmdString
     // If not properly formatted then set parseError=1

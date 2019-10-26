@@ -27,9 +27,12 @@ typedef struct {
 
 } rconRoster_t;
 
-int rosterIsValidGUID( char *testGUID );
+extern int  rosterIsValidGUID( char *testGUID );
 extern void rosterSetMapName( char *mapName );
 extern char *rosterGetMapName( void );
+
+extern void rosterSetSessionID( char *SessionInfo );
+extern char *rosterGetSessionID( void );
 
 extern void rosterSetTravel( char *travelName );
 extern int  rosterGetCoopSide( void );
@@ -57,6 +60,7 @@ extern void rosterParsePlayerSynthConn( char *connectString, int maxChars, char 
 extern void rosterParsePlayerSynthDisConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
 
 extern void rosterParseMapname( char *mapLogString, int maxChars, char *mapName );
+extern void rosterParseSessionID( char *sessionLogString, int maxChars, char *sessionID );
 
 extern int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *));
 

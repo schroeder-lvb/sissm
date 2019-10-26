@@ -1,4 +1,50 @@
 
+Beta 01.2 (0.1.2) 20191026
+
+    Added "server nightly reboot" option (pirebooter)
+    Added Event & web display of game Session ID to faciliate playback and delayed game monitoring
+    Moved HTML tag filter from pigateway to piwebgen
+    Fixed error in sissm_example.cfg ("macros" -> "execute" in privilege list)
+    Macros are now directly executable (!x shotguns -> !shotguns), 
+        You may, then, associate each with privilege level,  by group, including 'everyone' group
+    Add 'unbanid' to admins command  - requires SteamID64 of the person you wish to unban
+    !bs (bot scaled) command is now polymorphic.  Admins can type !bs [max] or !bs [min max]
+        Example 1:  "!bs 40" sets scaling bot between botMinDefault to 40, 
+        Example 2:  "!bs 6 40" sets the same range 6 to 40
+    !bd (bot difficulty) is now floating point.  Instead of !bd 5 (defeault) you can say, e.g., !bd 5.234
+    !bs and !bf now supports soloplayer mode (friendly bots/wave respawn checkpoint variant when 'bbots true')
+    !ml and '!help list' now segments list output to 'say' box to support growing size of list
+    !bs default minimumenemies, and max bots allowed by admin command can be changed in sissm.cfg (picladmin)
+        Formerly these were hard-coded to 3 and 60, respectively
+    New document: doc/sissm_advanced_macros.txt - create your own admin commands, assign privilege
+
+    -----------------------------
+    Added to sissm.cfg
+
+    sissm.groupmcrs[0] ""
+    sissm.groupmcrs[1] ""
+    sissm.groupmcrs[2] ""
+    sissm.groupmcrs[3] ""
+    sissm.groupmcrs[4] ""
+    sissm.groupmcrs[5] ""
+    sissm.everyonemacros "contact rules"
+
+    pirebooter.rebootDailyHM             ""   // daily reboot format hh:mm:  "", "01:00", 23:35"
+    pirebooter.rebootWarning           "Server restart at end of game - up in 60sec"
+    pirebooter.rebootDaily             "Server will reboot shortly - up in 60sec"
+
+    piwebgen.showSessionID                1                   // 1=show replay SessionID, 0=none
+
+    picladmin.botMaxAllowed 60           // 60 max bots (2 waves of 30 bots when server is full)
+    picladmin.botMinDefault 6               // 6 min bots (2 waves of 3 bots when single player)
+ 
+    Please add 'unbanid' to existing sissm.groupcmds[0..5] if privileged for that group
+
+    ------------------------------
+
+
+
+    
 Beta 01.1 (0.1.1) 20191008 hotfix
 
     Change QuickStart binary package for MSVC for "release" to minimize antivirus false-positive

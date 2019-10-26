@@ -20,6 +20,7 @@
 
 #include "bsd.h"
 #include "log.h"
+#include "util.h"
 
 #define P2P_MAXSTR          (128)
 #define P2P_MAXELEM         (256)
@@ -51,7 +52,7 @@ static int _p2pSearch( char *varName, int autoCreate )
         for (i=0; i<P2P_MAXELEM; i++) {
             if ( 0 == strlen( p2pVarNames[i] ) ) {
                 strlcpy( p2pVarNames[i], varName, P2P_MAXSTR );
-                strcpy( p2pVarValues[i], "" );
+                strclr( p2pVarValues[i] );
                 foundIndex = i;
                 break;
             }
@@ -174,8 +175,8 @@ void p2pInit( void )
     int i;
 
     for (i=0; i<P2P_MAXELEM; i++) {
-        strcpy( p2pVarNames[i],  "" );
-        strcpy( p2pVarValues[i], "" );
+        strclr( p2pVarNames[i] );
+        strclr( p2pVarValues[i] );
     }
     return;
 }

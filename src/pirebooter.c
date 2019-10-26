@@ -58,12 +58,14 @@ static struct {
     unsigned long int  rebootBusySec;
     unsigned long int  rebootDeadSec;
     unsigned long int  rebootHungSec;
+    char rebootDailyHM[ CFS_FETCH_MAX ];      // mandatory and forced daily reboot in 00:00 format
 
-    unsigned long int  timeLastReboot;             // when last rebooted
-    unsigned long int  timeFirstIdle;              // when first saw '0' player
-    unsigned long int  timeLastProgress;           // 'hung' detection (iface ok, ghost players)
+    unsigned long int  timeLastReboot;                                       // when last rebooted
+    unsigned long int  timeFirstIdle;                                 // when first saw '0' player
+    unsigned long int  timeLastProgress;              // 'hung' detection (iface ok, ghost players)
 
-    char rebootWarning[ CFS_FETCH_MAX ];  // warning message 
+    char rebootWarning[ CFS_FETCH_MAX ];                                // warning message (queued)
+    char rebootDaily[ CFS_FETCH_MAX ];                  // daily reboot warning message (immediate)
 
 } pirebooterConfig;
 
@@ -87,11 +89,18 @@ int pirebooterInitConfig( void )
     pirebooterConfig.rebootDeadSec = (long int) cfsFetchNum( cP, "pirebooter.rebootdeadsec", (double)    5*60 );
     pirebooterConfig.rebootHungSec = (long int) cfsFetchNum( cP, "pirebooter.reboothungsec", (double)   20*60 );
 
+    // read the daily reboot time, e.g., "19:03".  Add colon "19:03:" so that it can be pattern
+    // checked quickly against HH:MM:SS system clockstring and not get mistaken for MM:SS check.
+    //
+    strlcpy( pirebooterConfig.rebootDailyHM, cfsFetchStr( cP, "pirebooter.rebootDailyHM", "99:99"), CFS_FETCH_MAX );
+    if ( 5 == strlen( pirebooterConfig.rebootDailyHM )) strlcat( pirebooterConfig.rebootDailyHM, ":", CFS_FETCH_MAX );
+
     pirebooterConfig.logUpdateSec  = (int)      cfsFetchNum( cP, "pirebooter.logUpdateSec",  (double)      60 );
 
     strlcpy( pirebooterConfig.rebootWarning, 
         cfsFetchStr( cP, "pirebooter.rebootWarning", "Server restart at end of game - up in 60sec" ), CFS_FETCH_MAX);
-
+    strlcpy( pirebooterConfig.rebootDaily, 
+        cfsFetchStr( cP, "pirebooter.rebootDaily", "** Server will reboot shortly - up in 60sec" ), CFS_FETCH_MAX);
 
     cfsDestroy( cP );
     
@@ -142,7 +151,7 @@ int pirebooterInitCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  pirebooterRestartCB
 //
 //  ...
 //  ...
@@ -181,8 +190,10 @@ int pirebooterGameStartCB( char *strIn )
     // to make sure server gets rebooted.
     // 
     if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
-        pirebooterConfig.timeLastReboot = apiTimeGet();
-        pirebooterConfig.timeFirstIdle  = 0L;
+        pirebooterConfig.timeLastReboot   = apiTimeGet();
+        pirebooterConfig.timeFirstIdle    = 0L;
+        pirebooterConfig.timeLastProgress = apiTimeGet();
+        logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
         apiServerRestart();     // since the server is empty, reboot right away
     }
     return 0;
@@ -205,6 +216,8 @@ int pirebooterGameEndCB( char *strIn )
     if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
         pirebooterConfig.timeLastReboot = apiTimeGet();
         pirebooterConfig.timeFirstIdle  = 0L;
+        pirebooterConfig.timeLastProgress = apiTimeGet();
+        logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
         apiServerRestart();     // since the server is empty, reboot right away
     }
     return 0;
@@ -288,6 +301,8 @@ int pirebooterShutdownCB( char *strIn )
 int pirebooterPeriodicCB( char *strIn )
 {
     static int skipTime = 0;
+    static int queueDailyReboot = 0;
+    char *timeNowHuman;
     unsigned long lastValidTimeListPlayers;
 
     // if currently in IDLE
@@ -305,7 +320,9 @@ int pirebooterPeriodicCB( char *strIn )
 	else {
             if ( (pirebooterConfig.timeFirstIdle + pirebooterConfig.rebootIdleSec ) < apiTimeGet() ) {
                 pirebooterConfig.timeLastReboot = apiTimeGet();
-                pirebooterConfig.timeFirstIdle = 0L;
+                pirebooterConfig.timeFirstIdle  = 0L;
+                pirebooterConfig.timeLastProgress = apiTimeGet();
+                logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to IDLE timer" );
                 apiServerRestart();     // since the server is empty, reboot right away
 	    }
 	}
@@ -322,6 +339,10 @@ int pirebooterPeriodicCB( char *strIn )
     lastValidTimeListPlayers = apiGetLastRosterTime();
     if ( lastValidTimeListPlayers != 0L ) {     
         if ( (apiTimeGet() - lastValidTimeListPlayers) >  pirebooterConfig.rebootDeadSec ) {
+            pirebooterConfig.timeLastReboot   = apiTimeGet();
+            pirebooterConfig.timeFirstIdle    = 0L;
+            pirebooterConfig.timeLastProgress = apiTimeGet();
+            logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to DEAD timer" );
 	    apiServerRestart();
         }
     }
@@ -329,8 +350,10 @@ int pirebooterPeriodicCB( char *strIn )
     // Check for "hung" server - RCON working, players 95% stuck, phantom players online
     //
     if ( (apiTimeGet() - pirebooterConfig.timeLastProgress) > pirebooterConfig.rebootHungSec ) {
+        pirebooterConfig.timeLastReboot   = apiTimeGet();
+        pirebooterConfig.timeFirstIdle    = 0L;
         pirebooterConfig.timeLastProgress = apiTimeGet();
-        pirebooterConfig.timeFirstIdle = 0L;
+        logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to HUNG timer" );
         apiServerRestart();
     }
 
@@ -353,6 +376,34 @@ int pirebooterPeriodicCB( char *strIn )
                 apiTimeGet() - apiGetLastRosterTime(),
                 apiTimeGet() - pirebooterConfig.timeLastProgress );
 	}
+    }
+
+    // "Abrupt" and mdandatory daily reboot - when enabled this reboots the server
+    // daily at exectly specified time, without warning, mid-game.
+    //
+    timeNowHuman = apiTimeGetHuman();
+    if ( 0 != strlen( pirebooterConfig.rebootDailyHM )) {    // if this feature is enabled...
+        // check if 'triggered' for reboot
+        // 
+        if ( NULL != strstr( timeNowHuman, pirebooterConfig.rebootDailyHM )) {
+            // wait for the next minute to actually do the reboot
+            //
+            queueDailyReboot++;
+            if (( queueDailyReboot == 1 ) || ( queueDailyReboot == 30 )) {
+                logPrintf( LOG_LEVEL_INFO, "pirebooter", "Daily Reboot is queued" );
+                apiSay( pirebooterConfig.rebootDaily );
+            }
+        }
+    }
+    if ( 0 != queueDailyReboot ) {
+        if ( NULL == strstr( timeNowHuman, pirebooterConfig.rebootDailyHM )) {
+            queueDailyReboot = 0;
+            pirebooterConfig.timeLastReboot   = apiTimeGet();         // when last rebooted
+            pirebooterConfig.timeLastProgress = apiTimeGet();
+            pirebooterConfig.timeFirstIdle    = 0L;
+            logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to DAILY timer" );
+            apiServerRestart();
+        }
     }
 
     return 0;

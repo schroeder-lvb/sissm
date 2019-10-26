@@ -31,6 +31,7 @@
 #include <unistd.h>
 #endif
 
+#include "util.h"
 #include "bsd.h"
 #include "ftrack.h"
 #include "log.h"
@@ -81,8 +82,8 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
     int     fNumber;
     ssize_t sizeName;
 
-    strcpy( fileName, "" );
-    ssize_t r;
+    strclr( fileName );
+    // ssize_t r;
     if ( fp != NULL ) {
         errCode = 0;
         fNumber = fileno( fp );
@@ -289,7 +290,7 @@ int ftrackTailOfFile( ftrackObj *fPtr, char *strBuffer, int maxStringSize, int s
     fpr = fPtr->fpr;
 
     if ( fpr == NULL ) {
-        strcpy( strBuffer, "" );
+        strclr( strBuffer );
         return 1;
     }
 
@@ -297,7 +298,7 @@ int ftrackTailOfFile( ftrackObj *fPtr, char *strBuffer, int maxStringSize, int s
         fseek( fpr, 0L, SEEK_END );
     }
 
-    strcpy( strBuffer, "" );
+    strclr( strBuffer );
 
     for ( ;; ) {
         x  = fgetc( fpr );
@@ -315,7 +316,7 @@ int ftrackTailOfFile( ftrackObj *fPtr, char *strBuffer, int maxStringSize, int s
             }
         }
         else { 
-            strcpy( strBuffer, "" );  
+            strclr( strBuffer );
             noData = 1;
             break; 
         }
@@ -355,6 +356,4 @@ int __ftrack_main()
     }
     return 0;
 }
-
-
 
