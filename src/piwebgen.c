@@ -58,6 +58,7 @@ static struct {
     int  hyperlinkFormat;                  // 0=simple output, 1=player names as hyperlinks
     int  autoRefreshHeader;                // 1=create html page autorefresh header, 0=none
     int  commTimeoutSec;                   // # sec of RCON failure to indicate "fail" on web
+    int  showSessionID;                    // 1=show replay SessionID, 0=no
 
 } piwebgenConfig;
 
@@ -87,6 +88,7 @@ int piwebgenInitConfig( void )
     strlcpy( piwebgenConfig.line2, cfsFetchStr( cP, "piwebgen.line2", ""), CFS_FETCH_MAX );
     piwebgenConfig.hyperlinkFormat = (int) cfsFetchNum( cP, "piwebgen.hyperlinkFormat", 1 );
     piwebgenConfig.commTimeoutSec = (int) cfsFetchNum( cP, "piwebgen.commTimeoutSec", 120 );
+    piwebgenConfig.showSessionID  = (int) cfsFetchNum( cP, "piwebgen.showSessionID", 0 );
 
     cfsDestroy( cP );
     return 0;
@@ -115,13 +117,33 @@ static char *_convertNameToHyperlink( char *identString )
 }
 
 
+#define PIWEBGEN_MAXROSTER   (16*1024)
+
+
+//  ==============================================================================================
+//  _htmlSafeFilter
+//
+//  Replaces < and > from input string, with [ and ], respectively
+//
+static char *_htmlSafeFilter( char *strIn )
+{
+    int i;
+    static char strOut[ PIWEBGEN_MAXROSTER ];
+
+    strlcpy( strOut, strIn, PIWEBGEN_MAXROSTER );
+    for (i=0; i<strlen( strOut ); i++) {
+        if ( strOut[ i ] == '<' ) strOut[ i ] = '[';
+        else if ( strOut[ i ] == '>' ) strOut[ i ] = ']';
+    }
+    return( strOut );
+}
+
 //  ==============================================================================================
 //  _genWebFile
 //
 //  Generates a HTML status file using current server state
 //  
 //
-#define PIWEBGEN_MAXROSTER   (16*1024)
 
 static int _genWebFile( void )
 {
@@ -147,15 +169,17 @@ static int _genWebFile( void )
         fprintf( fpw, "<b>%s</b>\n", apiGetServerName() );
         if ( 0 != strlen( piwebgenConfig.line2 ) )
             fprintf( fpw, "<br>%s\n", piwebgenConfig.line2 );
+        if ( piwebgenConfig.showSessionID )
+            fprintf( fpw, "<br>SID: %s\n", apiGetSessionID());
         fprintf( fpw, "<br>Map: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp %s\n", apiGetMapName() );
-        fprintf( fpw, "<br>Players: &nbsp; %d\n", apiPlayersGetCount());
+
+        fprintf( fpw, "<br>Players: &nbsp; %d  &nbsp;&nbsp;&nbsp; Status: &nbsp;&nbsp;  %s\n", apiPlayersGetCount(), timeoutStatus);
+
+
         fprintf( fpw, "<br>Time: &nbsp;&nbsp;&nbsp;&nbsp;   %s\n", apiTimeGetHuman() );
-        fprintf( fpw, "<br>Status: &nbsp;&nbsp;   %s\n", timeoutStatus );
         if ( 0 != strlen( piwebgenConfig.directConnect ) )
             fprintf( fpw, "<br>Connect: %s\n", piwebgenConfig.directConnect );
         if ( 0 != strlen( piwebgenConfig.webminURL ) )  {
-            // <a href="url">link text</a>
-            // old - snprintf( hyperLinkCode, 256, "<a href=\"http://%s\" target=\"_blank\">link</a>", piwebgenConfig.webminURL );
             snprintf( hyperLinkCode, 256, "<a href=\"%s\" target=\"_blank\">link</a>", piwebgenConfig.webminURL );
             fprintf( fpw, "<br>Admin: &nbsp;&nbsp; %s\n", hyperLinkCode );
         }
@@ -165,7 +189,7 @@ static int _genWebFile( void )
             fprintf( fpw, "<font color=\"blue\">%s</font> ", apiPlayersRoster( 0, " : " ) );
 	}
 	else {
-	    strlcpy( rosterWork, apiPlayersRoster( 4, "\011" ), PIWEBGEN_MAXROSTER);  // get roster with tab for delimiter
+	    strlcpy( rosterWork,  _htmlSafeFilter( apiPlayersRoster( 4, "\011" )), PIWEBGEN_MAXROSTER);  // get roster with tab for delimiter
 	    if (  0 != strlen( rosterWork )) {                   // if not an empty list then
  	        for ( i=0 ;; i++ ) {
 

@@ -23,6 +23,8 @@
 #include <fcntl.h>
 #include <ctype.h>
 
+#include "bsd.h"
+
 //  ==============================================================================================
 //  getWord
 //
@@ -102,6 +104,19 @@ void strTrimInPlace(char * s)
     return;
 }
 
+
+//  ==============================================================================================
+//  strclr
+//
+//  clear String, same as: strcpy( str, "" )
+//
+void strclr(char * s)
+{
+    s[0] = 0;
+    return;
+}
+
+
 //  ==============================================================================================
 //  strToLowerInPlace
 //
@@ -129,7 +144,7 @@ char *reformatIP( char *originalIP )
 {
     static char expandedIP[256];
     unsigned int n1, n2, n3, n4;
-    strcpy( expandedIP,  "000.000.000.000" );
+    strlcpy( expandedIP,  "000.000.000.000", 256 );
     if ( 4 == sscanf( originalIP, "%d.%d.%d.%d", &n1, &n2, &n3, &n4 )) {
         if ((n1<256) && (n2<256) && (n3<256) && (n4<256)) {
             snprintf( expandedIP, 256, "%03d.%03d.%03d.%03d", n1, n2, n3, n4 );

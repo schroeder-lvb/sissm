@@ -1,10 +1,10 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 SISSM Authorization System "Auth"
-JS Schroeder -- last updated:  2019.10.05
+JS Schroeder -- last updated:  2019.10.26
 
 If you are running a server with small group of trusted admins, use of this module is
 optional - you may find it more convenient to list all your admins as root users (sissm.rootguids).  Root user
-will autoamtically granted all privileges and commands.
+will automatically granted all privileges and commands.
 
 If you have large number of admins, requiring tighter control of privilges, you may setup
 the SISSM auth module.
@@ -29,8 +29,8 @@ no entries for command or privilege lists.
 'Everyone' group describe all visitors to your server without any special privileges.  You may
 specify list of unprivileged commands and attributes that you grant to your general community.
 
-*  Custom group is described by four fields:  1) name of group, 2) attributes, 3) list of allowed commands, and
-4) path to file containing list of GUIDs (user IDs).
+*  Custom group is described by five fields:  1) name of group, 2) attributes, 3) list of allowed commands, 
+4) list of allowed macros, and 5) path to file containing list of GUIDs (user IDs).
 
 Follow the example sissm.cfg (see below) to configure your custom groups and privileges.
 
@@ -39,47 +39,61 @@ Here are some example sissm.groupguid[*] paths to help you, for both Linux and W
 sissm.groupguid[0] "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
 sissm.groupguid[0] "C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server\Insurgency\Config\Server\Admins.txt"
 
+Macro capability (picladmin) extends your server by allowing you to create your own commmands.  These commands can be
+assigned to different privilege levels, including "everyone".  While *all* macros can be executed by those with !execute
+or !x command privilege, you can specify each to be assigned to different privilege levels for direction execution 
+(instead of "!x morebots", you type "!morebots").  This advanced topic is discussed in sissm_advanced.txt appnote.
 
 
+sissm.everyonecmds   "help version info"
 
 =====================
 Appendix:  Auth Section Example of sissm.cfg 
 =====================
 
-sissm.rootname     "Root"
-sissm.rootguids    "72000000000001 72000000000002 72000000000003 76561198127294362"
+sissm.rootname       "Root"
+sissm.rootguids      "72000000000001 72000000000002 72000000000003"
 
-sissm.groupname[0] "SrAdmin"
-sissm.groupattr[0] "admin priport"
-sissm.groupcmds[0] "help version botfixed botscaled botdifficulty macros macroslist killfeed friendlyfire gamemodeproperty rcon roundrestart reboot ban kick banid kickid spam allowin info fast"
-sissm.groupguid[0] "/home/ins/iss/Insurgency/Config/Server/Admins-Senior.txt"
 
-sissm.groupname[1] "Admin"
-sissm.groupattr[1] "admin priport"
-sissm.groupcmds[1] "help version botfixed botscaled botdifficulty macros macroslist killfeed friendlyfire roundrestart reboot ban kick banid kickid spam allowin info fast"
-sissm.groupguid[1] "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
+sissm.groupname[0]   "SrAdmin"
+sissm.groupattr[0]   "admin priport"
+sissm.groupcmds[0]   "help version botfixed botscaled botdifficulty execute macroslist killfeed friendlyfire gamemodeproperty rcon roundrestart reboot ban kick banid kickid spam allowin info fast"
+sissm.groupmcrs[0]   ""
+sissm.groupguid[0]   "/home/ins/iss/Insurgency/Config/Server/Admins-Senior.txt"
 
-sissm.groupname[2] "Moderator"
-sissm.groupattr[2] "priport"
-sissm.groupcmds[2] "help version botscaled botdifficulty kick kickid"
-sissm.groupguid[2] "/home/ins/iss/Insurgency/Config/Server/Admins-Moerators.txt"
+sissm.groupname[1]   "Admin"
+sissm.groupattr[1]   "admin priport"
+sissm.groupcmds[1]   "help version botfixed botscaled botdifficulty execute macroslist killfeed friendlyfire roundrestart reboot ban kick banid kickid spam allowin info fast"
+sissm.groupmcrs[1]   ""
+sissm.groupguid[1]   "/home/ins/iss/Insurgency/Config/Server/Admins.txt"
 
-sissm.groupname[3] "Patron"
-sissm.groupattr[3] "priport"
-sissm.groupcmds[3] "help version botscaled kick kickid"
-sissm.groupguid[3] "/home/ins/scripts/Patrons.txt"
+sissm.groupname[2]   "Moderator"
+sissm.groupattr[2]   "priport"
+sissm.groupcmds[2]   "help version botscaled botdifficulty kick kickid"
+sissm.groupmcrs[2]   ""
+sissm.groupguid[2]   "/home/ins/iss/Insurgency/Config/Server/Admins-Moderators.txt"
 
-sissm.groupname[4] ""
-sissm.groupattr[4] ""
-sissm.groupcmds[4] ""
-sissm.groupguid[4] ""
+sissm.groupname[3]   "Patron"
+sissm.groupattr[3]   "priport"
+sissm.groupcmds[3]   "help version botscaled kick kickid"
+sissm.groupmcrs[3]   ""
+sissm.groupguid[3]   "/home/ins/scripts/Patrons.txt"
 
-sissm.groupname[5] ""
-sissm.groupattr[5] ""
-sissm.groupcmds[5] ""
-sissm.groupguid[5] ""
+sissm.groupname[4]   ""
+sissm.groupattr[4]   ""
+sissm.groupcmds[4]   ""
+sissm.groupmcrs[4]   ""
+sissm.groupguid[4]   ""
 
-sissm.everyoneattr ""
-sissm.everyonecmds "help version info"
+sissm.groupname[5]   ""
+sissm.groupattr[5]   ""
+sissm.groupcmds[5]   ""
+sissm.groupmcrs[5]   ""
+sissm.groupguid[5]   ""
+
+sissm.everyoneattr   ""
+sissm.everyonecmds   "help version info"
+sissm.everyonemacros "contact rules"
+
 
 

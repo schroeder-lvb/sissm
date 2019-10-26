@@ -29,7 +29,7 @@
 #include "winport.h"   // strcasestr
 
 static rconRoster_t masterRoster[ROSTER_MAX];
-static char rosterServerName[256], rosterMapName[256], rosterTravel[256];
+static char rosterServerName[256], rosterMapName[256], rosterTravel[256], rosterSessionID[256];
 
 
 //  ==============================================================================================
@@ -55,6 +55,26 @@ int rosterIsValidGUID( char *testGUID )
     return( isValid );
 }
 
+//  ==============================================================================================
+//  rosterSetSessionID
+//
+//  Set current map name
+//
+void rosterSetSessionID( char *sessionInfo )
+{
+    strlcpy( rosterSessionID, sessionInfo, 256 );     
+    return;
+}
+
+//  ==============================================================================================
+//  rosterGetSessionID
+//
+//  Get current map name
+//
+char *rosterGetSessionID( void )
+{
+    return( rosterSessionID );
+}
 
 //  ==============================================================================================
 //  rosterSetMapName
@@ -192,11 +212,11 @@ void rosterReset( void )
     int i;
 
     for (i=0; i<ROSTER_MAX; i++) {
-        strcpy(masterRoster[i].netID,      "");
-        strcpy(masterRoster[i].playerName, "");
-        strcpy(masterRoster[i].steamID,    "");
-        strcpy(masterRoster[i].IPaddress,  "");
-        strcpy(masterRoster[i].score,      "");
+        strclr( masterRoster[i].netID );
+        strclr( masterRoster[i].playerName );
+        strclr( masterRoster[i].steamID );
+        strclr( masterRoster[i].IPaddress );
+        strclr( masterRoster[i].score );
     }
 }
 
@@ -207,27 +227,28 @@ void rosterReset( void )
 //
 void rosterInit( void )
 {
-    strcpy( rosterServerName, "" );
-    strcpy( rosterMapName,    "" );
+    strclr( rosterServerName );
+    strclr( rosterMapName );
+    strclr( rosterSessionID );
     rosterReset();
     return;
 }
 
 
 //  ==============================================================================================
-//  _tabDumpDebug (internal, test only)
+//  tabDumpDebug (internal, test only)
 //
 //  Development tool for parsing RCON roster list with tab as a delimiter.  It is left here
 //  because it is handy for maintaining parser code, debugging.  THe argument 'buf' is the
 //  exact image of what is read from RCON after listplayers command is issued.  The argument
 //  'n' is the bytecount returned from the TCP/IP read procedure.
 //
-static int _tabDumpDebug( unsigned char *buf, int n )
+int tabDumpDebug( unsigned char *buf, int n )
 {
     int i;
     char *headStr, *recdStr;
 
-    headStr = strstr( &buf[32], "========================" );    // look for start of separator
+    headStr = strstr( (char * ) &buf[32], "========================" );         // start separator
     recdStr = &headStr[80];                                      // look for start of first record
 
     i = 0;
@@ -293,11 +314,11 @@ int rosterParse( char *buf, int n )
         else {
             logPrintf( LOG_LEVEL_RAWDUMP, "roster", "Received empty or malformed listplayer rcon response size %d ::%s::", n, recdStr );
         }
-        strcpy( masterRoster[j].netID,       "" );
-        strcpy( masterRoster[j].playerName,  "" );
-        strcpy( masterRoster[j].steamID,     "" );
-        strcpy( masterRoster[j].IPaddress,   "" );
-        strcpy( masterRoster[j].score,       "" );
+        strclr( masterRoster[j].netID );
+        strclr( masterRoster[j].playerName );
+        strclr( masterRoster[j].steamID );
+        strclr( masterRoster[j].IPaddress );
+        strclr( masterRoster[j].score );
 
     }
     else {
@@ -336,7 +357,7 @@ char *rosterLookupNameFromIP( char *playerIP )
 {
     static char playerName[256];
     int i;
-    strcpy( playerName, "" );
+    strclr( playerName );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( 0 == strcmp( masterRoster[i].IPaddress, playerIP )) {
             strlcpy( playerName, masterRoster[i].playerName, 256 ); 
@@ -357,7 +378,7 @@ char *rosterLookupSteamIDFromName( char *playerName )
 {
     static char steamID[256];
     int i;
-    strcpy( steamID, "" );
+    strclr( steamID );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( 0 == strcmp( masterRoster[i].playerName, playerName )) {
             strlcpy( steamID, masterRoster[i].steamID, 256 ); 
@@ -378,7 +399,7 @@ char *rosterLookupSteamIDFromPartialName( char *partialName )
     static char steamID[256];
     int i, matchCount = 0;
 
-    strcpy( steamID, "" );
+    strclr( steamID );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( NULL != strcasestr( masterRoster[i].playerName, partialName )) {
             strlcpy( steamID, masterRoster[i].steamID, 256 ); 
@@ -386,7 +407,7 @@ char *rosterLookupSteamIDFromPartialName( char *partialName )
             break;
         }
     }
-    if ( matchCount != 1 ) strcpy( steamID, "" );
+    if ( matchCount != 1 ) strclr( steamID );
 
     return( steamID );
 }
@@ -402,7 +423,7 @@ char *rosterLookupIPFromName( char *playerName )
 {
     static char playerIP[256];
     int i;
-    strcpy( playerIP, "" );
+    strclr( playerIP );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( 0 == strcmp( masterRoster[i].playerName, playerName )) {
             strlcpy( playerIP, masterRoster[i].IPaddress, 256 ); 
@@ -428,7 +449,7 @@ char *rosterPlayerList( int infoDepth, char *delimiter )
 {
     static char playerList[4096], single[256];
     int i;
-    strcpy( playerList, "" );
+    strclr( playerList );
     for (i=0; i<ROSTER_MAX; i++) {
         if ( strlen( masterRoster[i].netID ) ) {
             if ( ( rosterIsValidGUID( masterRoster[i].steamID )) && ( 0 != strlen( masterRoster[i].IPaddress )) )  {   
@@ -476,7 +497,8 @@ void rosterDump( int humanFlag, int npcFlag )
             if (npcFlag && isNPC)    isPrintable = 1;
             if (humanFlag && !isNPC) isPrintable = 1;
 
-            printf("%s::%s::%s::%s::%s\n", 
+            printf("%d::%s::%s::%s::%s::%s\n", 
+                isPrintable,
                 masterRoster[i].netID, 
                 masterRoster[i].playerName,
                 masterRoster[i].steamID,
@@ -581,6 +603,24 @@ void rosterParsePlayerDisConn( char *connectString, int maxSize, char *playerNam
 }
 
 
+//  ==============================================================================================
+//  rosterParseSessionID
+//
+//  This is one of series of parser called by event callback routine.
+//  This one is associated with the session recording ID change event.
+//
+void rosterParseSessionID( char *sessionLogString, int maxChars, char *sessionID )
+{
+    char *w;
+
+    strclr( sessionID );
+    w = strstr( sessionLogString, "SessionName:" );
+    if ( w != NULL ) strlcpy( sessionID, &w[13], maxChars );
+    // if ( w != NULL ) strlcpy( sessionID, &w[13], 37 );
+
+    return;
+}
+
 
 //  ==============================================================================================
 //  rosterparseMapname
@@ -592,7 +632,7 @@ void rosterParseMapname( char *mapLogString, int maxChars, char *mapName )
 {
     char *w;
 
-    strcpy( mapName, "" );
+    strclr( mapName );
     w = strstr( mapLogString, "SeamlessTravel to:" );
     if ( w != NULL ) strlcpy( mapName, &w[19], maxChars );
     return;
@@ -686,7 +726,7 @@ int roster_test_main()
     rosterInit();
     rosterReset();
     n = _rosterReadTest( "dump.bin", buf );
-    _tabDumpDebug( buf, n );
+    tabDumpDebug( buf, n );
     printf("\n----------------\n");
     rosterParse( buf, n );
     rosterDump( 0, 0 );

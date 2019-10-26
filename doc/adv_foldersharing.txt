@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Running Multile Sandstorm Servers from Same Install Folder of the Same Machine
-JS Scheorder - last revised:  2019.09.03
+JS Scheorder - last revised:  2019.10.26
 =====================
 
                    * * * * * * * * * * * * * * * * * 
@@ -42,7 +42,7 @@ InsurgencyServer-Win64-Shipping.exe { other parameters } -log=server3.log
 
 This step is necessary, because without specifying the output log file, Sandstorm 
 will auto-name the log files based on the boot order as Insurgency.log, Insurgency_1.log,
-Insurgency_log_2.log, etc.  There is no easy method of telling SISSM which server correponds 
+Insurgency_2.log, etc.  There is no easy method of telling SISSM which server correponds 
 to which log file, because servers can be rebooted in any order, at any time.
 
 
@@ -85,5 +85,29 @@ Now you can run three instances of SISSM, like this:
 ./ssism.exe sissm1.cfg
 ./ssism.exe sissm2.cfg
 ./ssism.exe sissm3.cfg
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Annex:  Why You May Not Want To Do This
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+At the time of writing, Sandstorm server allows you to specify custom file paths for the following
+by changing the individual launcher parameters:
+*  Insurgency.log
+*  Game.ini
+*  Admins.txt
+
+To the best of my knowlege it cannot specify unique file paths for the folowing:
+*  Engine.ini
+*  Bans.json
+
+For this reason you may need to study the consequence for running multiple instances of your server
+from a single shared folder.
+
+This author, who runs multiple Linux dedicated ISS servers, implements are 
+compromise solution by creating separate server folders for each instance BUT making a 
+soft symbolic link ("ln -s") of the "Contents" folder only, pointing to the first install instance.
+This is where all game .pak files reside.  These are HUGE so it saves approximately 5gb of 
+space per additional instance you provide for your community of players.
 
 

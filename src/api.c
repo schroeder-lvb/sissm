@@ -48,7 +48,7 @@
 
 #define API_R_BUFSIZE                (4*1024)
 #define API_T_BUFSIZE                (4*1024)
-#define API_MAXSAY                      (256)       // Maximum string that can be printed by "say"
+#define API_MAXSAY                       (80)       // Maximum string that can be printed by "say"
 
 #define API_LOG2RCON_DELAY_MICROSEC  (250000)          // system delay between log to rcon (tuned) 
 #define API_LISTPLAYERS_PERIOD           (10)     // #seconds periodic for listserver roster fetch
@@ -77,11 +77,13 @@ static unsigned long lastRosterSuccessTime = 0L;  // marks last time listplayer 
 char rootguids[ API_LINE_STRING_MAX ];                     // separate list for root owner GUIDs
 char rootname[ API_LINE_STRING_MAX ];                               // name of root group 'root'
 char everyoneCmds[ API_LINE_STRING_MAX ];             // list of commands enabled for 'everyone'
+char everyoneMacros[ API_LINE_STRING_MAX ];             // list of macros enabled for 'everyone'
 char everyoneAttr[ API_LINE_STRING_MAX ];           // list of attributes enabled for 'everyone'
 
 struct {
     char groupname[ API_LINE_STRING_MAX ];           // name of the group e.g., "sradmin, admin"
     char groupcmds[ API_LINE_STRING_MAX ];         // allowed commands e.g., "rcon help version"
+    char groupmacros[ API_LINE_STRING_MAX ];             // allowed macros "execute <macroname>"
     char groupattr[ API_LINE_STRING_MAX ];                        // privileges e.g.,  "priport"
     char groupguid[ API_LINE_STRING_MAX ];            // filepath of GUIDs "/home/my/admins.txt"
     idList_t groupIdList;                                                         // Admins list 
@@ -106,7 +108,7 @@ int apiWordListRead( char *listFile, wordList_t wordList )
     char tmpLine[1024];
     FILE *fpr;
 
-    for (i=0; i<WORDLISTMAXELEM; i++) strcpy( wordList[i], "" );
+    for (i=0; i<WORDLISTMAXELEM; i++) strclr( wordList[i] );
 
     i = -1;
     if (NULL != (fpr = fopen( listFile, "rt" ))) {
@@ -162,10 +164,10 @@ int apiWordListCheck( char *stringTested, wordList_t wordList )
 int apiIdListRead( char *listFile, idList_t idList )
 {
     int  i;
-    char tmpLine[1024], *w;
+    char tmpLine[1024], testGUID[256]; //  *w;
     FILE *fpr;
 
-    for (i=0; i<IDLISTMAXELEM; i++) strcpy( idList[i], "" );
+    for (i=0; i<IDLISTMAXELEM; i++) strclr( idList[i] );
 
     i = -1;
     if (NULL != (fpr = fopen( listFile, "rt" ))) {
@@ -173,13 +175,11 @@ int apiIdListRead( char *listFile, idList_t idList )
         while (!feof( fpr )) {
             if (NULL != fgets( tmpLine, 1024, fpr )) {
                 tmpLine[ strlen( tmpLine ) - 1] = 0;
-                if ( 0 != strlen( tmpLine ) ) {
-                    w = getWord( tmpLine, 0, " \012\015\011/\\;:");
-                    if (strlen(w) == IDSTEAMID64LEN) {
-                        strlcpy( idList[i], w, IDSTEAMID64LEN+1 );
-                        i++;
-                        if ( i >= (IDLISTMAXELEM-1) ) break;
-                    }
+                strlcpy( testGUID, tmpLine, 18 );   // 17-char steamid + terminator
+                if ( rosterIsValidGUID( testGUID )) {
+                    strlcpy( idList[i], testGUID, IDSTEAMID64LEN+1 );
+                    i++;
+                    if ( i >= (IDLISTMAXELEM-1) ) break;
                 }
             }
         }
@@ -378,6 +378,26 @@ int _apiTravelCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  _apiSessionLogCB
+//
+//  Call-back function dispatched when the game system log file indicates a start of 
+//  session logging (game that can be played-back usign session ID at later time).
+//
+int _apiSessionLogCB( char *strIn )
+{
+    char _currSession[API_LINE_STRING_MAX];
+
+    rosterParseSessionID( strIn, API_LINE_STRING_MAX, _currSession );
+    rosterSetSessionID( _currSession );
+
+    logPrintf( LOG_LEVEL_INFO, "api", "SessionID: ::%s::", _currSession );
+    return 0;
+}
+
+
+
+//  ==============================================================================================
 
 
 //  ==============================================================================================
@@ -413,14 +433,17 @@ int apiInit( void )
     //
     strlcpy( rootguids, cfsFetchStr( cP, "sissm.rootguids", ""), API_LINE_STRING_MAX );
     strlcpy( rootname,  cfsFetchStr( cP, "sissm.rootname",  ""), API_LINE_STRING_MAX );
-    strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonecmds", "" ), API_LINE_STRING_MAX );
-    strlcpy( everyoneAttr, cfsFetchStr( cP, "sissm.everyoneattr", "" ), API_LINE_STRING_MAX );
+    strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonecmds", "" ),   API_LINE_STRING_MAX );
+    strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonemacros", "" ), API_LINE_STRING_MAX );
+    strlcpy( everyoneAttr, cfsFetchStr( cP, "sissm.everyoneattr", "" ),   API_LINE_STRING_MAX );
 
     for (i=0; i<API_MAX_GROUPS; i++) {
         snprintf( varImg, 256, "sissm.groupname[%d]", i);
             strlcpy( groups[i].groupname, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupcmds[%d]", i);
             strlcpy( groups[i].groupcmds, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+        snprintf( varImg, 256, "sissm.groupmcrs[%d]", i);
+            strlcpy( groups[i].groupmacros, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupattr[%d]", i);
             strlcpy( groups[i].groupattr, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupguid[%d]", i);
@@ -446,10 +469,11 @@ int apiInit( void )
 
     // Setup callbacks for player entering and leaving
     // 
-    eventsRegister( SISSM_EV_CLIENT_ADD, _apiPlayerConnectedCB );
-    eventsRegister( SISSM_EV_CLIENT_DEL, _apiPlayerDisconnectedCB );
-    eventsRegister( SISSM_EV_MAPCHANGE,  _apiMapChangeCB );
-    eventsRegister( SISSM_EV_TRAVEL,     _apiTravelCB );
+    eventsRegister( SISSM_EV_CLIENT_ADD,  _apiPlayerConnectedCB );
+    eventsRegister( SISSM_EV_CLIENT_DEL,  _apiPlayerDisconnectedCB );
+    eventsRegister( SISSM_EV_MAPCHANGE,   _apiMapChangeCB );
+    eventsRegister( SISSM_EV_TRAVEL,      _apiTravelCB );
+    eventsRegister( SISSM_EV_SESSIONLOG,  _apiSessionLogCB );
 
     // Setup Alarm (periodic callbacks) for fetching roster from RCON
     // 
@@ -553,9 +577,9 @@ char *apiGameModePropertyGet( char *gameModeProperty )
 {
     static char value[16*1024];
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    unsigned int bytesRead;
+    int bytesRead;
 
-    strcpy( value, "" );
+    strclr( value );
 
     snprintf( rconCmd, API_T_BUFSIZE, "gamemodeproperty %s", gameModeProperty );
     rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
@@ -706,7 +730,18 @@ char *apiGetMapName( void )
     return ( rosterGetMapName() );
 }
 
+//  ==============================================================================================
+//  apiGetSessionID
+//
+//  Called from a plugin, this routine returns the current map name.  Currently, the map name
+//  returned here is not valid until after the first map change as executed since the restart.
+//
+char *apiGetSessionID( void )
+{
+    return ( rosterGetSessionID() );
+}
 
+#if 0
 //  ==============================================================================================
 //  (internal) _apiAuthCheck
 //
@@ -726,6 +761,7 @@ static int _apiAuthCheck( char *playerGUID, char *item, char *itemList, idList_t
     }
     return isAuthorized;
 }
+#endif
 
 //  ==============================================================================================
 //  apiAuthIsAllowedCommand
@@ -754,6 +790,43 @@ int apiAuthIsAllowedCommand( char *playerGUID, char *command )
     else {
         for (i=0; i<API_MAX_GROUPS; i++) {
             if ( NULL != strstr( groups[i].groupcmds, command )) {
+                if ( apiIdListCheck( playerGUID, groups[i].groupIdList ) ) {
+                    isAuthorized = 1;
+                    break;
+                }
+            }
+        }
+    }
+    return( isAuthorized );
+}
+
+//  ==============================================================================================
+//  apiAuthIsAllowedMacro
+//
+//  Checks privilegte if macro can be executed by an admin via the guid.
+//
+//
+int apiAuthIsAllowedMacro( char *playerGUID, char *command )
+{
+    int i, isAuthorized = 0;
+
+    // check if playerGUID is 'root'
+    //
+    if ( NULL != strstr( rootguids, playerGUID )) {
+        isAuthorized = 1;
+    }
+
+    // check if command is for 'everyone'
+    //
+    else if ( NULL != strstr( everyoneMacros, command ))  {
+        isAuthorized = 1;
+    }
+
+    // check the priv tables to see if guid-command pair is authorized
+    //
+    else {
+        for (i=0; i<API_MAX_GROUPS; i++) {
+            if ( NULL != strstr( groups[i].groupmacros, command )) {
                 if ( apiIdListCheck( playerGUID, groups[i].groupIdList ) ) {
                     isAuthorized = 1;
                     break;
@@ -801,11 +874,11 @@ int apiAuthIsAttribute( char *playerGUID, char *attribute )
 char *apiAuthGetRank( char *playerGUID )
 {
     static char rank[ 256 ];
-    int i, isAuthorized = 0;
+    int i;
 
     // check if playerGUID is 'root'
     //
-    strcpy( rank, "" );
+    strclr( rank );
     if ( NULL != strstr( rootguids, playerGUID )) {
         strlcpy( rank, rootname, 256 );
     }

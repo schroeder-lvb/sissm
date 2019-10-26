@@ -17,9 +17,9 @@
 #define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.1.1 Beta 20191008 - Test & Eval Only [Restricted Edition]"
+#define VERSION    "SISSM v0.1.2 Beta 20191026 - Test & Eval Only [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.1.1 Beta 20191008 - Test & Eval Only"
+#define VERSION    "SISSM v0.1.2 Beta 20191026 - Test & Eval Only"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -218,7 +218,7 @@ int sissmInitLogAndConfig( char *configPath )
     // read the server restart script
     //
 #if SISSM_RESTRICTED
-    strcpy( sissmConfig.restartScript, "" );
+    strclr( sissmConfig.restartScript );
 #else
     strlcpy( sissmConfig.restartScript, cfsFetchStr( cP, "sissm.restartscript", "" ), CFS_FETCH_MAX );
 #endif
@@ -345,7 +345,7 @@ int sissmRestartServer( void )
     int errCode = 0;
 
     if (0==strlen( sissmConfig.restartScript )) {
-        strcpy( cmdOut, "quit" );
+        strlcpy( cmdOut, "quit", 256 );
         apiRcon( cmdOut, statusIn );
     }
 

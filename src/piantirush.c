@@ -69,7 +69,7 @@ static struct {
 } piantirushConfig;
 
 static alarmObj *aPtr  = NULL;                     // Alarm for going back to normal capture rate
-static alarmObj *dPtr  = NULL;                // Alarm for displaying when we are in locked state
+// static alarmObj *dPtr  = NULL;                // Alarm for displaying when we are in locked state
 static int lastState = -1;                          // last state of capture rate: { -1, 0, 1, 2 }
 
 

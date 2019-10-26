@@ -1,17 +1,14 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PICLADMIN - User's Manual for the Assistant Administrators
-JS Schroeder -- last updated:  2019.09.04
-
-//
-// Only supported for Insurgency Sandstorm 1.4 and later!
-//
+JS Schroeder -- last updated:  2019.10.26
 
 PICLADMIN (Plugin Command-Line Admin) plugin allows admin commands to be
 executed through the in-game chat interface.  The server operator set up
 the list of priviledged users, as well as the command prefix.
 
-Default admin list is the same as game Admins.txt.  Your server owner may 
-use a separate list.
+Not all commands will work for all users due to AUTH privilege levels --
+this is site configuration dependent.  All commands are available for 
+the AUTH root users.
 
 Default command prefix is "!".  You issue PICLADMIN commands by typing
 commands like:  !ban robert.  he server owner may change the prefix
@@ -27,7 +24,7 @@ is the case you issue a command like:  "amanda ban robert".
 
 version (v) [sissm]
 Show SISSM version number
-Examples:  !v sissm
+Examples:  !v sissm, !v
 
 ========================
 
@@ -43,9 +40,10 @@ Examples:  !bf 20, !botfixed 50
 
 ========================
 
-botscaled (bs) [2-60]
-Set fixed bot count in scaling mode - specified bot count describes full-server.
-Examples:  !bs 36, !botscaled 32
+botscaled (bs) {2-59} [2-60]
+Set bot count in scaling mode - if two numbers are specified min:max
+range is set; one number, only max limit is set.
+Examples:  !bs 36, !botscaled 32, !bs 4 36
 
 ========================
 
@@ -88,6 +86,12 @@ Examples:  !b rob, !ban ert
 banid (bi) [SteamID64]
 Perm-ban a player by SteamID64 - this can be done after a player has signed off.
 Examples:  !bi 76561123123123123, !banid 76561123123123123
+
+========================
+
+unbanid (ub) [SteamID64]
+Unban a player by SteamID64
+Examples:  !ub 76561123123123123, !unbanid 76561123123123123
 
 ========================
 
