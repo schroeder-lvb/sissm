@@ -36,6 +36,7 @@
 #define SISSM_EV_WINLOSE                    (16)
 #define SISSM_EV_TRAVEL                     (17)
 #define SISSM_EV_SESSIONLOG                 (18)
+#define SISSM_EV_OBJECT_SYNTH               (19)                       // active objective change
 
 
 // Following substring in log file triggers an event
