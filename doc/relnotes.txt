@@ -1,3 +1,15 @@
+ 
+Beta 01.3 (0.1.3) 20191027
+
+    This is a fast-turn bug hotfix release; also contains some experimental code
+    No changes to the sissm.cfg (sissm_example.cfg) from Beta 01.2 - please update the binary only
+
+    Fixed case sensitivity to !allowin name mask -- it is now case insensitive
+    Fixed corrupted SessionID in sissm.log (extra CR at the end)
+    Fixed a bug 'everyone' group could not execute picladmin commands allowed for 'everyone' in sissm.cfg
+
+    Modifying core to now track game progress; updated piwebgen to reflect new data
+    Piwebgen now shows map name on startup (no waiting for the map change after restart)
 
 Beta 01.2 (0.1.2) 20191026
 

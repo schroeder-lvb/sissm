@@ -30,7 +30,7 @@
 
 static rconRoster_t masterRoster[ROSTER_MAX];
 static char rosterServerName[256], rosterMapName[256], rosterTravel[256], rosterSessionID[256];
-
+static char rosterObjective[256], rosterObjectiveType[256];
 
 //  ==============================================================================================
 //  rosterIsValidGUID
@@ -74,6 +74,38 @@ void rosterSetSessionID( char *sessionInfo )
 char *rosterGetSessionID( void )
 {
     return( rosterSessionID );
+}
+
+//  ==============================================================================================
+//  rosterSetObjective
+//
+//  Set current (active) objective and type (COOP only)
+//
+void rosterSetObjective( char *objectiveName, char *objectiveType )
+{
+    strlcpy( rosterObjective,     objectiveName, 256 );     
+    strlcpy( rosterObjectiveType, objectiveType, 256 );     
+    return;
+}
+
+//  ==============================================================================================
+//  rosterGetObjective
+//
+//  Get current (active) objective (COOP only)
+//
+char *rosterGetObjective( void )
+{
+    return( rosterObjective );
+}
+
+//  ==============================================================================================
+//  rosterGetObjectiveType
+//
+//  Get current (active) objective (COOP only)
+//
+char *rosterGetObjectiveType( void )
+{
+    return( rosterObjectiveType );
 }
 
 //  ==============================================================================================
@@ -227,9 +259,11 @@ void rosterReset( void )
 //
 void rosterInit( void )
 {
-    strclr( rosterServerName );
-    strclr( rosterMapName );
-    strclr( rosterSessionID );
+    strclr( rosterServerName    );
+    strclr( rosterMapName       );
+    strclr( rosterSessionID     );
+    strclr( rosterObjective     );
+    strclr( rosterObjectiveType );
     rosterReset();
     return;
 }
@@ -612,10 +646,22 @@ void rosterParsePlayerDisConn( char *connectString, int maxSize, char *playerNam
 void rosterParseSessionID( char *sessionLogString, int maxChars, char *sessionID )
 {
     char *w;
+    int i, j;
 
     strclr( sessionID );
     w = strstr( sessionLogString, "SessionName:" );
-    if ( w != NULL ) strlcpy( sessionID, &w[13], maxChars );
+    if ( w != NULL ) {
+        strlcpy( sessionID, &w[13], maxChars );
+        i = strlen( sessionID );
+        if ( i >= 1 )  {
+            for (j = 0; j<i; j++)  {
+                if ( sessionID[j] == 0x0d ) {
+                    sessionID[j] = 0;
+                    break;
+                }
+            }
+        }
+    }
     // if ( w != NULL ) strlcpy( sessionID, &w[13], 37 );
 
     return;

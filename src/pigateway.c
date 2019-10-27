@@ -13,6 +13,7 @@
 //
 //  ==============================================================================================
 
+#define _GNU_SOURCE                                                            // for strcasestr()
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,7 @@
 #include "cfs.h"
 #include "util.h"
 #include "alarm.h"
+#include "winport.h"                                                           // for strcasestr()
 
 #include "roster.h"
 #include "api.h"
@@ -135,7 +137,7 @@ int pigatewayInitConfig( void )
     pigatewayConfig.gameChangeLockoutSec = (int) cfsFetchNum( cP, "pigateway.gameChangeLockoutSec", 120 );
     strlcpy( pigatewayConfig.adminListFilePath,  
         cfsFetchStr( cP, "pigateway.adminListFilePath",  "admins.txt" ), CFS_FETCH_MAX);
-    pigatewayConfig.allowInWindowTimeSec = (unsigned long int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 120 );
+    pigatewayConfig.allowInWindowTimeSec = (unsigned long int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 180 );
 
     cfsDestroy( cP );
 
@@ -165,7 +167,7 @@ static int _allowInExemption( char *playerName )
     if (( apiTimeGet() - timeMarked ) < pigatewayConfig.allowInWindowTimeSec ) {
         if (0 == strcmp( allowSubstring, "*" )) 
             allowIn = 1;
-        else if ( NULL != strstr( playerName, allowSubstring )) 
+        else if ( NULL != strcasestr( playerName, allowSubstring )) 
             allowIn = 1;
     }
 

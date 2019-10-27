@@ -71,6 +71,10 @@ char rosterPrevious[ API_ROSTER_STRING_MAX ];
 char rosterCurrent[ API_ROSTER_STRING_MAX ];
 static unsigned long lastRosterSuccessTime = 0L;  // marks last time listplayer read was success 
 
+char gameStateCurrent[ API_ROSTER_STRING_MAX ];
+char gameStatePrevious[ API_ROSTER_STRING_MAX ];
+static unsigned long lastGameStateSuccessTime = 0L;  // marks last time activeobjective was success 
+
 //  Table of admins list - can be used by any plugins to identify if 
 //  a transction is originated from an admin.  See: apiIdListCheck().
 //
@@ -94,6 +98,7 @@ struct {
 
 static wordList_t badWordsList;                                               // Bad words list
 static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file path to admins.txt
+
 
 
 //  ==============================================================================================
@@ -233,12 +238,12 @@ unsigned long apiGetLastRosterTime( void )
 }
 
 //  ==============================================================================================
-//  rosterSyntheticDelEvent
+//  _apiSyntheticDelDispatch
 //
 //  Synthetic (self generated) event that dispatches event handles of subscribed plugins
-//  when a player has disconnected.
+//  when a player has disconnected.  This is a  callback routine from the roster module.
 //
-int rosterSyntheticDelEvent(char *playerName, char *playerIP, char *playerGUID )
+int _apiSyntheticDelDispatch(char *playerName, char *playerIP, char *playerGUID )
 {
     char strOut[API_LINE_STRING_MAX];
 
@@ -249,17 +254,74 @@ int rosterSyntheticDelEvent(char *playerName, char *playerIP, char *playerGUID )
 
 
 //  ==============================================================================================
-//  rosterSyntheticAddEvent
+//  _apiSyntheticAddDispatch
 //
 //  Synthetic (self generated) event that dispatches event handles of subscribed plugins
-//  when a player has connected.
+//  when a player has connected.  This is a callback routine from the roster module.
 //
-int rosterSyntheticAddEvent(char *playerName, char *playerIP, char *playerGUID )
+int _apiSyntheticAddDispatch(char *playerName, char *playerIP, char *playerGUID ) 
 {
     char strOut[API_LINE_STRING_MAX];
 
     snprintf( strOut, API_LINE_STRING_MAX, "~SYNTHADD~ %s %s %s", playerGUID, playerIP, playerName );
     eventsDispatch( strOut  );
+    return 0;
+}
+
+
+//  ==============================================================================================
+//  _apiSyntheticObjDispatch
+//
+//  Synthetic (self generated) event that dispatches event handles of subscribed plugins
+//  when an active objective has changed (Co-op mode only)
+//
+//  If parsing is successful, this routine generates 'strOut' going to individual event 
+//  handler, with space delimited 7-word string that looks like:
+//
+//     ~SYNTHOBJ~  // 0
+//     ObjectiveCapturable   // 1
+//     /Game/Maps/Compound/Outskirts_Checkpoint_Security  // 2
+//     Outskirts_Checkpoint_Security // 3
+//     PersistentLevel // 4
+//     OCCheckpoint_A // 5
+//
+int _apiSyntheticObjDispatch(char *activeObjectRaw )   
+{
+    char strOut[API_LINE_STRING_MAX], *w;
+    int i, errCode = 0;
+
+    // Repackage the log line into something we can use -
+    // a space delimited parameters that we can parse easily
+    //
+    strlcpy( strOut, "~SYNTHOBJ~", API_LINE_STRING_MAX ); 
+    for (i=0; i<5; i++) {
+        w = getWord( activeObjectRaw, i, " =\"\'.:" );
+        if  ( w != NULL )  {
+            strlcat( strOut, " ", API_LINE_STRING_MAX );
+            strlcat( strOut, w,   API_LINE_STRING_MAX );
+        }
+        else  {
+            errCode = 1;
+            break;
+        }
+    }
+
+    // Update some internal variables and finally call a Synthetic 
+    // dispatcher to signal the plugins // something has updated.
+    //
+    if ( !errCode ) {
+        // Update the database with ActiveObject content just decoded.
+        // 
+        rosterSetMapName( getWord( strOut, 3, " " ));
+        rosterSetObjective( getWord( strOut, 5, " " ), getWord( strOut, 1, " " ));
+        logPrintf( LOG_LEVEL_DEBUG, "api", "Updating DB with ActiveObject ::%s::%s::%s::", 
+            getWord( strOut, 3, " " ), getWord( strOut, 5, " " ), getWord( strOut, 1, " " ) );
+
+        // Generate a Synthetic event signalling change in ActiveObject content
+        // 
+        eventsDispatch( strOut );                        // dispatch subscribed plugin Callbacks 
+    }
+
     return 0;
 }
 
@@ -291,8 +353,8 @@ int _apiPollAlarmCB( char *strIn )
         // logPrintf( LOG_LEVEL_DEBUG, "api", "Listplayer success, player count is %d", rosterCount());
         lastRosterSuccessTime = apiTimeGet();             // record this to check for dead servers
 	strlcpy( rosterCurrent, rosterPlayerList( 4, "\011" ), API_ROSTER_STRING_MAX );
-	rosterSyntheticChangeEvent( rosterPrevious, rosterCurrent, rosterSyntheticDelEvent ); 
-	rosterSyntheticChangeEvent( rosterCurrent, rosterPrevious, rosterSyntheticAddEvent ); 
+	rosterSyntheticChangeEvent( rosterPrevious, rosterCurrent, _apiSyntheticDelDispatch ); 
+	rosterSyntheticChangeEvent( rosterCurrent, rosterPrevious, _apiSyntheticAddDispatch ); 
 	strlcpy( rosterPrevious, rosterCurrent, API_ROSTER_STRING_MAX );
 
     }
@@ -300,6 +362,20 @@ int _apiPollAlarmCB( char *strIn )
         logPrintf( LOG_LEVEL_INFO, "api", 
             "Listplayer retrieve failure on apiPollAlarmCB, playercount is %d", rosterCount() );
     }
+
+    // Fetch the GameState
+    // asdf 
+    //   
+    strlcpy( gameStateCurrent, apiGameModePropertyGet( "activeobjective" ), API_ROSTER_STRING_MAX );
+    if ( 0 != strlen( gameStateCurrent ) ) {
+        lastGameStateSuccessTime = apiTimeGet();   // record last time value read succesfully 
+        if ( 0 != strncmp( gameStatePrevious, gameStateCurrent, API_ROSTER_STRING_MAX )) {
+	    strlcpy( gameStatePrevious, gameStateCurrent, API_ROSTER_STRING_MAX );
+            logPrintf( LOG_LEVEL_INFO, "api", "ActiveObjective ::%s::", gameStatePrevious );
+            _apiSyntheticObjDispatch( gameStatePrevious );
+        }
+    }
+
     // reset the alarm for the next iteration
     //
     alarmReset( _apiPollAlarmPtr, API_LISTPLAYERS_PERIOD );
@@ -434,7 +510,7 @@ int apiInit( void )
     strlcpy( rootguids, cfsFetchStr( cP, "sissm.rootguids", ""), API_LINE_STRING_MAX );
     strlcpy( rootname,  cfsFetchStr( cP, "sissm.rootname",  ""), API_LINE_STRING_MAX );
     strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonecmds", "" ),   API_LINE_STRING_MAX );
-    strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonemacros", "" ), API_LINE_STRING_MAX );
+    strlcpy( everyoneMacros, cfsFetchStr( cP, "sissm.everyonemacros", "" ), API_LINE_STRING_MAX );
     strlcpy( everyoneAttr, cfsFetchStr( cP, "sissm.everyoneattr", "" ),   API_LINE_STRING_MAX );
 
     for (i=0; i<API_MAX_GROUPS; i++) {
@@ -496,6 +572,13 @@ int apiInit( void )
     //
     badWordsCount = apiWordListRead( badWordsFilePath, badWordsList );
     logPrintf( LOG_LEVEL_CRITICAL, "api", "BadWords list %d words from file %s", badWordsCount, badWordsFilePath );
+
+    // Clear the internal roster & gamestate tracking variables
+    //
+    strclr( rosterPrevious );
+    strclr( rosterCurrent  );
+    strclr( gameStateCurrent );
+    strclr( gameStatePrevious );
 
     return( _rPtr == NULL );
 }
@@ -560,12 +643,12 @@ char *apiTimeGetHuman( void )
 int apiGameModePropertySet( char *gameModeProperty, char *value )
 {
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead;
+    int bytesRead, errCode;
 
     snprintf( rconCmd, API_T_BUFSIZE, "gamemodeproperty %s %s", gameModeProperty, value );
-    rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+    errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
 
-    return( 0 );
+    return( errCode );
 }
 
 //  ==============================================================================================
@@ -576,16 +659,20 @@ int apiGameModePropertySet( char *gameModeProperty, char *value )
 char *apiGameModePropertyGet( char *gameModeProperty )
 {
     static char value[16*1024];
-    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead;
+    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE], *w;
+    int bytesRead, errCode;
 
     strclr( value );
 
     snprintf( rconCmd, API_T_BUFSIZE, "gamemodeproperty %s", gameModeProperty );
-    rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
-
-    if ( bytesRead > strlen( gameModeProperty )) {
-        strncpy( value, getWord( rconResp, 1, "\"" ), sizeof( value ));
+    if ( 0 == (errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ))) {
+        if ( bytesRead > strlen( gameModeProperty )) {
+            // extract the value field.  This command will fail esp during
+            // map change when rcon response is not honored, so check for this!
+            w = getWord( rconResp, 1, "\"" );    
+            if ( w != NULL ) 
+                strncpy( value, w, sizeof( value ));    // asdf segfault
+        }
     }
 
     return( value );
@@ -595,13 +682,14 @@ char *apiGameModePropertyGet( char *gameModeProperty )
 //  apiSay
 //
 //  Called from a Plugin, this method sends text to in-game screen of all players, 
-//  prefixed by the string "Admin:".
+//  prefixed by the string "Admin:".  This "say" can be muted via the p2p var 'sayDisable'.
+//  For showing critical information, use apiSaySys().
 //
 int apiSay( const char * format, ... )
 {
     static char buffer[API_T_BUFSIZE];
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead;
+    int bytesRead, errCode;
 
     va_list args;
     va_start( args, format ); 
@@ -610,11 +698,11 @@ int apiSay( const char * format, ... )
     snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
         if ( 0 == (int) p2pGetF("api.p2p.sayDisable", 0.0 ) ) {
-            rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+            errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ); 
         }
     }
     va_end (args);
-    return 0;
+    return errCode;
 }
 
 //  ==============================================================================================
@@ -627,7 +715,7 @@ int apiSaySys( const char * format, ... )
 {
     static char buffer[API_T_BUFSIZE];
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead;
+    int bytesRead, errCode;
 
     va_list args;
     va_start( args, format ); 
@@ -635,14 +723,14 @@ int apiSaySys( const char * format, ... )
 
     snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
-        rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+        errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
     }
     va_end (args);
-    return 0;
+    return errCode;
 }
   
 //  ==============================================================================================
-//  apiKickOrBanSay
+//  apiKickOrBan
 //
 //  Called from a Plugin, this method is used to kick or ban a player by SteamGUID64 identifier.
 //  Optional *reason string may be attached, or call with empty string if not needed ("").
@@ -651,7 +739,7 @@ int apiSaySys( const char * format, ... )
 int apiKickOrBan( int isBan, char *playerGUID, char *reason )
 {
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead;
+    int bytesRead, errCode;
 
     if ( isBan ) {
         snprintf( rconCmd, API_T_BUFSIZE, "ban %s -1 %s", playerGUID, reason );
@@ -659,9 +747,9 @@ int apiKickOrBan( int isBan, char *playerGUID, char *reason )
     else {
         snprintf( rconCmd, API_T_BUFSIZE, "kick %s %s", playerGUID, reason );
     }
-    rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+    errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
 
-    return 0;
+    return errCode;
 }
 
 

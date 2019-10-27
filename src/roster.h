@@ -30,6 +30,9 @@ typedef struct {
 extern int  rosterIsValidGUID( char *testGUID );
 extern void rosterSetMapName( char *mapName );
 extern char *rosterGetMapName( void );
+extern void rosterSetObjective( char *objectiveName, char *objectiveType );
+extern char *rosterGetObjective( void );
+extern char *rosterGetObjectiveType( void );
 
 extern void rosterSetSessionID( char *SessionInfo );
 extern char *rosterGetSessionID( void );
@@ -62,7 +65,7 @@ extern void rosterParsePlayerSynthDisConn( char *connectString, int maxChars, ch
 extern void rosterParseMapname( char *mapLogString, int maxChars, char *mapName );
 extern void rosterParseSessionID( char *sessionLogString, int maxChars, char *sessionID );
 
-extern int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *));
+extern int  rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *));
 
 
 

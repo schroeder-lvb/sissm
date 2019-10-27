@@ -148,6 +148,7 @@ static char *_htmlSafeFilter( char *strIn )
 static int _genWebFile( void )
 {
     FILE *fpw;
+    char *w;
     int   errCode = 1;
     int   i;
     char  *printWordOut, *rosterElem;
@@ -157,8 +158,11 @@ static int _genWebFile( void )
 
     if (NULL != (fpw = fopen( piwebgenConfig.webFileName, "wt" ))) {
 
-        if ( apiTimeGet() < (piwebgenConfig.commTimeoutSec + apiGetLastRosterTime()) )  
+        if ( apiTimeGet() < (piwebgenConfig.commTimeoutSec + apiGetLastRosterTime()) )   {
             strlcpy( timeoutStatus, "[OK]", 256 );
+            w = rosterGetObjective();
+            if ( 0 != strlen( w ) ) strlcpy( timeoutStatus, w, 256 );
+        }
         else
             strlcpy( timeoutStatus, "<font color=\"red\">[SERVER DOWN]</font> ", 256 );
 
