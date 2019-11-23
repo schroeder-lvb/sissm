@@ -363,8 +363,7 @@ int _apiPollAlarmCB( char *strIn )
             "Listplayer retrieve failure on apiPollAlarmCB, playercount is %d", rosterCount() );
     }
 
-    // Fetch the GameState
-    // asdf 
+    // Fetch the GameState using activeobjective gamemodeproperties
     //   
     strlcpy( gameStateCurrent, apiGameModePropertyGet( "activeobjective" ), API_ROSTER_STRING_MAX );
     if ( 0 != strlen( gameStateCurrent ) ) {
@@ -671,7 +670,7 @@ char *apiGameModePropertyGet( char *gameModeProperty )
             // map change when rcon response is not honored, so check for this!
             w = getWord( rconResp, 1, "\"" );    
             if ( w != NULL ) 
-                strncpy( value, w, sizeof( value ));    // asdf segfault
+                strncpy( value, w, sizeof( value ));   
         }
     }
 
@@ -690,6 +689,7 @@ int apiSay( const char * format, ... )
     static char buffer[API_T_BUFSIZE];
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
     int bytesRead, errCode;
+    int triplePrint = 0;
 
     va_list args;
     va_start( args, format ); 
@@ -697,8 +697,11 @@ int apiSay( const char * format, ... )
 
     snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
+        if ( buffer[0] == '*' ) triplePrint = 1;
         if ( 0 == (int) p2pGetF("api.p2p.sayDisable", 0.0 ) ) {
             errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ); 
+            if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ); 
+            if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ); 
         }
     }
     va_end (args);
@@ -716,6 +719,7 @@ int apiSaySys( const char * format, ... )
     static char buffer[API_T_BUFSIZE];
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
     int bytesRead, errCode;
+    int triplePrint = 0;
 
     va_list args;
     va_start( args, format ); 
@@ -723,7 +727,10 @@ int apiSaySys( const char * format, ... )
 
     snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
+        if ( buffer[0] == '*' ) triplePrint = 1;
         errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+        if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ); 
+        if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ); 
     }
     va_end (args);
     return errCode;

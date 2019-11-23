@@ -1,4 +1,53 @@
  
+Beta 02.0 (0.2.0) xxxxxxxx
+
+    New Plugin pidynbots: change bot count/difficulty according to side/map/objective
+       See documentation:  doc/pidynbots.txt for details
+    Modified picladmin bot control commands to work with the new pidynbots plugin
+    New Plugin pitacnomic: enables tactical comms for no-microphone players using predefined shortcuts
+       See documentation:  doc/pitacnomic.txt for details
+    piantirush added rule/warnings mid-objective for cap-rushers (may be obsoleted by pitacnomic)
+    Added picladmin unpriv tac-comm commands: !ask, !prep, !warn for the no-microphone tactical players 
+    Any asterisk (*) prefixed to any "say" string will be sent 3x to screen for visibility
+    Rewritten appnote:  doc/wp_implementing_webstat.txt -- "Linux example of implementing web status"
+    Fixed a bug in picladmin !ban/!kick commands.  It now requires min 3 characters for partial match of the target.
+    Internal: Increased number of max plugins and max events to 32 each
+
+    <<<<<<<<<<<<<-- Added to SISSM.CFG - New features for PIANTIRUSH plugin:  -->>>>>>>>>>>>
+
+    // These display the extra "rules" about capture point rushing.  Comment out or set to
+    // null string ("") to disable.
+    //
+    piantirush.warnRusherCapturable   "*Rule: Ask Team BEFORE ENTERING cap zone"
+    piantirush.warnRusherDestructible "*Rule: Ask Team BEFORE EXPLODING cache"
+    piantirush.warnRusherDelaySec        20  // n-seconds after start of new objective to show these
+
+    <<<<<<<<<<<<<-- Added to SISSM.CFG - New features for PIANTIRUSH plugin:  -->>>>>>>>>>>>
+
+    // '!ask', '!prep', and '!warn' in-game prep text shortcuts to aid
+    // players and admins not willing to use microphone.  Respective
+    // shortcuts are !a, !p, and !w, for those that cannot type well.
+    // To enable these commands, add 'ask prep warn' to sissm.everyonecmds.
+    //
+    picladmin.prepBlow     "*Planting Explosives/Ready to Blow!"
+    picladmin.prepCapture  "*Testing Capture Point - Stepping On then Off"
+    picladmin.askBlow      "*EXPLODING cache in 5-sec, <NEGATIVE> to halt"
+    picladmin.askCapture   "*BREACHING in 5-sec, <NEGATIVE> to halt"
+    picladmin.warnRusher   "*Do NOT ENTER CAP/BLOW CACHE without ASKING TEAM"
+
+    <<<<<<<<<<<<<<-- Modifications to SISSM.CFG: -->>>>>>>>>>>
+
+    sissm.everyonecmds   "help version info ask prep warn"
+  
+    <<<<<<<<<<<<<<-- Added to SISSM.CFG - New Plugin PIDYNBOTS: -->>>>>>>>>>>
+
+    Please see doc/pidynbots.txt and doc/sissm_example.cfg
+
+    <<<<<<<<<<<<<<-- Added to SISSM.CFG - New Plugin PITACNOMIC: -->>>>>>>>>>>
+
+    Please see doc/pitacnomic.txt and doc/sissm_example.cfg
+
+
 Beta 01.3 (0.1.3) 20191027
 
     This is a fast-turn bug hotfix release; also contains some experimental code

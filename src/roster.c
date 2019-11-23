@@ -81,6 +81,7 @@ char *rosterGetSessionID( void )
 //
 //  Set current (active) objective and type (COOP only)
 //
+//
 void rosterSetObjective( char *objectiveName, char *objectiveType )
 {
     strlcpy( rosterObjective,     objectiveName, 256 );     
@@ -92,6 +93,11 @@ void rosterSetObjective( char *objectiveName, char *objectiveType )
 //  rosterGetObjective
 //
 //  Get current (active) objective (COOP only)
+//
+//  Returned values:
+//    Obj_WeaponCache_Ins_C     Security destroying Insurgent cache
+//    Obj_WeaponCache_Sec_C     Insurgent destroying Security cache
+//    ObjectiveCapturable       Capture Objective
 //
 char *rosterGetObjective( void )
 {
@@ -152,6 +158,28 @@ int rosterGetCoopSide( void )
     if ( NULL != strstr( rosterTravel, "Checkpoint_Security" ))   retVal = 0;
     if ( NULL != strstr( rosterTravel, "Checkpoint_Insurgents" )) retVal = 1;
 
+    return( retVal );
+}
+
+//  ==============================================================================================
+//  rosterGetCoopObjectiveLetter
+//
+//  Returns the active (next) objective, i.e., 'A', 'B', 'C'..., or ' ' if error
+//
+char rosterGetCoopObjectiveLetter( void )
+{
+    char retVal = ' ';
+    char *w = NULL;
+
+    if ( NULL == (w = strstr( rosterObjective, "ODCheckpoint_" ) ) ) {
+        if ( NULL == (w = strstr( rosterObjective, "OCCheckpoint_" ) ) )  {
+            retVal = ' ';
+        }
+    }
+
+    if ( w != NULL ) {
+        retVal = w[ 13 ];  // extract 'A' from "OxCheckpoint_A_0"
+    }
     return( retVal );
 }
 
@@ -413,6 +441,7 @@ char *rosterLookupSteamIDFromName( char *playerName )
     static char steamID[256];
     int i;
     strclr( steamID );
+ 
     for (i=0; i<ROSTER_MAX; i++) {
         if ( 0 == strcmp( masterRoster[i].playerName, playerName )) {
             strlcpy( steamID, masterRoster[i].steamID, 256 ); 
@@ -428,17 +457,19 @@ char *rosterLookupSteamIDFromName( char *playerName )
 //  Uses the database to translate player partial name to SteamID.  Empty string (not NULL)
 //  is returned if data is not found OR target cannot be uniquely identified.
 //
-char *rosterLookupSteamIDFromPartialName( char *partialName )
+char *rosterLookupSteamIDFromPartialName( char *partialName, int minChars  )
 {
     static char steamID[256];
     int i, matchCount = 0;
 
-    strclr( steamID );
-    for (i=0; i<ROSTER_MAX; i++) {
-        if ( NULL != strcasestr( masterRoster[i].playerName, partialName )) {
-            strlcpy( steamID, masterRoster[i].steamID, 256 ); 
-            matchCount++;
-            break;
+    if ( strlen( partialName ) >= minChars ) {
+        strclr( steamID );
+        for (i=0; i<ROSTER_MAX; i++) {
+            if ( NULL != strcasestr( masterRoster[i].playerName, partialName )) {
+                strlcpy( steamID, masterRoster[i].steamID, 256 ); 
+                matchCount++;
+                break;
+            }
         }
     }
     if ( matchCount != 1 ) strclr( steamID );

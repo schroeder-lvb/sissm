@@ -20,4 +20,5 @@ extern void strclr(char * s);
 extern void strTrimInPlace(char * s);
 extern void strToLowerInPlace(char * s);
 extern int isReadable( char *fileName );
+extern void  replaceDoubleColonWithBell( char *strInOut );
 

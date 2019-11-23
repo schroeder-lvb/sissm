@@ -33,6 +33,7 @@
 #include "cfs.h"
 #include "util.h"
 #include "alarm.h"
+#include "p2p.h"
 
 #include "roster.h"
 #include "api.h"
@@ -185,7 +186,7 @@ int pit001GameStartCB( char *strIn )
     strlcpy( newCount, apiGameModePropertyGet( "minimumenemies" ), 256) ;
 
     // in-game announcement start of game
-    apiSay( "%s -- 2 waves of %s bots", pit001Config.stringParameterExample, newCount );  
+    apiSay( "pit001: %s -- 2 waves of %s bots", pit001Config.stringParameterExample, newCount );  
 
     return 0;
 }
@@ -198,6 +199,7 @@ int pit001GameStartCB( char *strIn )
 int pit001GameEndCB( char *strIn )
 {
     logPrintf( LOG_LEVEL_INFO, "pit001", "Game End Event ::%s::", strIn );
+    apiSay( "pit001: End of game" );
     return 0;
 }
 
@@ -221,6 +223,7 @@ int pit001RoundStartCB( char *strIn )
 int pit001RoundEndCB( char *strIn )
 {
     logPrintf( LOG_LEVEL_INFO, "pit001", "Round End Event ::%s::", strIn );
+    apiSay( "pit001: End of Round" );
     return 0;
 }
 
@@ -291,6 +294,7 @@ int pit001ClientSynthDelCB( char *strIn )
 
     rosterParsePlayerSynthDisConn( strIn, 256, playerName, playerGUID, playerIP );
     logPrintf( LOG_LEVEL_INFO, "pit001", "Synthetic DEL Callback Name ::%s:: IP ::%s:: GUID ::%s::", playerName, playerIP, playerGUID );
+    apiSay( "pit001: Disconnect %s", playerName );
 
     return 0;
 }
@@ -310,6 +314,7 @@ int pit001ClientSynthAddCB( char *strIn )
 
     rosterParsePlayerSynthConn( strIn, 256, playerName, playerGUID, playerIP );
     logPrintf( LOG_LEVEL_INFO, "pit001", "Synthetic ADD Callback Name ::%s:: IP ::%s:: GUID ::%s::", playerName, playerIP, playerGUID );
+    apiSay( "pit001: Connected %s", playerName );
 
     return 0;
 }
@@ -337,6 +342,91 @@ int pit001SigtermCB( char *strIn )
     logPrintf( LOG_LEVEL_INFO, "pit001", "SISSM Termination CB" );
     return 0;
 }
+
+//  ==============================================================================================
+//  pit001
+//
+//
+int pit001WinLose( char *strIn )
+{
+    int isTeam0, humanSide;
+    char outStr[256];
+
+    humanSide = rosterGetCoopSide();
+    isTeam0   = (NULL != strstr( strIn, "Team 0" ));
+
+    switch ( humanSide ) {
+    case 0:
+        if ( !isTeam0 ) strlcpy( outStr, "Co-op Humans Win", 256 );
+        break;
+    case 1:
+        if (  isTeam0 ) strlcpy( outStr, "Co-opHumans Lose", 256 );
+        break;
+    default:
+        strlcpy( outStr, "PvP WinLose", 256 );
+        break;
+    }
+
+    apiSay( "pit001: %s", outStr );
+    logPrintf( LOG_LEVEL_INFO, "pit001", outStr );
+
+    return 0;
+}
+
+//  ==============================================================================================
+//  pit001
+//
+//
+int pit001Travel( char *strIn )
+{
+    char *mapName, *scenario, *mutator;
+    int humanSide;
+
+    mapName = rosterGetMapName();
+    scenario = rosterGetScenario();
+    mutator = rosterGetMutator();
+    humanSide = rosterGetCoopSide();
+
+    logPrintf( LOG_LEVEL_INFO, "pit001", "Change map to ::%s:: Scenario ::%s:: Mutator ::%s:: Human ::%d::", 
+        mapName, scenario, mutator, humanSide );
+    apiSay( "pit001: Test Map-Scenario %s::%s::%s::%d::", mapName, scenario, mutator, humanSide );
+
+    return 0;
+}
+
+//  ==============================================================================================
+//  pit001
+//
+//
+int pit001SessionLog( char *strIn )
+{
+    char *sessionID;
+
+    sessionID = rosterGetSessionID();
+
+    logPrintf( LOG_LEVEL_INFO, "pit001", "Session ID ::%s::", sessionID );
+    apiSay( "pit001: Session ID %s", sessionID );
+
+    return 0;
+}
+
+//  ==============================================================================================
+//  pit001
+//
+//
+int pit001ObjectSynth( char *strIn )
+{
+    char *obj, *typ; 
+
+    obj = rosterGetObjective();
+    typ = rosterGetObjectiveType();
+
+    logPrintf( LOG_LEVEL_INFO, "pit001", "Roster Objective is ::%s::, Type is ::%s::", obj, typ ); 
+    apiSay( "pit001: Roster Objective is ::%s::, Type is ::%s::", obj, typ ); 
+
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  ...
@@ -374,9 +464,12 @@ int pit001InstallPlugin( void )
     eventsRegister( SISSM_EV_CLIENT_DEL_SYNTH,     pit001ClientSynthDelCB );
     eventsRegister( SISSM_EV_CHAT,                 pit001ChatCB     );
     eventsRegister( SISSM_EV_SIGTERM,              pit001SigtermCB  );
+    eventsRegister( SISSM_EV_WINLOSE,              pit001WinLose );
+    eventsRegister( SISSM_EV_TRAVEL,               pit001Travel );
+    eventsRegister( SISSM_EV_SESSIONLOG,           pit001SessionLog );
+    eventsRegister( SISSM_EV_OBJECT_SYNTH,         pit001ObjectSynth );
 
     return 0;
 }
-
 
 

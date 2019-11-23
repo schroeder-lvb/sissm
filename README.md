@@ -16,6 +16,8 @@ SISSM is a server application designed to run alongside your Insurgency Sandstor
 *  "Ruleset Override" sets server properties locked by some rulesets, such as bot count in Frenzy mode
 *  "Command line Administrator" allows your admins in-game control of the server including rudiementary macro execution
 *  HTML server status generator
+*  Co-op Checkpoint only: automatically adjust bot scale/difficulty per map, change bot count per objective segment
+*  Allows 2-letter typed shortcuts to display predefined tacticaly communications to be printed in-game, for those not using voice
 *  Generates a player connection log to help facilitate after-the-fact ban
 *  Configured through a single .cfg file, per server.  All plugins can be enabled/disabled individually.
 
@@ -27,5 +29,4 @@ Miscellaneous Features:
 IMPORTANT NOTE to Commercial Game Server Providers (GSPs):
 
 SISSM allows a user to specify system commands or a script in order to reboot the game server.  If your environment restricts shell access to your clients, it is extremely important to use the restricted variant of SISSM (sissm_restricted/sissm_restricted.exe).  A malicious actor may replace the reboot command with an abrbitary OS commands.  If you are compiling from the source, set SISSM_RESTRICTED macro at top of sissm.c.
-
 

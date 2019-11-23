@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Implementing a web monitor
-JS Scheorder - last revised:  2019.08.07
+JS Scheorder - last revised:  2019.11.16
 =====================
 
 
@@ -8,13 +8,190 @@ JS Scheorder - last revised:  2019.08.07
 warning warning warning
 
 This is a concept demo for getting server status onto a web.  Method 
-outlined here is inherently INSECURE.  The information is provided here
+outlined here may have insecurities.  The information is provided here
 for technical demonstration only, and you will need to rewrite it for
 public deployments.
 
 warning warning warning
 /////////////////////////
 
+SISSM Piwebgen plugin can create a real-time server status page for you.  
+SISSM can also update this file for you so that your browser will auto-refresh 
+periodically.  This whitepaper ONLY covers recommendation for 
+how to setup SISSM to work with your existing Linux web server (Apache2/Nginx).
+
+This method requires no PHP installation - just a simple html server.  
+This is accomplished by using the linux "symbolic link" command ('ln').
+
+
+~~~~~~  Step 1.  Check your web server
+
+Before doing anything make sure your web server is working!!
+
+$ sudo sh -c 'echo "hello world" > /var/www/html/test.html'
+$ sudo chown www-data:www-data /var/www/html/test.html
+
+Now go to your browser and see if you see "hello world" test message when you visit:
+
+    http://your.website.com/test.html
+
+or if you have no donmain name, but know the IP#:
+
+    http://123.123.123.123/test.html
+
+If you do not see "hello world" printed on your browser, STOP and troubleshoot
+this first.
+
+You can now remove the test.html file:
+
+$ sudo rm /var/www/html/test.html
+
+~~~~~  Step 2.  Configure SISSM
+
+Edit your sissm.cfg file.  Populate the piwebgen block with your server info.
+
+---------------
+piwebgen.pluginState                  1                 // 1=enable plugin, 0=disable plugin
+piwebgen.webFileName     "/home/ins/sissm/server1.html"            // must be 'writable' dir
+piwebgen.updateIntervalSec            10               // forced update interval, 0 for none
+piwebgen.updateOnChange                1                     // update on change, 0 for none
+piwebgen.webminURL       "http://example.com/webmin"                        // admin web URL
+piwebgen.directConnect   "123.123.123.123:27102"                 // direct connectino method
+piwebgen.line2           "Sandstorm Checkpoint"                            // line2 of title
+piwebgen.hyperlinkFormat               1               // 0=text 1=hyperlink list of players
+piwebgen.autoRefreshHeader             1             // 1=generates html auto-refresh header
+piwebgen.commTimeoutSec              120    // #sec of rcon fail before failure is indicated
+piwebgen.showSessionID                 1                  // 1=show replay SessionID, 0=none
+---------------
+
+The file path specified in piwebgen.webFileName is the .html file SISSM will create and
+auto-update for you.  This should be somewhere under your home directory where you login 
+to run Sandstorm and SISSM.  In my example above, I login as user 'ins' and my home folder is
+/home/ins.  If you have multiple servers running on this node/VPS, you can name them like:
+
+/home/ins/sissm/server2.html
+/home/ins/sissm/server3.html
+...
+
+with unique names for each instance of Sandstorm/SISSM you run.
+
+Be sure to set piwebgen.autoRefreshHeader to 1 as shown.  This tells SISSM to command
+your browser to initiate a timed auto-refresh so you don't have to keep hitting "refresh"
+on your browser to update.
+
+This is important:  start your Sandstorm server and SISSM, and let it create your html file(s)
+in the location and filename(s) you specified.  Be sure to do this for all servers you are 
+running on this node/VPS.  After you verified that all your .html files are created, do 
+not delete it -- as you'll need it for the next step.
+
+~~~~~  Step 3.  Working with your Web Server
+
+Now we want to make a Symbolic Link of your .html files created by SISSM to your web server's
+root folder (typically /var/www/html).  Here's the example if you are running 3 servers:
+
+sudo ln -s /home/ins/sissm/server1.html /var/www/html/server1.html
+sudo ln -s /home/ins/sissm/server2.html /var/www/html/server2.html
+sudo ln -s /home/ins/sissm/server3.html /var/www/html/server3.html
+
+Now let's verify each of these are working.  Start your browser and see if you get a stauts display:
+
+    http://your.website.com/server1.html
+    http://your.website.com/server2.html
+    http://your.website.com/server3.html
+
+Again if you have no domain name you can use the IP address:
+
+    http://123.123.123.123/server1.html
+    http://123.123.123.123/server2.html
+    http://123.123.123.123/server3.html
+
+If your Sandstorm Server & SISSM is running, your page should auto-update without having to touch
+the refresh button.  If all is well, go to Step 4.
+
+If you mess up, opposite of 'ln' is 'unlink' - check your man pages.
+
+~~~~~  Step 4.  Combining multiple servers into one web page
+
+If you are running multiple web pages (even if you are not), it's nice to see a single page
+to show status of all your servers, and in color.  Here we use the <iframes> html tag to create
+a frame (a box) for each of your server.
+
+Create/edit a file using your favorite editor, like so:
+
+$ sudo nano /var/www/html/myservers.html
+
+--------------
+<!DOCTYPE html>
+<html>
+<iframe allowtransparency="true" style="background: #CCFFFF;" src="http://your.website.com/server1.html" width="420" height="260"">
+</iframe>
+<iframe allowtransparency="true" style="background: #CCFFFF;" src="http://your.website.com/server2.html" width="420" height="260"">
+</iframe>
+<iframe allowtransparency="true" style="background: #CCFFFF;" src="http://your.website.com/server3.html" width="420" height="260"">
+</html>
+-------------
+
+Again, if you don't have a domain name, you can use the IP address of your server:
+
+--------------
+<!DOCTYPE html>
+<html>
+<iframe allowtransparency="true" style="background: #CCFFFF;" src="http://123.123.123.123/server1.html" width="420" height="260"">
+</iframe>
+<iframe allowtransparency="true" style="background: #CCFFFF;" src="http://123.123.123.123/server2.html" width="420" height="260"">
+</iframe>
+<iframe allowtransparency="true" style="background: #CCFFFF;" src="http://123.123.123.123/server3.html" width="420" height="260"">
+</html>
+-------------
+
+Save it and exit the editor.  Since you edited this file under root user ('sudo'), we need to change the permission of this so apache can use them.
+
+$ sudo chown www-data:www-data /var/www/html/myservers.html
+
+Now let's test this by going to your browser again:
+
+    http://your.website.com/myservers.html
+or
+    http://123.123.123.123/myservers.html
+
+You can change the color scheme if you wish.  Visit color picker at: 
+   https://www.w3schools.com/colors/colors_picker.asp
+
+Using this technique you can also combine server status from another VPS/node (with a different IP#).  Simply
+follow steps 1-3 of your "other" servers, and add the entries in Step 4 for your "main" VPS/node.
+
+
+~~~~~  Step 5.  Optional: Making your Status Page the Default Page for Your Site 
+
+If your web server doesn't have any other content other than this game server status, you might find it 
+convenient to be able to type:
+
+    http://your.website.com
+    http://123.123.123.123
+
+Rather than
+
+    http://your.website.com/myservers.html
+    http://123.123.123.123/myservers.html
+
+If this is the case, you just need to rename your myservers.html to index.html so your webserver knows to use this as the site default.
+
+$ sudo mv /var/www/html/index.html /var/www/html/index.html.old
+$ sudo mv /var/www/html/myservers.html /var/www/html/index.html
+
+Now you can type on your browser:
+ 
+    http://your.website.com
+    http://123.123.123.123
+
+to see status of your servers.
+
+
+
+
+##################### Legacy - old post below  ######################
+##################### Legacy - old post below  ######################
+##################### Legacy - old post below  ######################
 
 Default Apache2 security allow reading/writing from /usr/share dataspace.
 

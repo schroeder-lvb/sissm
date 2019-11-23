@@ -14,8 +14,8 @@
 //  ==============================================================================================
 
 
-#define SISSM_MAXEVENTS                     (24)
-#define SISSM_MAXPLUGINS                    (24)
+#define SISSM_MAXEVENTS                     (32)
+#define SISSM_MAXPLUGINS                    (32)
 
 #define SISSM_EV_INIT                       ( 0)    // order of the indeces must match
 #define SISSM_EV_RESTART                    ( 1)    // the sequence of eventsTable[]
