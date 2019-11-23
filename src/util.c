@@ -173,3 +173,26 @@ int isReadable( char *fileName )
     return fileReadOk;
 }
 
+
+
+//  ==============================================================================================
+//  replaceDoubleColonWithBell
+//  Replaces "::" with "bell" character for easy parsing.  This replacement happens
+//  in-place, writing over the same string.
+//
+void  replaceDoubleColonWithBell( char *strInOut )
+{
+    int i;
+
+    if ( strlen( strInOut ) > 1  ) {
+        for (i=0; i<strlen( strInOut )-1; i++) {
+            if (( strInOut[i] == ':' ) && ( strInOut[i+1] == ':'))  {
+                strInOut[i] = '\007';
+                strInOut[i+1] = '\007';
+            }
+        }
+    }
+    return;
+}
+
+

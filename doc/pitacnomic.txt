@@ -1,0 +1,125 @@
+Tacttical Communications Without Microphone - SISSM
+PITACNOMIC Plugin (PI-TAC-NO-MIC)
+JS Schroeder -- last updated:  2019.11.23
+
+=====================
+Introduction
+=====================
+
+PITACNOMIC plugin enables tactical communication for the "microphone-challenged",
+i.e., people that do not speak into microphone for one of many reasons:
+
+*  No microphone hardware
+*  Voice-shy
+*  Cannot speak the language local to your server
+*  Speech/Hearing impaired
+*  Playing games at work (NOT recommended!)
+
+This plugin was created to accomodate increasing number of "silent gamers" that would like
+to play tactically, but are limited by due to the communications shortfalls.
+
+How does it work?  Say you define "cc" to say "Cover me while I'm resupplying...",
+and "tt" to say "Thanks!",  then a player on your server just have to type "y" to 
+open chat, followed by  "cc<return>" in chat.  The system will display 
+"Cover me while I'm resupplying."   And don't forget to say "tt"...
+
+This also allows no-voice players to play the commander role.  If you prefix an
+asterisk ("*") before the text definition it will "triple print" this on screen.  
+Say, if you defined "qq" with "*Support call incoming - GET BACK EVERYONE!!", then 
+upon pressing "qq" everyone will see:
+
+    *Support call ordered - STAY BACK EVERYONE!!
+    *Support call ordered - STAY BACK EVERYONE!!
+    *Support call ordered - STAY BACK EVERYONE!!
+
+Triple-printing is very eye catching, if used conservatiely!
+
+All 2-letter codes can have up to 2 associated texts.  If you just defined one, it will always
+use that one.  If you define the second text, first one will be used if the next objective
+is territorial capture; second one, a destructive (weapons) cache.
+
+For example, define "bb" as "**Breaching Capture Point in 5-sec!" and "**Exploding Cache in 5-sec!".
+The silent player has to only remember "bb" to let their teammates know they are about
+to make the critical move,  and rest of the team have 5 seconds to yell "wait!" if not ready.
+
+Two letter codes can be any two letters like "ab" "xy"... but it is much easier to type
+if they are double letter like "aa".
+
+Example sissm.cfg defines "55", "44", "33", "22", and "11" in order of typical tactical
+sequence for Checkpoint game mode.  
+
+These are not to be confused with PICLADMIN commands (admin commands, typically prefixed
+with "!" such as !bd for changing bot difficulty.  PITACNOMIC sequence is available for
+everyone to use, including the admins.  The plugin can be disabled in entirety and it will
+have no effect on PICLADMIN plugin.
+
+=====================
+Human Factors
+=====================
+
+This is like learning a new language - Get your silent players to use, perhaps, 
+just two shortcuts "22" and "44" in example below -- one to prepare for objective and another to execute.  
+After they get a hang of it, they can learn the rest of your custom sequences.
+
+=====================
+Configuring PITACNOMIC
+=====================
+
+Please see the Annex below for example sissm.cfg segment of PITACNOMIC.
+
+First enable the plugin:  pitacnomic.pluginState.
+
+Everything is fairly self-explanatory.  Each entry is defined deliminated by :: separator.
+Following the two letter code, some lines have one text, and some have two.  If you see
+an asterisk ("*") in front of the text, it will be triple printed.
+
+=====================
+Annex: Example PITACNOMIC block in SISSM.CFG
+=====================
+
+pitacnomic.pluginState               1                 // 1=enable plugin, 0=disable plugin
+
+// Objective-related 0-9
+//
+pitacnomic.shorts[0] "55::Checking perimeter/windows for hostiles...::Checking perimeter around cache.."
+pitacnomic.shorts[1] "44::*Testing Capture Point, Stepping IN then OUT::Planting/Readying explosives on Cache"
+pitacnomic.shorts[2] "33::*STACK-UP for breach--<Neg> if NOT ready::*Prepare for Destruct--<Neg> if NOT ready"
+pitacnomic.shorts[3] "22::*Breaching in 5-SECONDS <Neg> if NOT ready::*Blownig Cache in 5-SECONDS <Neg> if NOT ready"
+pitacnomic.shorts[4] "11::*!!! BREACH BREACH BREACH !!!::*!!! FIRE IN THE HOLE !!!"
+pitacnomic.shorts[5] "00::Capture Point is CLEAR - No Hostiles"
+pitacnomic.shorts[6] "99::Capture Point is NOT CLEAR"
+
+// Objective-related 10-19 (compatible to anticaprush !a (!ask) and !p (!prep) commands
+//
+pitacnomic.shorts[10] "aa::*Breaching in 5-SECONDS <Neg> if NOT ready::*Blownig Cache in 5-SECONDS <Neg> if NOT ready"
+pitacnomic.shorts[11] "pp::*Testing Capture Point, Stepping IN then OUT::Planting/Readying explosives on Cache"
+
+// Movement-related 20-29
+//
+pitacnomic.shorts[20] "66::Covering you../With you.../Got your SIX"
+pitacnomic.shorts[21] "mm::Moving / Advancing foward..."
+pitacnomic.shorts[22] "rr::I'm going right..."
+pitacnomic.shorts[23] "ll::I'm going left..."
+pitacnomic.shorts[24] "ww::*GET OFF CAP POINT!! Team NOT ready!::*Slow Down--DON'T BLOW THE CACHE!"
+
+// Commander, Support Related 30-39
+//
+pitacnomic.shorts[30] "qq::*Calling-in Support--DO NOT ADVANCE!!"
+pitacnomic.shorts[31] "rr::*Setting up Support--Ready explosive, WAIT FOR MY ORDER TO BLOW"
+pitacnomic.shorts[32] "ss::*BLOW THE CACHE NOW NOW NOW!!!"
+
+// Short dialogues 40-49
+//
+pitacnomic.shorts[40] "gg::Good game everyone!"
+pitacnomic.shorts[41] "tt::Thanks! You're my hero!"
+pitacnomic.shorts[42] "uu::You're welcome!"
+pitacnomic.shorts[43] "yy::Yes! Yes yes yes yes!"
+pitacnomic.shorts[44] "nn::No! No no no no!"
+pitacnomic.shorts[45] "vv::Cancel last / Nevermind"
+pitacnomic.shorts[46] "hh::*Halt! Wait! Need a little time!"
+
+// System 50-59
+//
+pitacnomic.shorts[50] "??::Visit www.example.com for list of shortcuts"
+pitacnomic.shorts[51] "zz::*!!! WARNING: We BAN RUSHERS and Non-Team players !!!"
+

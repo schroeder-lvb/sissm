@@ -13,6 +13,7 @@
 //
 //  ==============================================================================================
 
+#define _GNU_SOURCE            // needed for strcasestr
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,7 @@
 #include "cfs.h"
 #include "util.h"
 #include "alarm.h"
+#include "winport.h"   // strcasestr
 
 #include "roster.h"
 #include "api.h"
@@ -66,10 +68,14 @@ static struct {
     char lockObjectiveCaptureTime[CFS_FETCH_MAX];
     char lockObjectiveSpeedup[CFS_FETCH_MAX];
 
+    char warnRusherCapturable[CFS_FETCH_MAX];
+    char warnRusherDestructible[CFS_FETCH_MAX];
+    int  warnRusherDelaySec;
+
 } piantirushConfig;
 
 static alarmObj *aPtr  = NULL;                     // Alarm for going back to normal capture rate
-// static alarmObj *dPtr  = NULL;                // Alarm for displaying when we are in locked state
+static alarmObj *dPtr  = NULL;                              // Alarm for displaying warning rules
 static int lastState = -1;                          // last state of capture rate: { -1, 0, 1, 2 }
 
 
@@ -133,6 +139,30 @@ static void _captureSpeedForceNext( void )
     lastState = -1;
 }
 
+//  ==============================================================================================
+//  _rulesAlarmCB 
+//
+//  Alarm handler to display RULES for cap rushers.  
+//
+static int _rulesAlarmCB( char *str )
+{
+    char *typeObj;
+    char outStr[256];
+
+    strclr( outStr );
+
+    // Determine if the next objective is destructible or capturable.  Send out a different
+    // warning depending on the objective type.
+    // 
+    typeObj = rosterGetObjectiveType();
+    if ( NULL != strcasestr( typeObj, "weaponcache" ) ) strlcpy( outStr, piantirushConfig.warnRusherDestructible, 256 ); 
+    if ( NULL != strcasestr( typeObj, "capturable"  ) ) strlcpy( outStr, piantirushConfig.warnRusherCapturable,   256 );
+
+    apiSay( outStr );
+
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  _normalSpeedALarmCB 
@@ -187,16 +217,23 @@ int piantirushInitConfig( void )
     piantirushConfig.lockIntervalSec = (int)            
         cfsFetchNum( cP, "piantirush.lockIntervalSec", 210 ); 
     strlcpy( piantirushConfig.lockPrompt,               
-        cfsFetchStr( cP, "piantirush.lockPrompt", "** Capture locked until 11:30 on ountdown **" ), CFS_FETCH_MAX);
+        cfsFetchStr( cP, "piantirush.lockPrompt", "Capture locked until 11:30 on ountdown " ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.lockObjectiveCaptureTime, 
         cfsFetchStr( cP, "piantirush.lockObjectiveCaptureTime", "210" ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.lockObjectiveSpeedup,     
         cfsFetchStr( cP, "piantirush.lockObjectiveSpeedup", "0.00" ), CFS_FETCH_MAX);
 
+    strlcpy( piantirushConfig.warnRusherCapturable,     // "*Rule: Ask before entering capture zone"
+        cfsFetchStr( cP, "piantirush.warnRusherCapturable", "" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.warnRusherDestructible,   // "*Rule: Ask before exploding the cache" 
+        cfsFetchStr( cP, "piantirush.warnRusherDestructible", "" ), CFS_FETCH_MAX);
+    piantirushConfig.warnRusherDelaySec = (int)            
+        cfsFetchNum( cP, "piantirush.warnRusherDelaySec", 20 );
+
     cfsDestroy( cP );
 
     aPtr  = alarmCreate( _normalSpeedAlarmCB );
-//    dPtr  = alarmCreate( _displayLockedStateCB );
+    dPtr  = alarmCreate( _rulesAlarmCB );
 
     return 0;
 }
@@ -320,6 +357,7 @@ int piantirushRoundStartCB( char *strIn )
 {
     _captureSpeedForceNext();
     _startOfEverything();
+    alarmReset( dPtr, piantirushConfig.warnRusherDelaySec );
     return 0;
 }
 
@@ -390,6 +428,17 @@ int piantirushSigKillCB( char *strIn )
 }
 
 //  ==============================================================================================
+//  ...
+//
+//  ...
+//  ...
+int piantirushObjectSynth( char *strIn )
+{
+    alarmReset( dPtr, piantirushConfig.warnRusherDelaySec );
+    return 0;
+}
+
+//  ==============================================================================================
 //  piantirushInstallPlugins
 //
 //  This method is exported and is called from the main sissm module.
@@ -420,6 +469,8 @@ int piantirushInstallPlugin( void )
     eventsRegister( SISSM_EV_OBJECTIVE_CAPTURED,   piantirushCapturedCB );
     eventsRegister( SISSM_EV_PERIODIC,             piantirushPeriodicCB );
     eventsRegister( SISSM_EV_SIGTERM,              piantirushSigKillCB );
+    eventsRegister( SISSM_EV_OBJECT_SYNTH,         piantirushObjectSynth );
+
 
     return 0;
 }

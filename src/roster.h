@@ -33,6 +33,8 @@ extern char *rosterGetMapName( void );
 extern void rosterSetObjective( char *objectiveName, char *objectiveType );
 extern char *rosterGetObjective( void );
 extern char *rosterGetObjectiveType( void );
+extern char rosterGetCoopObjectiveLetter( void );
+extern int  rosterGetCoopSide( void );
 
 extern void rosterSetSessionID( char *SessionInfo );
 extern char *rosterGetSessionID( void );
@@ -51,7 +53,7 @@ extern int  rosterParse( char *buf, int n );
 extern int  rosterCount( void );
 extern char *rosterLookupNameFromIP( char *playerIP );
 extern char *rosterLookupSteamIDFromName( char *playerName );
-extern char *rosterLookupSteamIDFromPartialName( char *partialName );
+extern char *rosterLookupSteamIDFromPartialName( char *partialName, int minChars );
 extern char *rosterLookupIPFromName( char *playerName );
 extern char *rosterPlayerList( int infoDepth, char *delimeter );
 extern void rosterDump( int humanFlag, int npcFlag );

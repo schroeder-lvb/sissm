@@ -1,0 +1,99 @@
+Dynamic Bots for Co-op Modes - SISSM
+PIDYNBOTS Plugin
+JS Schroeder -- last updated:  2019.11.22
+
+=====================
+Introduction
+=====================
+
+PIDYNBOTS allows dynamic programming of 3 system parameters: mininimenemies, maximumenemies
+and aifficulty on a "per map" and "per side" basis.  This plugin solves the problem
+of having very large (hillside) and small (ministry) maps in your mapcycle.  Often
+bigger/long-range maps require more bots.  Currently the map names contain sides
+("insurgents" vs "security") so the bot count adjustments will have separate tables for
+these. (This is subject to change when community maps are introduced and they don't
+follow the NWI convensions.)
+
+PIDYNBOTS can *optionally* adjust maximumenemies parameter on a per-objective basis.  This
+means bot count can be adjusted for specific objective-to-objective segments.  This is 
+ideal for "fine tuning" your server, by making bot count adjustments that have varying 
+enagagement tactics, varying changing distance between objectives, bot spawn profile
+programmed into the map, etc.
+
+PIDYNBOTS works with PICLADMIN plugin where your administrator or moderator can
+change bot parameters from the chat box (!bs !bf and !bd commands).  If the 
+per-objective adjustment feature of PIDYNBOTS is enabled but admin bot commands
+are detected, PIDYNBOTS will stop making the adjustment for the remaining
+duration of the round.  Your admin command has the priority.
+
+You may choose to disable the per-objective adjustment feature if you are using
+another 3rd party server control tool that allows your admins to change bot 
+properties during gameplay - custom webmin, android rcon tool, SAW, etc.
+
+=====================
+Configuring PIDYNBOTS
+=====================
+
+Please see the Annex below for example sissm.cfg segment of PIDYNBOTS.
+
+First enable the plugin:  pidynbots.pluginState.
+
+Next three parameters are your "default" or baseline configuration.  This should be 
+copied directly from your respective game.ini settings:  pidynbots.MinimumEnemies, 
+pidynbots.MaximumEnemies, pidynbots.AIDifficulty.  SISSM will use these parameters
+whenever the current map is not listed in the adjustment table.  
+
+Turning pidynbots.enableObjAdj on ("1") tells PIDYNBOTS to update maximumenemies
+parameters on a per objective-to-objective basis.  Again PICLADMIN commands can 
+override this, but if you are using a 3rd party bot control tool it is best to leave
+this off ("0").
+
+String prefix pidynbots.showInGame display bot parameter update in-game.  This is a very
+handy debug feature but I recommend leaving it on full time for your gaming community.
+It shows up like this in game:
+
+   AI profile update: 3:18 Difficulty: 0.5
+
+If you set this string to null ("") it will run silently (no display in-game).
+
+The adjustment table is where you program the dynamic table.  Map name must be 
+the official map name, it is case insensitive (use lower case please).  The
+'min' 'max' and 'dif' (difficulty) is programmed at start of every round.
+If you enabled pidynbots.enableObjAdj, rest of the table will active.  "A" means
+spawn-to-A.  "B" means "going from A to B".  The values in the table for these
+are adjustment offsets to the 'max' value you specified for that map.
+
+For example if you are playing the "hillside_checkpoint_security" map, you will get
+min/max bot counts of 3:24 going from spawn to A.  It will go back to 3:22 ("0" adjust)
+going from A->B, B->C, C->D.  It gets adjusted to 3:18 going from 
+D->E, E->F, F->G, and G->H.  It will return going from H->I, except this
+map we don't have checkpoint I.
+
+
+=====================
+Annex: Example PIDYNBOTS block in SISSM.CFG
+=====================
+
+pidynbots.pluginState                1                 // 1=enable plugin, 0=disable plugin
+
+// Copy these values from your game.ini file
+//
+pidynbots.MinimumEnemies    3                          // copy from game.ini MinimumEnemies
+pidynbots.MaximumEnemies   18                          // copy from game.ini MaximumEnemies
+pidynbots.AIDifficulty    0.5                // copy from game.ini AIDifficulties (0.5 def)
+
+pidynbots.enableObjAdj      0   // 1 to enable objective adjuster; turn off if using webmin
+pidynbots.showInGame  "AI profile updated:"         // set to "" to disable in-game display
+
+// Adjustment table - max supported entires is 64 ([0] through [63])
+// You only need to create entries for maps that you wish to override the default
+//
+//                          map(substring)            min max dif  A  B  C  D  E  F  G  H  I  J  K
+pidynbots.adjuster[0]  "hillside_checkpoint_security    3 22 0.6   2  0  0  0 -4 -4 -4 -4  0  0  0"
+pidynbots.adjuster[1]  "hillside_checkpoint_insurgent   3 18 0.6  -2  0  0  0  0  0  0  0  0  0  0"
+pidynbots.adjuster[2]  "ministry_checkpoint_security    3 16 0.5   0  0  0  0  0  0  0  0  0  0  0"
+pidynbots.adjuster[3]  "ministry_checkpoint_insurgent   3 16 0.5   0  0  0  0  0  0  0  0  0  0  0"
+pidynbots.adjuster[4]  "farmhouse_checkpoint_security   3 16 0.5   0  0  0  0  0  0  0  0  0  0  0"
+pidynbots.adjuster[5]  "farmhouse_checkpoint_insurgent  3 16 0.5   0  0  0  0  0  0  0  0  0  0  0"
+
+

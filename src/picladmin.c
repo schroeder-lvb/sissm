@@ -13,6 +13,8 @@
 //
 //  ==============================================================================================
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +37,7 @@
 #include "util.h"
 #include "alarm.h"
 #include "p2p.h"
+#include "winport.h"   // strcasestr
 
 #include "roster.h"
 #include "api.h"
@@ -65,6 +68,10 @@ static struct {
 
     int botMaxAllowed, botMinDefault;
 
+    char prepBlow[CFS_FETCH_MAX], prepCapture[CFS_FETCH_MAX];
+    char askBlow[CFS_FETCH_MAX], askCapture[CFS_FETCH_MAX];
+    char warnRusher[CFS_FETCH_MAX];
+
 } picladminConfig;
 
 
@@ -79,7 +86,7 @@ int _cmdRestart(), _cmdEnd(), _cmdReboot();
 int _cmdBan(), _cmdKick();
 int _cmdBanId(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
-int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast();
+int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
 
 struct {
 
@@ -102,8 +109,8 @@ struct {
     { "kf",     "killfeed",      "killfeed on|off",         _cmdKillFeed },
     { "ff",     "friendlyfire",  "friendlyfire on|off",     _cmdFriendlyFire },
 
-    { "gmp",   "gamemodeproperty",  "gmp [cvar] {value}",   _cmdGameModeProperty },
-    { "rcon",  "rcon",           "rcon [passthru]",         _cmdRcon },
+    { "gmp",    "gamemodeproperty",  "gmp [cvar] {value}",  _cmdGameModeProperty },
+    { "rcon",   "rcon",          "rcon [passthru]",        _cmdRcon },
 
     { "rr",     "roundrestart",  "roundrestart [now]",      _cmdRestart },
 //  { "re",     "roundend",      "roundend [now]",          _cmdEnd },
@@ -120,6 +127,10 @@ struct {
     { "al",     "allowin",       "allowin [partial name]",  _cmdAllowIn },
     { "sp",     "spam",          "spam on|off",             _cmdSpam },
     { "fast",   "fast",          "fast on|off",             _cmdFast },
+
+    { "a",      "ask",           "ask",                     _cmdAsk  },
+    { "p",      "prep",          "prep",                    _cmdPrep },
+    { "w",      "warn",          "warn",                    _cmdWarn },
 
     { "*",      "*",             "*",                       NULL }
 
@@ -286,6 +297,7 @@ int _cmdBotFixed( char *arg, char *arg2, char *passThru )
            apiGameModePropertySet( "minimumenemies", _int2str( botCount/2 ) ); 
            apiGameModePropertySet( "maximumenemies", _int2str( botCount/2 ) );  
            apiGameModePropertySet( "soloenemies", _int2str( botCount ) );  
+           p2pSetL( "picladmin.p2p.botAdminControl", 1L );  // flag as admin control
            errCode = 0;
         }
     }
@@ -318,6 +330,7 @@ int _cmdBotScaled( char *arg, char *arg2, char *passThru )
         apiGameModePropertySet( "minimumenemies", _int2str( botCountMin / 2 ) );
         apiGameModePropertySet( "maximumenemies", _int2str( botCountMax / 2 ) );
         apiGameModePropertySet( "soloenemies", _int2str( botCountMax ) );  
+        p2pSetL( "picladmin.p2p.botAdminControl", 1L );  // flag as admin control
     }
     _stddResp( errCode );   // ok or error message to game
 
@@ -337,6 +350,7 @@ int _cmdBotDifficulty( char *arg, char *arg2, char *passThru )
            botDifficultyF /= 10.0;
            snprintf( strOut, 256, "%6.3lf", botDifficultyF);
            apiGameModePropertySet( "aidifficulty", strOut );
+           p2pSetL( "picladmin.p2p.botAdminControl", 1L );   // flag as admin control
            errCode = 0;
         }
     }
@@ -506,7 +520,7 @@ int _cmdBan( char *arg, char *arg2, char *passThru  )
 { 
     int errCode = 1;
     char cmdOut[256], statusIn[256], steamID[256];
-    strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg ), 256 );
+    strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
         snprintf( cmdOut, 256, "ban %s", steamID );
         apiRcon( cmdOut, statusIn );
@@ -526,7 +540,7 @@ int _cmdKick( char *arg, char *arg2, char *passThru )
 { 
     int errCode = 1;
     char cmdOut[256], statusIn[256], steamID[256];
-    strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg ), 256 );
+    strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
         snprintf( cmdOut, 256, "kick %s", steamID );
         apiRcon( cmdOut, statusIn );
@@ -679,6 +693,58 @@ int _cmdSpam( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+
+// ===== "prep"
+// Send tactical team query for use before taking objective 
+//
+int _cmdPrep( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    char *typeObj, outStr[256];
+
+    typeObj = rosterGetObjectiveType();
+    strclr( outStr );
+    if ( NULL != strcasestr( typeObj, "weaponcache" ) )
+        strlcpy( outStr, picladminConfig.prepBlow, 256 );
+    if ( NULL != strcasestr( typeObj, "capturable"  ) )
+        strlcpy( outStr, picladminConfig.prepCapture, 256 );
+
+    apiSaySys( outStr );
+    return errCode;
+}
+// ===== "ask"
+// Send tactical team query for use before taking objective 
+//
+int _cmdAsk( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    char *typeObj, outStr[256];
+
+    typeObj = rosterGetObjectiveType();
+    strclr( outStr );
+    if ( NULL != strcasestr( typeObj, "weaponcache" ) ) 
+        strlcpy( outStr, picladminConfig.askBlow, 256 );
+    if ( NULL != strcasestr( typeObj, "capturable"  ) ) 
+        strlcpy( outStr, picladminConfig.askCapture, 256 );
+
+    apiSaySys( outStr );
+    return errCode;
+}
+
+// ===== "warn"
+// Send warning to cap rushers
+//
+int _cmdWarn( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    char outStr[256];
+
+    strlcpy( outStr, picladminConfig.warnRusher, 256 );
+    apiSaySys( outStr );
+
+    return errCode;
+}
+
 // ===== "fast"
 // Send "fast" info to piantirush plugin
 //
@@ -701,6 +767,7 @@ int _cmdFast( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+#if 0
 //  ==============================================================================================
 // 
 //  (Internal)  _replaceDoubleColonWithBell
@@ -720,6 +787,7 @@ static void  _replaceDoubleColonWithBell( char *strInOut )
     }
     return;
 }
+#endif
 
 
 //  ==============================================================================================
@@ -767,7 +835,7 @@ int picladminInitConfig( void )
     for ( i=0; i<NUM_MACROS; i++ ) {
         snprintf( varArray, 256, "picladmin.macros[%d]", i );
         strlcpy( picladminConfig.macros[i],     cfsFetchStr( cP, varArray,  "" ),   CFS_FETCH_MAX);
-        _replaceDoubleColonWithBell( picladminConfig.macros[i] );
+        replaceDoubleColonWithBell( picladminConfig.macros[i] );
     }
 
     strlcpy( picladminConfig.cmdPrefix,      cfsFetchStr( cP, "picladmin.cmdPrefix",      "!" ),              CFS_FETCH_MAX);
@@ -784,6 +852,19 @@ int picladminInitConfig( void )
     picladminConfig.botMinDefault = (int) cfsFetchNum( cP, "picladmin.botMinDefault",  6.0 );
     if ( picladminConfig.botMaxAllowed < 2.0 ) picladminConfig.botMaxAllowed = 4.0;
     if ( picladminConfig.botMinDefault < 2.0 ) picladminConfig.botMinDefault = 2.0;
+
+    // text to show in-game for !ask, !prep, and !warn
+    //
+    strlcpy( picladminConfig.prepBlow, cfsFetchStr( cP, "picladmin.prepBlow",  
+        "*Planting Explosives/Ready to Blow!" ), CFS_FETCH_MAX);
+    strlcpy( picladminConfig.prepCapture, cfsFetchStr( cP, "picladmin.prepCapture",  
+        "*Testing Capture Point - Stepping On then Off" ), CFS_FETCH_MAX);
+    strlcpy( picladminConfig.askBlow, cfsFetchStr( cP, "picladmin.askBlow",  
+        "*BLOWING CACHE in 5-sec, <NEGATIVE> to halt" ), CFS_FETCH_MAX);
+    strlcpy( picladminConfig.askCapture, cfsFetchStr( cP, "picladmin.askCapture",  
+        "*BREACHING in 5-sec, <NEGATIVE> to halt" ), CFS_FETCH_MAX);
+    strlcpy( picladminConfig.warnRusher, cfsFetchStr( cP, "picladmin.warnRusher",  
+        "*Do NOT ENTER CAP/BLOW CACHE without ASKING TEAM" ), CFS_FETCH_MAX);
 
     cfsDestroy( cP );
     return 0;
@@ -805,6 +886,11 @@ static void _resetP2PVars( void )
     //
     // p2pSetS( "picladmin.p2p.allowInPattern", "" );
     // p2pSetL( "picladmin.p2p.allowTimeStart", 0L );
+
+    // Release the bot ownership - if this module (admin) change the bot
+    // setting it is "owned" by this module until start of next map
+    //
+    p2pSetL( "picladmin.p2p.botAdminControl", 0L );
 
     return ;
 }

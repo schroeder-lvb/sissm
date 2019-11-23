@@ -17,9 +17,9 @@
 #define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.1.3 Beta 20191027 - Test & Eval Only [Restricted Edition]"
+#define VERSION    "SISSM v0.2.0 Beta 20191123 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.1.3 Beta 20191027 - Test & Eval Only"
+#define VERSION    "SISSM v0.2.0 Beta 20191123"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -63,6 +63,8 @@
 #include "piwebgen.h"
 #include "pioverride.h"
 #include "picladmin.h"
+#include "pidynbots.h"
+#include "pitacnomic.h"
 
 
 //  ==============================================================================================
@@ -285,6 +287,8 @@ int sissmInitPlugins( void )
     piwebgenInstallPlugin();                                       // web status generator
     pioverrideInstallPlugin();                   // gamemodeproperty override for rulesets
     picladminInstallPlugin();     // admin in-game command executioner from the chat input
+    pidynbotsInstallPlugin();                           // dynamic-bots adjustments plugin 
+    pitacnomicInstallPlugin();         // shortcut phrases for tac-comm without microphone
 
     // "Third Party" Plugins - for customizations
     //
