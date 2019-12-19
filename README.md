@@ -24,7 +24,7 @@ SISSM is a server application designed to run alongside your Insurgency Sandstor
 Miscellaneous Features:
 
 *  All functional features are implemented through plugins.  You can write your own, or modify an existing one!
-*  Localization: All SISSM messages sent to your game clients are all in SISSM's config file.  This makes localization possible
+*  Localization: Most SISSM messages sent to your game clients are all in SISSM's config file.  This makes localization possible
 
 IMPORTANT NOTE to Commercial Game Server Providers (GSPs):
 

@@ -16,7 +16,7 @@
 
 extern int   apiInit( void );
 extern int   apiDestroy( void );
-extern int   apiServerRestart( void );
+extern int   apiServerRestart( char *reasonForRestart );
 extern int   apiGameModePropertySet( char *gameModeProperty, char *value );
 extern char *apiGameModePropertyGet( char *gameModeProperty );
 extern int   apiSay( const char * format, ... );
@@ -26,10 +26,11 @@ extern int   apiRcon( char *commandOut, char *statusIn );
 extern int   apiPlayersGetCount( void );
 extern char *apiPlayersRoster( int infoDepth, char *delimeter );
 extern char *apiGetServerName( void );
+extern char *apiGetServerNameRCON( int forceCacheRefresh );
 extern char *apiGetMapName( void );
 extern char *apiGetSessionID( void );
 extern unsigned long apiTimeGet( void );
-extern char  *apiTimeGetHuman( void );
+extern char  *apiTimeGetHuman( unsigned long timeMark );
 extern unsigned long apiGetLastRosterTime( void );
 extern int   apiBadNameCheck( char *nameIn );
 
@@ -57,4 +58,9 @@ typedef char wordList_t[WORDLISTMAXELEM][WORDLISTMAXSTRSZ];
 extern int apiWordListRead( char *listFile, wordList_t wordList );
 extern int apiWordListCheck( char *stringTested, wordList_t wordList );
 
+
+// for recalling last reboot event - time and reason
+//
+extern unsigned long apiGetLastRebootTime( void );
+extern char *apiGetLastRebootReason( void );
 

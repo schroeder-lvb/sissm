@@ -53,6 +53,7 @@
 
 #define NUM_RESPONSES  (5)
 #define NUM_MACROS     (64)
+#define NUM_REASONS    (9)
 
 static struct {
 
@@ -71,6 +72,8 @@ static struct {
     char prepBlow[CFS_FETCH_MAX], prepCapture[CFS_FETCH_MAX];
     char askBlow[CFS_FETCH_MAX], askCapture[CFS_FETCH_MAX];
     char warnRusher[CFS_FETCH_MAX];
+
+    char reason[NUM_REASONS][CFS_FETCH_MAX];
 
 } picladminConfig;
 
@@ -116,12 +119,12 @@ struct {
 //  { "re",     "roundend",      "roundend [now]",          _cmdEnd },
     { "reboot", "reboot",        "reboot [now]",            _cmdReboot },
 
-    { "b",      "ban",           "ban [partial name]",      _cmdBan },
-    { "k",      "kick",          "kick [partial name]",     _cmdKick },
+    { "b",      "ban",           "ban [partial name] {reason}",  _cmdBan },
+    { "k",      "kick",          "kick [partial name] {reason}", _cmdKick },
 
-    { "bi",     "banid",         "banid [steamid64]",       _cmdBanId },
+    { "bi",     "banid",         "banid [steamid64] {reason}", _cmdBanId },
     { "ub",     "unbanid",       "unbanid [steamid64]",     _cmdUnBanId },
-    { "ki",     "kickid",        "kickid [steamid64]",      _cmdKickId },
+    { "ki",     "kickid",        "kickid [steamid64] {reason}", _cmdKickId },
 
     { "info",   "info",          "info",                    _cmdInfo },
     { "al",     "allowin",       "allowin [partial name]",  _cmdAllowIn },
@@ -175,6 +178,57 @@ static char *_int2str( int numOut )
     return( strOut );
 }
 
+
+//  ==============================================================================================
+//  _reason
+//
+//  Extract the 'reason' field from kick/kickid/ban/banid commands.
+//  The returned value is the pointer to substring 'rawLine.'  If the reason
+//  is not given it turns to end of rawLine, which is an empty (but not null) string.
+// 
+//  Sample rawLine input:  "kick sch this is my reason"
+//
+static char *_reason( char *rawLine )
+{
+    char *p1 = NULL, *p3 = NULL;
+    int   i, spaceCount = 0;
+    static char outReason[ 256 ];
+
+    // Parse and look for "reason" string from what was typed by 
+    // admin at console.  
+    //
+    p3 = & rawLine[ strlen( rawLine ) ];
+    for (i=0; i<strlen( rawLine ); i++) {
+        if ( rawLine[i] == ' ' ) spaceCount++;
+        if ( spaceCount == 2 ) {
+            p3 = & rawLine[ i+1 ];
+            break;
+        }
+    }
+    strlcpy( outReason, p3, 256 );
+
+    // if the 'reason' was one of shortcut preset 'canned' reasons
+    // e.g., 'rush', 'afk', 'tk', etc.  then replace it with the 
+    // longer explanation.
+    //
+    for ( i=0; i<NUM_REASONS; i++ ) {
+        p1 = getWord( picladminConfig.reason[i], 0, "\007" ) ;
+        if ( p1 != NULL ) { 
+            if ( 0 == strcmp( p1, p3 ) ) {  // replace if exact match to preset reasons
+                strlcpy( outReason, getWord( picladminConfig.reason[i], 1, "\007" ), 256);
+                break;
+            }
+        }
+    }
+
+    // replace double quotes with a single quote
+    //
+    for ( i=0; i<strlen(outReason); i++ ) {
+        if ( outReason[i] == 0x22 ) outReason[i] = 0x27;
+    }
+
+    return( outReason );
+}
 
 //  ==============================================================================================
 //  Individual Micro-Command Executors
@@ -296,7 +350,7 @@ int _cmdBotFixed( char *arg, char *arg2, char *passThru )
         if ( ( botCount <=  picladminConfig.botMaxAllowed ) && ( botCount >= 2 ) ) {
            apiGameModePropertySet( "minimumenemies", _int2str( botCount/2 ) ); 
            apiGameModePropertySet( "maximumenemies", _int2str( botCount/2 ) );  
-           apiGameModePropertySet( "soloenemies", _int2str( botCount ) );  
+           apiGameModePropertySet( "soloenemies", _int2str( botCount/2 ) );  
            p2pSetL( "picladmin.p2p.botAdminControl", 1L );  // flag as admin control
            errCode = 0;
         }
@@ -329,8 +383,9 @@ int _cmdBotScaled( char *arg, char *arg2, char *passThru )
     if ( 0 == errCode ) {
         apiGameModePropertySet( "minimumenemies", _int2str( botCountMin / 2 ) );
         apiGameModePropertySet( "maximumenemies", _int2str( botCountMax / 2 ) );
-        apiGameModePropertySet( "soloenemies", _int2str( botCountMax ) );  
+        // apiGameModePropertySet( "soloenemies", _int2str( botCountMax ) );  
         p2pSetL( "picladmin.p2p.botAdminControl", 1L );  // flag as admin control
+        p2pSetL( "pidynbots.p2p.sigBotScaled", 1L );  // signal to pidynbots (if running)
     }
     _stddResp( errCode );   // ok or error message to game
 
@@ -350,7 +405,7 @@ int _cmdBotDifficulty( char *arg, char *arg2, char *passThru )
            botDifficultyF /= 10.0;
            snprintf( strOut, 256, "%6.3lf", botDifficultyF);
            apiGameModePropertySet( "aidifficulty", strOut );
-           p2pSetL( "picladmin.p2p.botAdminControl", 1L );   // flag as admin control
+           p2pSetL( "picladmin.p2p.botAdminControlDifficulty", 1L );   // flag as admin control
            errCode = 0;
         }
     }
@@ -439,7 +494,7 @@ int _cmdReboot( char *arg, char *arg2, char *passThru  )
     int errCode = 0;
 
     if (0 == strcmp( "now", arg ))  
-        apiServerRestart();
+        apiServerRestart( "Admin Command" );
     else 
         errCode = 1;
 
@@ -458,7 +513,7 @@ int _cmdBanId( char *arg, char *arg2, char *passThru  )
 
     if ( 17==strlen( arg ) ) {
         if (NULL != strstr( arg, "765611" )) {
-            snprintf( cmdOut, 256, "banid %s", arg );
+            snprintf( cmdOut, 256, "banid %s 0 \"%s\"", arg, _reason( passThru ) );
             apiRcon( cmdOut, statusIn );
             apiSay( statusIn );
             errCode = 0;
@@ -502,7 +557,7 @@ int _cmdKickId( char *arg, char *arg2, char *passThru  )
 
     if ( IDSTEAMID64LEN == strlen( arg ) ) {
         if (NULL != strstr( arg, "765611" )) {
-            snprintf( cmdOut, 256, "kick %s", arg );
+            snprintf( cmdOut, 256, "kick %s \"%s\"", arg, _reason( passThru) );
             apiRcon( cmdOut, statusIn );
             errCode = 0;
         }
@@ -522,7 +577,7 @@ int _cmdBan( char *arg, char *arg2, char *passThru  )
     char cmdOut[256], statusIn[256], steamID[256];
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
-        snprintf( cmdOut, 256, "ban %s", steamID );
+        snprintf( cmdOut, 256, "ban %s 0 \"%s\"", steamID, _reason( passThru) );
         apiRcon( cmdOut, statusIn );
         apiSay( statusIn );
         errCode = 0;
@@ -542,7 +597,7 @@ int _cmdKick( char *arg, char *arg2, char *passThru )
     char cmdOut[256], statusIn[256], steamID[256];
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
-        snprintf( cmdOut, 256, "kick %s", steamID );
+        snprintf( cmdOut, 256, "kick %s \"%s\"", steamID, _reason( passThru ) );
         apiRcon( cmdOut, statusIn );
         apiSay( statusIn );
         errCode = 0;
@@ -866,6 +921,14 @@ int picladminInitConfig( void )
     strlcpy( picladminConfig.warnRusher, cfsFetchStr( cP, "picladmin.warnRusher",  
         "*Do NOT ENTER CAP/BLOW CACHE without ASKING TEAM" ), CFS_FETCH_MAX);
 
+    // Read the "reasons" preset strings for ban/banid/kick/kickid commmands
+    //
+    for ( i=0; i<NUM_REASONS; i++ ) {
+        snprintf( varArray, 256, "picladmin.reason[%d]", i );
+        strlcpy( picladminConfig.reason[i],     cfsFetchStr( cP, varArray,  "" ),   CFS_FETCH_MAX);
+        replaceDoubleColonWithBell( picladminConfig.reason[i] );
+    }
+
     cfsDestroy( cP );
     return 0;
 }
@@ -891,6 +954,7 @@ static void _resetP2PVars( void )
     // setting it is "owned" by this module until start of next map
     //
     p2pSetL( "picladmin.p2p.botAdminControl", 0L );
+    p2pSetL( "picladmin.p2p.botAdminControlDifficulty", 0L );
 
     return ;
 }
@@ -898,6 +962,7 @@ static void _resetP2PVars( void )
 int picladminGameStartCB( char *strIn ) { _resetP2PVars(); return 0; }
 int picladminMapChangeCB( char *strIn ) { _resetP2PVars(); return 0; }
 int picladminGameEndCB( char *strIn )   { _resetP2PVars(); return 0; }
+int picladminRoundStartCB( char *strIn ) { _resetP2PVars(); return 0; }
 
 
 //  ==============================================================================================
@@ -909,7 +974,6 @@ int picladminClientAddCB( char *strIn ) { return 0; }
 int picladminClientDelCB( char *strIn ) { return 0; }
 int picladminInitCB( char *strIn ) { return 0; }
 int picladminRestartCB( char *strIn ) { return 0; }
-int picladminRoundStartCB( char *strIn ) { return 0; }
 int picladminRoundEndCB( char *strIn ) { return 0; }
 int picladminCapturedCB( char *strIn ) { return 0; }
 int picladminPeriodicCB( char *strIn ) { return 0; }
