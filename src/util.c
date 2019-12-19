@@ -24,6 +24,32 @@
 #include <ctype.h>
 
 #include "bsd.h"
+#include "util.h"
+
+
+//  ==============================================================================================
+//  elapsedTime
+//
+//  Returns a string of elapsed time between two time structure (unsigned long)
+//  
+char *computeElapsedTime( unsigned long timeMark, unsigned long timeNow )
+{
+    static char retElapsedString[256];
+    unsigned long timeElapsed, timeHours, timeMinutes, timeSeconds;
+
+    if ( timeMark >= timeNow ) {
+        strclr( retElapsedString );
+    }
+    else {
+        timeElapsed = timeNow - timeMark;
+        timeHours   = timeElapsed / 3600L;
+        timeMinutes = (timeElapsed - (timeHours * 3600L)) / 60L;
+        timeSeconds = (timeElapsed - (timeHours * 3600L + timeMinutes * 60L)) % 60L;
+        snprintf( retElapsedString, 256, "%ld:%02ld:%02ld", timeHours, timeMinutes, timeSeconds );
+    }
+    return( retElapsedString );
+}
+
 
 //  ==============================================================================================
 //  getWord
@@ -195,4 +221,26 @@ void  replaceDoubleColonWithBell( char *strInOut )
     return;
 }
 
+
+//  ==============================================================================================
+//  debugPoke
+//  For debug/development use only  - used to wedge forced parameter during runtime from
+//  command line e.g., echo 12345 > filename.dbg
+//  
+int debugPoke( char *fileName, int *valueOut )
+{
+    int errCode = 1;
+    FILE *fpr;
+    static char tmpBuf[256];
+
+    if ( NULL != (fpr = fopen( fileName, "rt" )) ) {
+        if ( NULL != fgets( tmpBuf, 256, fpr ) ) {
+            if ( 1 == sscanf( tmpBuf, "%d", valueOut )) {
+                errCode = 0;
+            }
+        }
+        fclose( fpr );
+    }
+    return( errCode ); 
+}
 

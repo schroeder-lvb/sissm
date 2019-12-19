@@ -15,11 +15,12 @@
 //
 
 #define SISSM_RESTRICTED   (0)           // 1=build shell-restricted version 0=full shell access
+#define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.0 Beta 20191123 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.1 Beta 20191219 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.0 Beta 20191123"
+#define VERSION    "SISSM v0.2.1 Beta 20191219"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -35,6 +36,7 @@
 #include "winport.h"     // sleep/usleep functions
 #else 
 #include <unistd.h>
+#include <execinfo.h>    // segfault-backtrace trap
 #endif
 
 #include "bsd.h"
@@ -180,6 +182,92 @@ int sissmSigInstall( void )
 
     return errCode;
 }
+
+
+//  ==============================================================================================
+//  (Linux only) sissmSegfaultSigaction
+//
+//  Signal handler for OS level violation trap.  Use gcc -g -rdynamic flags.
+//  Call sissmSegfaultInstall() to activate this function.
+//
+//  ==============================================================================================
+
+#ifndef _WIN32
+
+#define BT_BUF_SIZE 100
+static FILE *segfaultFPW = NULL;
+
+void sissmSegfaultSigaction( int signal, siginfo_t *si, void *arg )
+{
+    int j, nptrs;
+    void *buffer[BT_BUF_SIZE];
+    char **strings;
+    time_t curtime;
+    struct tm *loctime;
+
+    nptrs = backtrace( buffer, BT_BUF_SIZE );
+    // printf("Caught segfault at address %p\n", si->si_addr);
+    // printf( "backtrace() returned %d addresses\n", nptrs );
+
+    // The call backtrace_symbols_fd(buffer, nptrs, STDOUT_FILENO) would
+    // produce similar output to the following:
+    //
+    strings = backtrace_symbols(buffer, nptrs);
+    if (strings == NULL) {
+        perror( "backtrace_symbols" );
+        exit( EXIT_FAILURE );
+    }
+
+    curtime = time (NULL);
+    loctime = localtime (&curtime);
+    if (NULL != segfaultFPW) fprintf( segfaultFPW, "Crash Time: %s\n", asctime(loctime) );
+    for ( j = 0; j < nptrs; j++ ) {
+        printf( "%s\n", strings[j] );
+        fprintf( segfaultFPW, "%s\n", strings[j] );
+    }
+    if ( segfaultFPW != NULL ) fclose( segfaultFPW );
+
+    free(strings);
+    exit( 0 );
+}
+
+//  ==============================================================================================
+//  (Linux only) sissmSegfaultInstall
+//
+//  Install signal handlers for various segmention fault
+//  ==============================================================================================
+
+int sissmSegfaultInstall( char *sissmCfgFileName )
+{
+    struct sigaction sa;
+    char crashFilename[256];
+    time_t curtime;
+    struct tm *loctime;
+
+    memset( &sa, 0, sizeof(struct sigaction) );
+    sigemptyset( &sa.sa_mask );
+    sa.sa_sigaction = sissmSegfaultSigaction;
+    sa.sa_flags = SA_SIGINFO;
+
+    sigaction(SIGSEGV, &sa, NULL);                                       // invalid memory access
+    sigaction(SIGFPE,  &sa, NULL);                                              // divide-by-zero
+    sigaction(SIGABRT, &sa, NULL);                                              // stack smashing
+
+    strlcpy( crashFilename, sissmCfgFileName, 256 );
+    strlcat( crashFilename, ".crashreport", 256 );
+    segfaultFPW = fopen( crashFilename, "at" );
+
+    curtime = time (NULL);
+    loctime = localtime (&curtime);
+    if ( NULL != segfaultFPW ) {
+        fprintf( segfaultFPW, "\n\n------\nInitialized Crash Reporter: %s\n", asctime(loctime) );
+        fflush( segfaultFPW );
+    }
+
+    return (segfaultFPW == NULL);
+}
+
+#endif
 
 //  ==============================================================================================
 //  sissmInitLogAndConfig
@@ -562,6 +650,15 @@ int main( int argc, char *argv[] )
         errCode = 1;
     }
     if (  errCode ) printf("\n%s\nSyntax: sissm config-file\n\n", VERSION);
+
+#ifndef _WIN32 
+#if SISSM_CRASHREPORT
+    // Initialize Linux-only segfault trap with built-in backtrace dump.
+    // This will create a "sissm.cfg.crashereporter" file.
+    //
+    if ( !errCode ) errCode = sissmSegfaultInstall( configFileName );
+#endif
+#endif
 
     // Initialize the Config reader, ^C handler, Log Systems, then the Plugins
     //

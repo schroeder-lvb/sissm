@@ -393,7 +393,7 @@ int rosterParse( char *buf, int n )
 //  ==============================================================================================
 //  rosterCount
 //
-//  Counts and returns number of active human players in the current database snapsho.
+//  Counts and returns number of active human players in the current database snapshot.
 //
 int rosterCount( void )
 {

@@ -57,13 +57,18 @@ static struct {
 
     int MinimumEnemies; 
     int MaximumEnemies; 
+    int MaxPlayersToScaleEnemyCount;
     double AIDifficulty;
     char Adjuster[PIDYN_MAXADJUSTERS][CFS_FETCH_MAX];
 
     int enableObjAdj;                       // 1 to enable objective adj; turn off if using webmin
+    int enableDisconnAdj;                         // 1 to enable AI adjust when player disconnects
+    int enableConnAdj;                               // 1 to enable AI adjust when player connects
+
     char showInGame[CFS_FETCH_MAX];                        // set to "" to disable in-game display
 
 } pidynbotsConfig;
+
 
 
 //  ==============================================================================================
@@ -84,9 +89,13 @@ int pidynbotsInitConfig( void )
 
     pidynbotsConfig.MinimumEnemies  = (int) cfsFetchNum( cP, "pidynbots.MinimumEnemies",  3.0 );  // minimumenemies
     pidynbotsConfig.MaximumEnemies  = (int) cfsFetchNum( cP, "pidynbots.MaximumEnemies", 18.0 );  // maximumenemies
+    pidynbotsConfig.MaxPlayersToScaleEnemyCount = (int) cfsFetchNum( cP, "pidynbots.MaxPlayerToScaleEnemyCount", 10.0);
     pidynbotsConfig.AIDifficulty = (double) cfsFetchNum( cP, "pidynbots.AIDifficulty",    0.5 );  // AIDifficulty
 
-    pidynbotsConfig.enableObjAdj = (int) cfsFetchNum( cP, "pidynbots.enableObjAdj", 0.0 );  
+    pidynbotsConfig.enableObjAdj     = (int) cfsFetchNum( cP, "pidynbots.enableObjAdj", 0.0 );  
+    pidynbotsConfig.enableDisconnAdj = (int) cfsFetchNum( cP, "pidynbots.enableDisconnAdj", 0.0 );  
+    pidynbotsConfig.enableConnAdj    = (int) cfsFetchNum( cP, "pidynbots.enableConnAdj", 0.0 );  
+
     strlcpy( pidynbotsConfig.showInGame, cfsFetchStr( cP, "pidynbots.showInGame", "" ), CFS_FETCH_MAX );  
 
     // Read the adjustment table
@@ -100,12 +109,79 @@ int pidynbotsInitConfig( void )
     return 0;
 }
 
+
+//  ==============================================================================================
+//  _botScale
+// 
+//  Compute number of bots (y) given # of humans (x)
+//
+static unsigned int _botScale( unsigned int currHuman, 
+    unsigned int maxBots, unsigned int minBots,
+    unsigned int maxHuman, unsigned int minHuman )
+{
+    int errCode = 0;
+    int _currHuman = currHuman;
+    double slope;
+    unsigned int currBots = 1;
+
+    // check for invalid entry by the operator
+    //
+    if (0 == errCode)
+        if ( maxBots < minBots )    errCode = 1;    // check neg slope
+    if (0 == errCode)
+        if ( maxHuman <= minHuman ) errCode = 1;    // check neg slope & divide-by-zero
+
+    if (0 == errCode) {
+
+        // clip the human counts to given limits
+        //
+        if ( _currHuman < minHuman ) _currHuman = minHuman;
+        if ( _currHuman > maxHuman ) _currHuman = maxHuman;
+
+        // compute the 2-point linear formula
+        // y = f(x) = ((y1-y0) / (x1-x0)) * (x-x0) + y1;
+        //
+        slope = (( (double) maxBots - (double) minBots ) / ( (double) maxHuman - (double) minHuman ));
+        currBots = slope * ( _currHuman - minHuman ) + minBots;
+    }
+
+    // on error, this routine returns 'safe' bot value of '1'
+    //
+    return( currBots );
+}
+
+//  ==============================================================================================
+//  _inRepsawnCoopMode
+// 
+//  Returns non-zero value if the server is in respawn mode (bBots=True).  To reduce RCON
+//  traffic, caching method is used.  Rcon is only used when refresh is non-zero.
+// 
+static int _inRespawnCoopMode( int refresh )
+{
+    int inRespawnMode = 0;
+    char *s1;
+    static int lastMode = -1;
+
+    if ( (lastMode == -1) || refresh ) {
+        s1 = apiGameModePropertyGet( "bbots" );
+        if ( NULL != strstr( s1, "True" ) ) inRespawnMode = 1;
+        lastMode = inRespawnMode;
+    }
+    inRespawnMode = lastMode;
+
+    return( inRespawnMode );
+}
+
 //  ==============================================================================================
 //  _computeBotParams  
 //
-static int _computeBotParams( void )
+//  Reconfigure the AI parameters (minimumenemies, maximumenemies, soloenemies, aidifficulties)
+//  for both standard checkpoint (bBots=False) and instant respawn variant (bBots=True);
+//
+static int _computeBotParams( int refresh )
 {
     int minBots, maxBots, i;
+    unsigned int currHuman, currBots, minHuman, maxHuman;
     double aiDifficulty;
     char *objName, *mapName, objLetter;
     char strBuf[256], *w;
@@ -115,6 +191,22 @@ static int _computeBotParams( void )
     // 
     minBots      = pidynbotsConfig.MinimumEnemies;
     maxBots      = pidynbotsConfig.MaximumEnemies;
+    minHuman     = 1;
+    maxHuman     = pidynbotsConfig.MaxPlayersToScaleEnemyCount;
+    currHuman    = rosterCount();
+
+#if 0 
+    // DEBUG tap for simulating humans joining and leaving - take out this block later
+    static int currHuman_static = 1;
+    int currHuman_tmp;
+    if ( 0 == debugPoke( "delme.txt", &currHuman_tmp ) ) {
+        currHuman_static = currHuman_tmp;
+    }
+    currHuman = currHuman_static;
+    printf("\nDEBUG pidynbots: override to %d\n", currHuman );
+    apiSay("pidynbots: override to %d humans", currHuman );
+#endif
+
     aiDifficulty = pidynbotsConfig.AIDifficulty;
 
     // get current side, map, and objective
@@ -168,28 +260,90 @@ static int _computeBotParams( void )
     //
     if ( !errCode )  {
 
-        if ( 0L == p2pGetL( "picladmin.p2p.botAdminControl", 0L )) {  // check if in-game admin took control
-            logPrintf( LOG_LEVEL_INFO, "pidynbots", "Adjusting bots %d:%d difficulty %lf", 
-                minBots, maxBots, aiDifficulty );
-
-            snprintf( strBuf, 256, "%d", minBots );
-                apiGameModePropertySet( "minimumenemies", strBuf );
-            snprintf( strBuf, 256, "%d", maxBots );
-                apiGameModePropertySet( "maximumenemies", strBuf );
+        // Update the bot difficulty if it was not overridden by the 
+        // operator (picladmin)
+        //
+        if ( 0L == p2pGetL( "picladmin.p2p.botAdminControlDifficulty", 0L )) {  // check if in-game admin took control
+            logPrintf( LOG_LEVEL_INFO, "pidynbots", "Adjusting bot difficulty %lf", aiDifficulty );
             snprintf( strBuf, 256, "%lf", aiDifficulty );
                  apiGameModePropertySet( "aidifficulty",   strBuf ) ;
 
             // if enabled in config, update the players by showing new params in-game
             //
             if ( 0 != strlen( pidynbotsConfig.showInGame ) ) {
-                apiSay("%s %d:%d Difficulty %6.3lf", pidynbotsConfig.showInGame, minBots*2, maxBots*2, aiDifficulty*10.0 );
+                apiSay("%s Difficulty %6.3lf", pidynbotsConfig.showInGame, aiDifficulty*10.0 );
+            }
+        }
+        
+        // Update the bot count if it was not overridden by the 
+        // operator (picladmin)
+        //
+        if ( 0L == p2pGetL( "picladmin.p2p.botAdminControl", 0L )) {  // check if in-game admin took control
+            logPrintf( LOG_LEVEL_INFO, "pidynbots", "Adjusting bots %d:%d" , minBots, maxBots );
+
+            snprintf( strBuf, 256, "%d", minBots );
+                apiGameModePropertySet( "minimumenemies", strBuf );
+            snprintf( strBuf, 256, "%d", maxBots );
+                apiGameModePropertySet( "maximumenemies", strBuf );
+
+            // for instant-respawn mode, it uses SoloPlayer set of parameters.  Compute
+            // the scaled bots linearly here and poke in the value;
+            //
+            currBots =  _botScale( currHuman, maxBots, minBots, maxHuman, minHuman );
+            snprintf( strBuf, 256, "%d", currBots );
+                apiGameModePropertySet( "soloenemies", strBuf );
+
+            // if enabled in config, update the players by showing new params in-game
+            //
+            if ( 0 != strlen( pidynbotsConfig.showInGame ) ) {
+                apiSay("%s Count %d:%d [%d]", pidynbotsConfig.showInGame, minBots*2, maxBots*2, currBots );
             }
 
         }
+
+        // Admin Bot override is "on", but still must process if instand respawn mode to emulate
+        // dynamic bot changes
+        //
         else {
-            logPrintf( LOG_LEVEL_INFO, "pidynbots", "Adjusting bots bypassed due to Admin override %d:%d difficulty %lf", 
-                minBots, maxBots, aiDifficulty );
+           
+            // If "respawnMode" AND "not fixed bot" then, recompute the dynamic scaling for this objective
+            // Poke the resulting value to soloenemies
+            //
+            if ( _inRespawnCoopMode( refresh ) ) {
+
+                 // read gamemodeproperty for minenemies and maximumenemies
+                 // convert to integer for math
+                 //
+                 if ( 1 != sscanf( apiGameModePropertyGet( "minimumenemies" ), "%d", &minBots )) errCode = 1;
+                 if ( 1 != sscanf( apiGameModePropertyGet( "maximumenemies" ), "%d", &maxBots )) errCode = 1;
+
+                 if ( 0 == errCode ) {
+                     // program currBots to soloenemies
+                     // 
+                     if ( minBots != maxBots )  {
+                         currBots =  _botScale( currHuman, maxBots, minBots, maxHuman, minHuman );
+                         snprintf( strBuf, 256, "%d", currBots );
+
+                         apiGameModePropertySet( "soloenemies", strBuf );
+
+                         logPrintf( LOG_LEVEL_INFO, "pidynbots", 
+                             "Adjusting bots respawn mode with operator override params %d:%d [%d] difficulty %lf", 
+                             minBots, maxBots, currBots, aiDifficulty );
+
+                         // if enabled in config, update the players by showing new params in-game
+                         //
+                         if ( 0 != strlen( pidynbotsConfig.showInGame ) ) {
+                             apiSay("%s Count %d:%d [%d]", pidynbotsConfig.showInGame, minBots*2, maxBots*2, currBots );
+                         }
+                     }
+                 }
+             }
+             else {
+                 logPrintf( LOG_LEVEL_INFO, "pidynbots", "Adjusting bots bypassed due to Admin override %d:%d difficulty %lf", 
+                     minBots, maxBots, aiDifficulty );
+             }
         }
+
     }
     return 0;  
 }
@@ -202,9 +356,31 @@ static int _computeBotParams( void )
 int pidynbotsClientAddCB( char *strIn ) { return 0; }
 int pidynbotsClientDelCB( char *strIn ) { return 0; }
 int pidynbotsCapturedCB( char *strIn )  { return 0; }
-int pidynbotsPeriodicCB( char *strIn )  { return 0; }
 int pidynbotsChatCB( char *strIn )      { return 0; }
 
+
+//  ==============================================================================================
+//  pidynbotsPeriodic
+//
+//  This callback is invoked at 1Hz periodic rate.  It is used to handle P2P signaling events
+//
+int pidynbotsPeriodicCB( char *strIn )  
+{
+    int sigBotScaleChanged;
+
+    // Signal Handler FROM picladmin
+    // 
+    //
+    sigBotScaleChanged = p2pGetL( "pidynbots.p2p.sigBotScaled", 0L ); 
+    if ( sigBotScaleChanged ) {
+
+        // Clear the signal
+        p2pSetL( "pidynbots.p2p.sigBotScaled", 0L ); 
+        // Force an update
+        _computeBotParams( 0 );
+    }
+    return 0;
+}
 
 //  ==============================================================================================
 //  pidynbotsInitCB
@@ -213,7 +389,7 @@ int pidynbotsChatCB( char *strIn )      { return 0; }
 //
 int pidynbotsInitCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Init Event ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Init Event ::%s::", strIn );
     return 0;
 }
 
@@ -225,7 +401,7 @@ int pidynbotsInitCB( char *strIn )
 //
 int pidynbotsRestartCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Restart Event ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Restart Event ::%s::", strIn );
     return 0;
 }
 
@@ -236,11 +412,10 @@ int pidynbotsRestartCB( char *strIn )
 //
 int pidynbotsMapChangeCB( char *strIn )
 {
-    char mapName[256];
-
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Map Change Event ::%s::", strIn );
-    rosterParseMapname( strIn, 256, mapName );
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Map name ::%s::", mapName );
+    // char mapName[256];
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Map Change Event ::%s::", strIn );
+    // rosterParseMapname( strIn, 256, mapName );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Map name ::%s::", mapName );
     return 0;
 }
 
@@ -251,7 +426,7 @@ int pidynbotsMapChangeCB( char *strIn )
 //
 int pidynbotsGameStartCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Game Start Event ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Game Start Event ::%s::", strIn );
     return 0;
 }
 
@@ -262,7 +437,7 @@ int pidynbotsGameStartCB( char *strIn )
 //
 int pidynbotsGameEndCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Game End Event ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Game End Event ::%s::", strIn );
     return 0;
 }
 
@@ -273,9 +448,9 @@ int pidynbotsGameEndCB( char *strIn )
 //
 int pidynbotsRoundStartCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round Start Event ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round Start Event ::%s::", strIn );
 
-    _computeBotParams();
+    _computeBotParams( 1 );
 
     return 0;
 }
@@ -287,7 +462,7 @@ int pidynbotsRoundStartCB( char *strIn )
 //
 int pidynbotsRoundEndCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round End Event ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round End Event ::%s::", strIn );
     return 0;
 }
 
@@ -300,7 +475,7 @@ int pidynbotsRoundEndCB( char *strIn )
 //
 int pidynbotsShutdownCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_DEBUG, "pidynbots", "Shutdown Callback ::%s::", strIn );
+    // logPrintf( LOG_LEVEL_DEBUG, "pidynbots", "Shutdown Callback ::%s::", strIn );
     return 0;
 }
 
@@ -315,9 +490,11 @@ int pidynbotsShutdownCB( char *strIn )
 //
 int pidynbotsClientSynthDelCB( char *strIn )
 {
-    static char playerName[256], playerGUID[256], playerIP[256];
-    rosterParsePlayerSynthDisConn( strIn, 256, playerName, playerGUID, playerIP );
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Synthetic DEL Callback Name ::%s:: IP ::%s:: GUID ::%s::", playerName, playerIP, playerGUID );
+    // static char playerName[256], playerGUID[256], playerIP[256];
+    // rosterParsePlayerSynthDisConn( strIn, 256, playerName, playerGUID, playerIP );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Synthetic DEL Callback Name ::%s:: IP ::%s:: GUID ::%s::", playerName, playerIP, playerGUID );
+
+    if ( pidynbotsConfig.enableDisconnAdj ) _computeBotParams( 0 );
 
     return 0;
 }
@@ -333,11 +510,11 @@ int pidynbotsClientSynthDelCB( char *strIn )
 //
 int pidynbotsClientSynthAddCB( char *strIn )
 {
-    static char playerName[256], playerGUID[256], playerIP[256];
+    // static char playerName[256], playerGUID[256], playerIP[256];
+    // rosterParsePlayerSynthConn( strIn, 256, playerName, playerGUID, playerIP );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Synthetic ADD Callback Name ::%s:: IP ::%s:: GUID ::%s::", playerName, playerIP, playerGUID );
 
-    rosterParsePlayerSynthConn( strIn, 256, playerName, playerGUID, playerIP );
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Synthetic ADD Callback Name ::%s:: IP ::%s:: GUID ::%s::", playerName, playerIP, playerGUID );
-    // apiSay( "pidynbots: Connected %s", playerName );
+    if ( pidynbotsConfig.enableConnAdj ) _computeBotParams( 0 );
 
     return 0;
 }
@@ -351,7 +528,7 @@ int pidynbotsClientSynthAddCB( char *strIn )
 //
 int pidynbotsSigtermCB( char *strIn )
 {
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "SISSM Termination CB" );
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "SISSM Termination CB" );
     return 0;
 }
 
@@ -361,6 +538,7 @@ int pidynbotsSigtermCB( char *strIn )
 //
 int pidynbotsWinLose( char *strIn )
 {
+#if 0
     int isTeam0, humanSide;
     char outStr[256];
 
@@ -379,8 +557,9 @@ int pidynbotsWinLose( char *strIn )
         break;
     }
 
-    // apiSay( "pidynbots: %s", outStr );
+    apiSay( "pidynbots: %s", outStr );
     logPrintf( LOG_LEVEL_INFO, "pidynbots", outStr );
+#endif
 
     return 0;
 }
@@ -391,15 +570,13 @@ int pidynbotsWinLose( char *strIn )
 //
 int pidynbotsTravel( char *strIn )
 {
-    char *mapName, *scenario, *mutator;
-    int humanSide;
-
-    mapName = rosterGetMapName();
-    scenario = rosterGetScenario();
-    mutator = rosterGetMutator();
-    humanSide = rosterGetCoopSide();
-
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Change map to ::%s:: Scenario ::%s:: Mutator ::%s:: Human ::%d::", mapName, scenario, mutator, humanSide );
+    // char *mapName, *scenario, *mutator;
+    // int humanSide;
+    // mapName = rosterGetMapName();
+    // scenario = rosterGetScenario();
+    // mutator = rosterGetMutator();
+    // humanSide = rosterGetCoopSide();
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Change map to ::%s:: Scenario ::%s:: Mutator ::%s:: Human ::%d::", mapName, scenario, mutator, humanSide );
     // apiSay( "pidynbots: Test Map-Scenario %s::%s::%s::%d::", mapName, scenario, mutator, humanSide );
 
     return 0;
@@ -411,11 +588,9 @@ int pidynbotsTravel( char *strIn )
 //
 int pidynbotsSessionLog( char *strIn )
 {
-    char *sessionID;
-
-    sessionID = rosterGetSessionID();
-
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Session ID ::%s::", sessionID );
+    // char *sessionID;
+    // sessionID = rosterGetSessionID();
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Session ID ::%s::", sessionID );
     // apiSay( "pidynbots: Session ID %s", sessionID );
 
     return 0;
@@ -427,13 +602,12 @@ int pidynbotsSessionLog( char *strIn )
 //
 int pidynbotsObjectSynth( char *strIn )
 {
-    char *obj, *typ; 
+    // char *obj, *typ; 
+    // obj = rosterGetObjective();
+    // typ = rosterGetObjectiveType();
+    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Roster Objective is ::%s::, Type is ::%s::", obj, typ ); 
 
-    obj = rosterGetObjective();
-    typ = rosterGetObjectiveType();
-
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Roster Objective is ::%s::, Type is ::%s::", obj, typ ); 
-    if ( pidynbotsConfig.enableObjAdj ) _computeBotParams();
+    if ( pidynbotsConfig.enableObjAdj ) _computeBotParams( 1 );
 
     return 0;
 }

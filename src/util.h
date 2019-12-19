@@ -21,4 +21,7 @@ extern void strTrimInPlace(char * s);
 extern void strToLowerInPlace(char * s);
 extern int isReadable( char *fileName );
 extern void  replaceDoubleColonWithBell( char *strInOut );
+extern char *computeElapsedTime( unsigned long timeMark, unsigned long timeNow );
+
+extern int debugPoke( char *fileName, int *valueOut );
 

@@ -99,6 +99,10 @@ struct {
 static wordList_t badWordsList;                                               // Bad words list
 static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file path to admins.txt
 
+// Reboot reason & time, for analytics and web display
+//
+static char lastRebootReason[256];                          // short description of last reboot
+static unsigned long lastRebootTime;                               // store time of last reboot
 
 
 //  ==============================================================================================
@@ -375,6 +379,11 @@ int _apiPollAlarmCB( char *strIn )
         }
     }
 
+    // do a cached-read of server name from RCON.  Once successful, it will read
+    // from the cache (not RCON) thereafter
+    //
+    apiGetServerNameRCON( 0 );
+
     // reset the alarm for the next iteration
     //
     alarmReset( _apiPollAlarmPtr, API_LISTPLAYERS_PERIOD );
@@ -579,6 +588,11 @@ int apiInit( void )
     strclr( gameStateCurrent );
     strclr( gameStatePrevious );
 
+    // Clear the last reboot reason/time 
+    //
+    lastRebootTime = apiTimeGet();
+    strlcpy( lastRebootReason, "Restart", 256 );
+
     return( _rPtr == NULL );
 }
 
@@ -596,14 +610,36 @@ int apiDestroy( void )
 }
 
 //  ==============================================================================================
+//  apiGetLastRebootTime / apiGetLastRebootReason
+//  
+//  Read back last reboot time & reason
+//
+unsigned long apiGetLastRebootTime( void )
+{  
+    return( lastRebootTime );
+}
+char *apiGetLastRebootReason( void )
+{  
+    return( lastRebootReason );
+}
+
+
+//  ==============================================================================================
 //  apiServeRestart
 //
 //  Called from a Plugin, this method restarts the game server. 
 //  The lastRosterSuccessTime is reset so that the invoked restart will zero out the 'busy'
 //  timeout, tracked by pirebooter plugin and other equivalent up-time aware plugin.
 //
-int apiServerRestart( void )
+int apiServerRestart( char *rebootReason )
 {
+    // Save the reason & time for analytics and web 
+    //
+    strlcpy( lastRebootReason, rebootReason, 256 );
+    lastRebootTime = apiTimeGet();
+   
+    // invoke system restart
+    // 
     sissmServerRestart();
     lastRosterSuccessTime = apiTimeGet();      
     return 0;
@@ -622,15 +658,22 @@ unsigned long int apiTimeGet( void )
 //  ==============================================================================================
 //  apiTimeGetHuman
 //
-//  Called from a Plugin, this method fetches human readable time.
+//  This method fetches human readable time.  if timeMark is 0L, it will fetch the current
+//  time from system call, otherwise timeMark is used for target time.
 //
-char *apiTimeGetHuman( void )
+char *apiTimeGetHuman( unsigned long timeMark )
 {
     static char humanTime[API_LINE_STRING_MAX];
     time_t current_time;
 
-    current_time = time( NULL );
+   
+    if ( timeMark == 0L ) 
+        current_time = time( NULL );
+    else
+        current_time = (time_t) timeMark;
+
     strlcpy( humanTime, ctime( &current_time ), API_LINE_STRING_MAX );
+
     return( humanTime );
 }
 
@@ -1000,4 +1043,35 @@ int apiIsAdmin( char *connectID )
     return ( apiAuthIsAttribute( connectID, "admin" ));
 }
 
+
+//  ==============================================================================================
+//  apiGetServernameRCON
+//
+//  Returns a hostname.  This function always returns a pointer to a valid string (no need for
+//  NULL checks from the caller).  If successful, the server hostname is returned.  On interface
+//  failure, string "UNKNOWN" is returned.
+//  
+//  
+char *apiGetServerNameRCON( int forceCacheRefresh )
+{
+    static char hostName[256];
+    static unsigned long timeLastRead = 0;
+
+    // check to see if this is a first-time call, or caller is forcing a refrehs
+    //
+    if ( (timeLastRead == 0L) || forceCacheRefresh ) {
+    
+        // fetch from RCON.  apiGameModePropertyGet returns an empty string
+        // (not NULL) on interface error.
+        //
+        strlcpy( hostName, apiGameModePropertyGet( "serverhostname" ), 256 ); 
+        if ( strlen( hostName ) != 0 )  {
+            timeLastRead = apiTimeGet();
+            logPrintf( LOG_LEVEL_INFO, "api", "RCON successful read of hostname ::%s::", hostName );
+        }
+        else 
+            strlcpy( hostName, "Unknown", 256 );
+    }
+    return ( hostName );
+}
 

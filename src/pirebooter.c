@@ -194,7 +194,7 @@ int pirebooterGameStartCB( char *strIn )
         pirebooterConfig.timeFirstIdle    = 0L;
         pirebooterConfig.timeLastProgress = apiTimeGet();
         logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
-        apiServerRestart();     // since the server is empty, reboot right away
+        apiServerRestart( "Uptime>Limit" );     // since the server is empty, reboot right away
     }
     return 0;
 }
@@ -218,7 +218,7 @@ int pirebooterGameEndCB( char *strIn )
         pirebooterConfig.timeFirstIdle  = 0L;
         pirebooterConfig.timeLastProgress = apiTimeGet();
         logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
-        apiServerRestart();     // since the server is empty, reboot right away
+        apiServerRestart( "Uptime>Limit" );     // since the server is empty, reboot right away
     }
     return 0;
 }
@@ -323,7 +323,7 @@ int pirebooterPeriodicCB( char *strIn )
                 pirebooterConfig.timeFirstIdle  = 0L;
                 pirebooterConfig.timeLastProgress = apiTimeGet();
                 logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to IDLE timer" );
-                apiServerRestart();     // since the server is empty, reboot right away
+                apiServerRestart( "Idle>Limit" );     // since the server is empty, reboot right away
 	    }
 	}
     }
@@ -343,7 +343,7 @@ int pirebooterPeriodicCB( char *strIn )
             pirebooterConfig.timeFirstIdle    = 0L;
             pirebooterConfig.timeLastProgress = apiTimeGet();
             logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to DEAD timer" );
-	    apiServerRestart();
+	    apiServerRestart( "Dead Detect" );
         }
     }
 
@@ -354,7 +354,7 @@ int pirebooterPeriodicCB( char *strIn )
         pirebooterConfig.timeFirstIdle    = 0L;
         pirebooterConfig.timeLastProgress = apiTimeGet();
         logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to HUNG timer" );
-        apiServerRestart();
+        apiServerRestart( "Hung Detect" );
     }
 
     // Log some status for debug and monitoring 
@@ -381,7 +381,7 @@ int pirebooterPeriodicCB( char *strIn )
     // "Abrupt" and mdandatory daily reboot - when enabled this reboots the server
     // daily at exectly specified time, without warning, mid-game.
     //
-    timeNowHuman = apiTimeGetHuman();
+    timeNowHuman = apiTimeGetHuman( 0L );
     if ( 0 != strlen( pirebooterConfig.rebootDailyHM )) {    // if this feature is enabled...
         // check if 'triggered' for reboot
         // 
@@ -402,7 +402,7 @@ int pirebooterPeriodicCB( char *strIn )
             pirebooterConfig.timeLastProgress = apiTimeGet();
             pirebooterConfig.timeFirstIdle    = 0L;
             logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to DAILY timer" );
-            apiServerRestart();
+            apiServerRestart( "Daily Reboot" );
         }
     }
 

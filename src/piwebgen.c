@@ -60,6 +60,10 @@ static struct {
     int  commTimeoutSec;                   // # sec of RCON failure to indicate "fail" on web
     int  showSessionID;                    // 1=show replay SessionID, 0=no
 
+    int  showUpTime;                       // 1=show server "up time" and last rebooted reason
+    int  showLastReboot;                   // 1=show last reboot time and last rebooted reason 
+    int  showCurrentTime;                  // 1=show current time
+
 } piwebgenConfig;
 
 
@@ -81,14 +85,17 @@ int piwebgenInitConfig( void )
     // read "piwebgen.StringParameterExample" variable from the .cfg file
     strlcpy( piwebgenConfig.webFileName,  cfsFetchStr( cP, "piwebgen.webFileName",  "sissm.html" ), CFS_FETCH_MAX );
     piwebgenConfig.updateIntervalSec = (int) cfsFetchNum( cP, "piwebgen.updateIntervalSec", 60 );
-    piwebgenConfig.updateOnChange = (int) cfsFetchNum( cP, "piwebgen.updateOnChange", 1 );
+    piwebgenConfig.updateOnChange    = (int) cfsFetchNum( cP, "piwebgen.updateOnChange", 1 );
     piwebgenConfig.autoRefreshHeader = (int) cfsFetchNum( cP, "piwebgen.autoRefreshHeader", 0 );
     strlcpy( piwebgenConfig.webminURL, cfsFetchStr( cP, "piwebgen.webminURL", "" ), 128 );
     strlcpy( piwebgenConfig.directConnect, cfsFetchStr( cP, "piwebgen.directConnect", ""), CFS_FETCH_MAX );
     strlcpy( piwebgenConfig.line2, cfsFetchStr( cP, "piwebgen.line2", ""), CFS_FETCH_MAX );
-    piwebgenConfig.hyperlinkFormat = (int) cfsFetchNum( cP, "piwebgen.hyperlinkFormat", 1 );
-    piwebgenConfig.commTimeoutSec = (int) cfsFetchNum( cP, "piwebgen.commTimeoutSec", 120 );
-    piwebgenConfig.showSessionID  = (int) cfsFetchNum( cP, "piwebgen.showSessionID", 0 );
+    piwebgenConfig.hyperlinkFormat   = (int) cfsFetchNum( cP, "piwebgen.hyperlinkFormat", 1 );
+    piwebgenConfig.commTimeoutSec    = (int) cfsFetchNum( cP, "piwebgen.commTimeoutSec", 120 );
+    piwebgenConfig.showSessionID     = (int) cfsFetchNum( cP, "piwebgen.showSessionID", 0 );
+    piwebgenConfig.showUpTime        = (int) cfsFetchNum( cP, "piwebgen.showUpTime", 1.0 );
+    piwebgenConfig.showLastReboot    = (int) cfsFetchNum( cP, "piwebgen.showLastReboot", 0 );
+    piwebgenConfig.showCurrentTime   = (int) cfsFetchNum( cP, "piwebgen.showCurrentTime", 0 );
 
     cfsDestroy( cP );
     return 0;
@@ -155,6 +162,7 @@ static int _genWebFile( void )
     char  rosterWork[PIWEBGEN_MAXROSTER];
     char  hyperLinkCode[256];
     char  timeoutStatus[256];
+    char  *srvName;
 
     if (NULL != (fpw = fopen( piwebgenConfig.webFileName, "wt" ))) {
 
@@ -166,34 +174,78 @@ static int _genWebFile( void )
         else
             strlcpy( timeoutStatus, "<font color=\"red\">[SERVER DOWN]</font> ", 256 );
 
+        // Option for creating auto-refresh header for html.  Turn this off if you are refreshing
+        // from higher level (e.g., text file inclusion or html frames).
+        //
 	if ( 0 != piwebgenConfig.autoRefreshHeader ) {
             fprintf( fpw, "<meta http-equiv=\"refresh\" content=\"14\" /> \n" );
         }
 
-        fprintf( fpw, "<b>%s</b>\n", apiGetServerName() );
+        // Displaying the server name - from sissm.cfg file, or RCON
+        //
+        srvName = apiGetServerName();
+        if ( 0 == strncmp( srvName, "*", 2 ) ) srvName = apiGetServerNameRCON(0);
+        fprintf( fpw, "<b>%s</b>\n", srvName );
+
+        // Option for displaying extra line description
+        //
         if ( 0 != strlen( piwebgenConfig.line2 ) )
             fprintf( fpw, "<br>%s\n", piwebgenConfig.line2 );
+
+        // Option for displaying current sessino ID for playbacks
+        //
         if ( piwebgenConfig.showSessionID )
             fprintf( fpw, "<br>SID: %s\n", apiGetSessionID());
         fprintf( fpw, "<br>Map: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp %s\n", apiGetMapName() );
 
-        fprintf( fpw, "<br>Players: &nbsp; %d  &nbsp;&nbsp;&nbsp; Status: &nbsp;&nbsp;  %s\n", apiPlayersGetCount(), timeoutStatus);
+        // Display number of players and stauts of the server
+        //
+        fprintf( fpw, "<br>Players: &nbsp; %d  &nbsp;&nbsp;&nbsp; Status: &nbsp;&nbsp;  %s\n", 
+            apiPlayersGetCount(), timeoutStatus);
 
+        // Option for displaying "current time" 
+        //
+        if ( piwebgenConfig.showCurrentTime ) {
+            fprintf( fpw, "<br>Time: &nbsp;&nbsp;&nbsp;&nbsp;   %s [Now]\n", apiTimeGetHuman(0L) );
+        }
+ 
+        // Option for displaying "last reboot event & last reboot time"
+        //
+        if ( piwebgenConfig.showLastReboot ) {
+            fprintf( fpw, "<br>Last: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;   %s [%s]\n", 
+                apiTimeGetHuman( apiGetLastRebootTime()), apiGetLastRebootReason() );
+        }
 
-        fprintf( fpw, "<br>Time: &nbsp;&nbsp;&nbsp;&nbsp;   %s\n", apiTimeGetHuman() );
+        // Option for displaying "last reboot event & elapsed time since reboot"
+        //
+        if ( piwebgenConfig.showUpTime ) {
+            fprintf( fpw, "<br>Uptime: &nbsp; %s since [%s]\n", 
+                computeElapsedTime( apiGetLastRebootTime(), apiTimeGet()), apiGetLastRebootReason() );
+        }
+
+        // Option for displaying direct IP connection method from game client
+        //
         if ( 0 != strlen( piwebgenConfig.directConnect ) )
             fprintf( fpw, "<br>Connect: %s\n", piwebgenConfig.directConnect );
+
+        // Option for displaying hyperlink to web-based admin page
+        //
         if ( 0 != strlen( piwebgenConfig.webminURL ) )  {
-            snprintf( hyperLinkCode, 256, "<a href=\"%s\" target=\"_blank\">link</a>", piwebgenConfig.webminURL );
+            snprintf( hyperLinkCode, 256, "<a href=\"%s\" target=\"_blank\">link</a>", 
+                piwebgenConfig.webminURL );
             fprintf( fpw, "<br>Admin: &nbsp;&nbsp; %s\n", hyperLinkCode );
         }
-        fprintf( fpw, "<br>Names: &nbsp;&nbsp; ");
 
+
+        // Dissplay list of players
+        //
+        fprintf( fpw, "<br>Names: &nbsp;&nbsp; ");
 	if ( 0 == piwebgenConfig.hyperlinkFormat ) {
             fprintf( fpw, "<font color=\"blue\">%s</font> ", apiPlayersRoster( 0, " : " ) );
 	}
 	else {
-	    strlcpy( rosterWork,  _htmlSafeFilter( apiPlayersRoster( 4, "\011" )), PIWEBGEN_MAXROSTER);  // get roster with tab for delimiter
+            // get roster with tab for delimiter
+	    strlcpy( rosterWork,  _htmlSafeFilter( apiPlayersRoster( 4, "\011" )), PIWEBGEN_MAXROSTER);  
 	    if (  0 != strlen( rosterWork )) {                   // if not an empty list then
  	        for ( i=0 ;; i++ ) {
 
@@ -375,7 +427,7 @@ int piwebgenSigtermCB( char *strIn )
 	if ( 0 != piwebgenConfig.autoRefreshHeader ) 
             fprintf( fpw, "<meta http-equiv=\"refresh\" content=\"14\" /> \n" );
 
-        fprintf( fpw, "<br><br>SISSM shut down at: &nbsp; %s\n", apiTimeGetHuman() );
+        fprintf( fpw, "<br><br>SISSM shut down at: &nbsp; %s\n", apiTimeGetHuman(0L) );
         fclose( fpw );
     }
 
