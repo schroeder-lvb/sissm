@@ -255,7 +255,7 @@ int pigreetingsClientSynthDelCB( char *strIn )
     // 
     if (!_isIncognito( playerGUID ) && !_isMaskDisconnect() ) {
         if ( 0 != strlen( pigreetingsConfig.disconnected ) ) 
-            apiSay( "%s %s [%d]", playerName, pigreetingsConfig.disconnected, apiPlayersGetCount() );
+            apiSay( "'%s' %s [%d]", playerName, pigreetingsConfig.disconnected, apiPlayersGetCount() );
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "%s disconnected [%d]", playerName, apiPlayersGetCount() );
     }
 
@@ -280,9 +280,9 @@ int pigreetingsClientSynthAddCB( char *strIn )
         if ( (apiTimeGet() - timeRestarted) > PIGREETINGS_RESTART_LOCKOUT_SEC ) {   // check if we are restarting
        
            if  ( apiIsAdmin( playerGUID ) && (0 != strlen( pigreetingsConfig.connectedAsAdmin)) ) 
-               apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connectedAsAdmin, apiPlayersGetCount() );
+               apiSay( "'%s' %s [%d]", playerName, pigreetingsConfig.connectedAsAdmin, apiPlayersGetCount() );
            else if ( 0 != strlen( pigreetingsConfig.connected ))
-               apiSay( "%s %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
+               apiSay( "'%s' %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
 
         }
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynAdd Client ::%s::%s::%s::", playerName, playerGUID, playerIP );

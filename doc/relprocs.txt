@@ -17,7 +17,7 @@ ___ Turn-off SISSM_RESTRICTED flag in src/sissm.c
 
 ___ Update the Windows sissm.cfg to reflect changes
 ___ Windows version DOA Testing (cl *.c Ws2_32.lib /Fesissm.exe)
-___ Build 4 Windows versions for Quick-Start Package:  Standard & Restricted x Optimized & Debug
+___ Build 4 Windows versions for Quick-Start Package:  Standard & Restricted x 32- & 64-bits
 
 ___ Create Quick-Start package in Windows environment 
     4 Windows binaries, 2 Linux binaries, Example sissm.cfg, Example badwords.txt, README

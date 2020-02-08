@@ -53,6 +53,8 @@ static struct {
     char multiWarning[CFS_FETCH_MAX];
     char soloWarning[CFS_FETCH_MAX];
 
+    char defendTimer[CFS_FETCH_MAX];       // Copy of DefendTimer property from Game.ini
+
 } pisoloplayerConfig;
 
 
@@ -78,6 +80,8 @@ int pisoloplayerInitConfig( void )
         cfsFetchStr( cP, "pisoloplayer.soloWarning", "Counterattack disabled for a single player" ), CFS_FETCH_MAX);
     strlcpy( pisoloplayerConfig.multiWarning, 
         cfsFetchStr( cP, "pisoloplayer.multiWarning", "Counterattack enabled for multi-players" ), CFS_FETCH_MAX);
+    strlcpy( pisoloplayerConfig.defendTimer, 
+        cfsFetchStr( cP, "pisoloplayer.defendTimer", "90" ), CFS_FETCH_MAX);
 
     cfsDestroy( cP );
     return 0;
@@ -99,7 +103,7 @@ static int _singlePlayerNoCounter( void )
         logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack disabled for a single player" );
     }
     else {
-        apiGameModePropertySet( "DefendTimer", "90");
+        apiGameModePropertySet( "DefendTimer", pisoloplayerConfig.defendTimer);  // default "90"
 	apiSay( pisoloplayerConfig.multiWarning );
         logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack enabled for multi-players" );
     }

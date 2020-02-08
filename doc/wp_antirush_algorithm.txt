@@ -40,9 +40,9 @@ SISSM configuration file.)
 
 1-2 players:  no rate throttling 
 
-3-5 players:  for the first 135 seconds, SLOW rate; NORMAL rate after
+3-4 players:  for the first 135 seconds, SLOW rate; NORMAL rate after
 
-6+ players::  for the first 180 seconds, LOCKED rate; NORMAL rate after
+5+ players::  for the first 180 seconds, LOCKED rate; NORMAL rate after
 
 The concept is that the runner-players quickly arriving on territorial objectives
 is forced to wait until the (long) timer runs out.

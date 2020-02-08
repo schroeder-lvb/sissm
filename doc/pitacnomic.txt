@@ -84,14 +84,14 @@ pitacnomic.pluginState               1                 // 1=enable plugin, 0=dis
 pitacnomic.shorts[0] "55::Checking perimeter/windows for hostiles...::Checking perimeter around cache.."
 pitacnomic.shorts[1] "44::*Testing Capture Point, Stepping IN then OUT::Planting/Readying explosives on Cache"
 pitacnomic.shorts[2] "33::*STACK-UP for breach--<Neg> if NOT ready::*Prepare for Destruct--<Neg> if NOT ready"
-pitacnomic.shorts[3] "22::*Breaching in 5-SECONDS <Neg> if NOT ready::*Blownig Cache in 5-SECONDS <Neg> if NOT ready"
+pitacnomic.shorts[3] "22::*Breaching in 5-SECONDS <Neg> if NOT ready::*Blowing Cache in 5-SECONDS <Neg> if NOT ready"
 pitacnomic.shorts[4] "11::*!!! BREACH BREACH BREACH !!!::*!!! FIRE IN THE HOLE !!!"
 pitacnomic.shorts[5] "00::Capture Point is CLEAR - No Hostiles"
 pitacnomic.shorts[6] "99::Capture Point is NOT CLEAR"
 
 // Objective-related 10-19 (compatible to anticaprush !a (!ask) and !p (!prep) commands
 //
-pitacnomic.shorts[10] "aa::*Breaching in 5-SECONDS <Neg> if NOT ready::*Blownig Cache in 5-SECONDS <Neg> if NOT ready"
+pitacnomic.shorts[10] "aa::*Breaching in 5-SECONDS <Neg> if NOT ready::*Blowing Cache in 5-SECONDS <Neg> if NOT ready"
 pitacnomic.shorts[11] "pp::*Testing Capture Point, Stepping IN then OUT::Planting/Readying explosives on Cache"
 
 // Movement-related 20-29

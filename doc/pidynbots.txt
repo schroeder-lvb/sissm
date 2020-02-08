@@ -299,3 +299,23 @@ pidynbots.adjuster[4]  "farmhouse_checkpoint_security   5 20 0.4   0  0  0  0  0
 pidynbots.adjuster[5]  "farmhouse_checkpoint_insurgent  5 20 0.4   0  0  0  0  0  0  0  0  0  0  0"
 
 
+
+//////////////////////////////////
+Maintainers: Designer's Notes 
+//////////////////////////////////
+
+Use Case Analysis: Configuration Options and Valid Behaviours
+
+                         bBots=True             bBots=False               bBots=False
+Valid Flags              Wave Respawn           Standard Respawn          Standard Respawn
+
+Update on Obj                0/1                   0                        0
+Update on Add Player         0/1                   X                        X
+Update on Del Player         0/1                   X                        X
+
+Override: bs/bf/bd           Yes                   Yes                      Yes
+Map Override Active          Yes                   Yes                      Yes
+Obj Adjust Active            Yes                   Yes                      Yes
+
+
+ 

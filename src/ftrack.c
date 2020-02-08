@@ -29,6 +29,8 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #endif
 
 #include "util.h"
@@ -59,9 +61,9 @@
 //  https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlea
 //  fileapi.h (include Windows.h) -> #include <windows.h> #include <tchar.h> #include <stdio.h>
 //
+#ifdef _WIN32
 static int ftrackGetFilename( FILE *fp, char *fileName )
 {
-#ifdef _WIN32
     TCHAR Path[FTRACK_FILENAME_MAX];
     HANDLE hFile;
     // DWORD dwRet;
@@ -77,6 +79,8 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
         logPrintf( LOG_LEVEL_CRITICAL, "ftrack", "OS Error getting filename ::%s::", GetLastError() );
     return( count == 0 );
 #else
+static int ftrackGetFilename( int fp, char *fileName )
+{
     int     errCode = 1;
     char    proclnk[0x0fff];
     int     fNumber;
@@ -84,9 +88,9 @@ static int ftrackGetFilename( FILE *fp, char *fileName )
 
     strclr( fileName );
     // ssize_t r;
-    if ( fp != NULL ) {
+    if ( fp != -1 ) {
         errCode = 0;
-        fNumber = fileno( fp );
+        fNumber = fp;
         snprintf(proclnk, 0x0fff, "/proc/self/fd/%d", fNumber);
         sizeName = readlink(proclnk, fileName, 0x0fff);
         if ( sizeName > 0 ) {
@@ -128,16 +132,18 @@ static int _ftrackIsChanged( FILE *fp, char *baselineName )
 //
 ftrackObj *ftrackOpen( char *fileName ) 
 {
-    FILE *fpr;
     ftrackObj *fPtr= NULL;
     char currFilename[256];
 
 #ifdef _WIN32
+    FILE *fpr;
     fpr = _fsopen( fileName, "r", _SH_DENYNO ); 
-#else
-    fpr = fopen( fileName, "r" );
-#endif
     if ( fpr != NULL )  {
+#else
+    int fpr;
+    fpr = open( fileName, O_RDONLY | O_NONBLOCK | O_NDELAY  );
+    if ( fpr != -1 )  {
+#endif
         fPtr =  (ftrackObj *) calloc( 1, sizeof( ftrackObj ));
         if ( fPtr != NULL ) {
             fPtr->fpr = fpr;
@@ -229,21 +235,27 @@ int ftrackResync( ftrackObj *fPtr )
 
 	    logPrintf(LOG_LEVEL_INFO, "ftrack", "LogFile resynching due to possible file rotation by host");
 
+#ifdef _WIN32
             // close the current file (if valid)
-            //
-            if ( fPtr->fpr != NULL ) fclose ( fPtr->fpr );
+            if ( fPtr->fpr != NULL ) { fclose ( fPtr->fpr ); fPtr->fpr = NULL; };
 
             // try to open it up to 3x (3 seconds) before declaring fault
-            //
             for ( i=0; i<3; i++ ) {
-#ifdef _WIN32
                 if (NULL != (fPtr->fpr = _fsopen( fPtr->originalFileName, "r", _SH_DENYNO ))) break;
-#else
-                if (NULL != (fPtr->fpr = fopen( fPtr->baselineFileName, "r" ))) break;
-#endif
                 sleep( 1 );
             }
             if ( fPtr->fpr == NULL ) errCode = 1;
+#else
+            // close the current file (if valid)
+            if ( fPtr->fpr != -1 ) { close( fPtr->fpr );  fPtr->fpr = -1; };
+
+            // try to open it up to 3x (3 seconds) before declaring fault
+            for ( i=0; i<3; i++ ) {
+                if ( -1  != (fPtr->fpr = open( fPtr->baselineFileName, O_RDONLY | O_NONBLOCK | O_NDELAY  ))) break;
+                sleep( 1 );
+            }
+            if ( fPtr->fpr == -1 ) errCode = 1;
+#endif
             logPrintf(LOG_LEVEL_INFO, "ftrack", "LogFile reopen base name ::%s:: errCode %d", fPtr->baselineFileName, errCode );
         }
     }
@@ -258,7 +270,17 @@ int ftrackResync( ftrackObj *fPtr )
 //
 void ftrackClose( ftrackObj *fPtr )
 {
-    if (fPtr->fpr != NULL) fclose( fPtr->fpr );
+#ifdef _WIN32
+    if (fPtr->fpr != NULL) {
+        fclose( fPtr->fpr );
+        fPtr->fpr = NULL;
+    }
+#else
+    if (fPtr->fpr != -1) {
+        close( fPtr->fpr );
+        fPtr->fpr = -1;
+    }
+#endif
     free( fPtr );
     return;
 }
@@ -283,6 +305,7 @@ void ftrackClose( ftrackObj *fPtr )
 //
 int ftrackTailOfFile( ftrackObj *fPtr, char *strBuffer, int maxStringSize, int seekToEnd  )
 {
+#ifdef _WIN32
     int           x, noData;
     int           strIndex = 0;
     FILE          *fpr;
@@ -322,6 +345,48 @@ int ftrackTailOfFile( ftrackObj *fPtr, char *strBuffer, int maxStringSize, int s
         }
     }
     return noData;
+#else
+    int           x, noData;
+    int           strIndex = 0;
+    int           fpr;
+    unsigned char buf[8];
+
+    fpr = fPtr->fpr;
+
+    if ( fpr == -1 ) {
+        strclr( strBuffer );
+        return 1;
+    }
+
+    if ( seekToEnd ) {
+        lseek( fpr, 0L, SEEK_END );
+    }
+
+    strclr( strBuffer );
+
+    for ( ;; ) {
+        x  = read( fpr, buf, (size_t) 1);
+        if ( x == 1 ) {
+            // printf("%c\n", x);
+            if (buf[0] == '\n')   {
+                strBuffer[ strIndex ] = 0;
+                strIndex = 0;
+                noData = 0;
+                break;
+            }
+            else {
+                strBuffer[strIndex++] = buf[0];
+                if (strIndex > maxStringSize-2) strIndex = maxStringSize-2;
+            }
+        }
+        else {
+            strclr( strBuffer );
+            noData = 1;
+            break;
+        }
+    }
+    return noData;
+#endif
 }
 
 

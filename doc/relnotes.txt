@@ -1,3 +1,25 @@
+Beta 02.2 (0.2.2) 202002xx
+
+    Bugfix: made hardcoded counterattack 'defendTimer' adjustable from sissm.cfg. 
+    Bugfix: player greeting will no longer triple print when player name starts with *
+    Bugfix: Refactor low-level File I/O in ftrack for compatibility with Debian 10/Ubuntu 19
+    Bugfix: Changed low level I/O for Linux Rdrv (network) to avoid broken-pipe ghost SISSM crash
+
+    New: added as built-in feature rcon terminal (very handy).  Sissm.cfg is not required.
+        ./sisssm -t hostname/ip# rconport# rconpassword
+        After connecting to your server, type 'help' for list of game supported commands
+
+    1. sissm_example.cfg changes/recommended changes: 
+        a. Expanded pidynbots objective bot adjustment table for all maps (use as example)
+        b. Added code 'tap' to picladmin.reason[] - may not affect your community
+        c. Added code 'xx' to pitacnomic.shorts[] - may not affect your community
+
+    2. sissm_example.cfg new entries:
+        a. pisoloplayer.defendTimer  90  // copy c/a defendTimer from Game.ini
+
+    Starting Beta 02.2 the Quick-Package will no longer include the Windows DEBUG variants of sissm.exe.
+    This is because the DEBUG version has consistently false-detected SISSM as a trojan.  If you need
+    the DEBUG version, please compile it from the source, or contact me directly. 
 
 Beta 02.1 (0.2.1) 20191219
 
@@ -37,6 +59,7 @@ Beta 02.1 (0.2.1) 20191219
     picladmin.reason[5] "race::Racist behaviors strictly prohibited on this server"
     picladmin.reason[6] "afk::Idle Timeout / AFK"
     picladmin.reason[7] "tac::This is a Military-Tactical server.  Please work with your squad."
+    picladmin.reason[8] "tap::Tactical servers require you ask your squad BEFORE tapping, or stepping into the objective zone."
 
     piwebgen.showUpTime                   1  // 1=show server "up" time & reason for last reboot
     piwebgen.showLastReboot               0  // 1=show last reboot time & reason for last reboot

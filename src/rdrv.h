@@ -54,4 +54,4 @@ extern int rdrvDisconnect( rdrvObj *cPtr );
 extern int rdrvDestroy( rdrvObj *cPtr );
 extern int rdrvXmtRcv( rdrvObj *cPtr, int msgType, char *rconCmd, char *rconResp );
 extern int rdrvCommand( rdrvObj *cPtr, int msgType, char *rconCmd, char *rconResp, int *bytesRead );
-
+extern int rdrvTerminal( char *hostName, char *portNo, char *rconPassword );
