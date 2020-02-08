@@ -20,7 +20,12 @@
 
 typedef struct {
 
+#ifdef _WIN32
     FILE *fpr;                                   // file handle
+#else
+    int  fpr;                // low-level file handle ala open()
+#endif
+
     char originalFileName[FTRACK_FILENAME_MAX];  // filename specified by the caller
     char baselineFileName[FTRACK_FILENAME_MAX];  // system readback filename after open (full path)
     unsigned long lastFileSize;                  // file size on last resync

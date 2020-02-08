@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PIREBOOTER Plugin
-JS Schroeder -- last updated:  2019.10.05
+JS Schroeder -- last updated:  2020.02.07
 
 The PIREBOOTER plugin 
 
@@ -33,6 +33,8 @@ RCON, b) functioning log activity.  In this state, the server may read back empt
 "ghost" (non-existent) players.  Clients trying to connect to hung servers typically
 see "95% stuck" problem during connection.
 
+5.  Reboot the server once a day.
+
 Setup:
 
 First enable the REBOOTER plugin in your sissm.cfg file by turning on pirebooter.logUpdateSec.  
@@ -43,13 +45,20 @@ reboot kicks in."
 pirebooter.pluginState                1                 // 1=enable plugin, 0=disable plugin
 pirebooter.logUpdateSec              60      // report rate, counter state to log file (sec)
 
-The three limits are for the aforementioned 3 cases described, all expressed in units of seconds.
-Program it to your liking.  
+The five limits are for the aforementioned 5 cases described, all but daily reboot is 
+expressed in units of seconds.  Program it to your liking.  
 
 pirebooter.rebootBusySec          18000                                 // 5*60*60 (5 hours)
 pirebooter.rebootIdleSec           1200                                    // 20*60 (20 min)
 pirebooter.rebootDeadSec            300                                     // 5*60 ( 5 min)
 pirebooter.rebootHungSec           1200                                    // 20*60 (20 min)
 
+For daily reboot, set the hh:mm in 24-hour format.  Empty string "" will disable
+this feature.
+
+pirebooter.rebootDailyHM             ""   // daily reboot format hh:mm:  "", "01:00", 23:35"
+
 Set your limits to your needs, and restart SISSM.
+
+
 

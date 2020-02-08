@@ -1,12 +1,14 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Introduction to SISSM
-JS Schroeder -- last updated:  2019.10.05
+JS Schroeder -- last updated:  2020.02.07
 
 
 What is it?
 ==============================
 
-SISSM is a server application designed to run alongside your Insurgency Sandstorm dedicated server software.  It is designed to be an "unattended watchdog" for your server.  It is not a remote management tool, nor a server setup tool. 
+SISSM is a server application designed to run alongside your Insurgency Sandstorm dedicated server software.  It is designed to be an "unattended watchdog" for your server.  It is not a remote management tool, nor a server setup tool.
+
+SISSM must execute on the same machine hosting your Sandstorm server.  This is because SISSM requires local access to read the Insurgency.log file to track game state in real-time.  SISSM will NOT work in most GSP-hosted environments, not recommended for GSP use due to its complex nature.
 
 *  Compiled for Linux and Windows servers
 *  Auto-reboots ISS servers for stability, as non-intrusively as possible, with early warnings sent to your game clients
@@ -17,11 +19,15 @@ SISSM is a server application designed to run alongside your Insurgency Sandstor
 *  Sent to your game clients: player connects and disconnects -- with incognito option for a short list of admins
 *  "First Player Downgrade" makes gameplay easier for a lone player - helps to prime the empty servers
 *  "Ruleset Override" sets server properties locked by some rulesets, such as bot count in Frenzy mode
-*  HTML server status generator 
+*  "Command line Administrator" allows your admins in-game control of the server including rudiementary macro execution
+*  "Dynamic Bot" allows adjusting min/max bot counts per map per objective-leg -- also works with wave respawn checkpoint
+*  "Tactical No-Mic" allows non-microphone users to communicate by typing 2-letter codes of common tactical phrases
+*  HTML server status generator
 *  Provides in-game chat-box command line interface for the admins
+*  Setup custom admin privilege levels each group with attributes and list of allowed commands
+*  Includes RCON Terminal mini-tool for server operators and modders
 *  Generates a player connection log to help facilitate after-the-fact ban
 *  Configured through a single .cfg file, per server.  All plugins can be enabled/disabled individually.
-*  Setup custom admin privilege levels each group with attributes and list of allowed commands
 
 Miscellaneous Features:
 
@@ -51,7 +57,7 @@ There is a "Quickstart" guide available, with a template almost-ready-to-run sis
 What are Current Risks and Limitations
 ==============================
 
-Primarily tested under Debian9 and Ubuntu18, Windows version is available but not stress tested.
+Primarily tested under Debian9/10 and Ubuntu18, Windows version is tested under Windows-10/64 only
 
 SISSM must be installed on the same machine hosting your Sandstorm Dedicated Server.
 

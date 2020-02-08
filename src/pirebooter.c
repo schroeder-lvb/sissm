@@ -93,7 +93,10 @@ int pirebooterInitConfig( void )
     // checked quickly against HH:MM:SS system clockstring and not get mistaken for MM:SS check.
     //
     strlcpy( pirebooterConfig.rebootDailyHM, cfsFetchStr( cP, "pirebooter.rebootDailyHM", "99:99"), CFS_FETCH_MAX );
-    if ( 5 == strlen( pirebooterConfig.rebootDailyHM )) strlcat( pirebooterConfig.rebootDailyHM, ":", CFS_FETCH_MAX );
+    if ( 5 == strlen( pirebooterConfig.rebootDailyHM )) 
+        strlcat( pirebooterConfig.rebootDailyHM, ":", CFS_FETCH_MAX );
+    else
+        strlcat( pirebooterConfig.rebootDailyHM, "99:99:", CFS_FETCH_MAX );
 
     pirebooterConfig.logUpdateSec  = (int)      cfsFetchNum( cP, "pirebooter.logUpdateSec",  (double)      60 );
 

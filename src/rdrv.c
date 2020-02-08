@@ -125,9 +125,11 @@ int rdrvSend( rdrvObj *rPtr, int msgtype, char *rconcmd )
     // sendto(fd, buf, outlen, 0, (const struct sockaddr *) &serveraddr, serverlen);
 #ifdef _WIN32
     errCode = 0;
-    send( rPtr->sockfd, buf, outlen, 0);
+    // send( rPtr->sockfd, buf, outlen, 0);
+    errCode = (-1 == send( rPtr->sockfd, buf, outlen, 0 ));
 #else
-    errCode = write( rPtr->sockfd, buf, outlen );
+    // errCode = write( rPtr->sockfd, buf, outlen );
+    errCode = (-1 == send( rPtr->sockfd, buf, outlen, MSG_NOSIGNAL));
 #endif
 
 #if RDRV_DEBUGPRINT
@@ -428,6 +430,79 @@ int rdrvCommand( rdrvObj *rPtr, int msgType, char *rconCmd, char *rconResp, int 
         memcpy( &rconResp[ *bytesRead ], &rconRespCont[ 3 ], bytesRead2 - 3 );
         *bytesRead += (bytesRead2 - 3);          // update totoal size not including 3 byte header
         
+    }
+
+    return( errCode );
+}
+
+//  ==============================================================================================
+//  rdrvTerminal
+//  
+//  Simple RCON terminal 
+//
+int rdrvTerminal( char *hostName, char *portNoStr, char *rconPassword )
+{
+    int         i, exitLoop = 0, errCode = 1, bytesRead, portNo, isConnected = 0;
+    size_t      rconCmdSize = 1024;
+    char        *rconCmd = NULL;
+    static char rconResp[1024*16];
+    rdrvObj     *rPtr = NULL;
+    
+    // Parse Parameters, allocate getline() buffer [required] 
+    //
+    if ( 1 == sscanf( portNoStr, "%d", &portNo )) {
+        rconCmd = (char *) malloc( rconCmdSize );
+        if (rconCmd != NULL) errCode = 0;
+    }
+  
+    // Open and Connect to the server 
+    //
+    if ( !errCode ) {
+        // printf("\nSISSM RconTerm ::%s::%d::%s::\n", hostName, portNo, rconPassword );
+        rPtr = rdrvInit( hostName, portNo, rconPassword );
+        if ( rPtr != NULL ) {
+            errCode = rdrvConnect( rPtr );
+            if ( !errCode ) { 
+                printf("\nConnection successful. Type 'q' to exit\n");
+                isConnected = 1;
+            }
+        }
+    }
+
+    // Command Loop until 'q' is pressed
+    //
+    if ( isConnected ) {
+        while ( !exitLoop ) {
+#ifdef _WIN32
+            memset( rconCmd, 0, rconCmdSize );
+            gets_s( rconCmd, rconCmdSize );
+            rconCmd[ strlen( rconCmd ) - 0 ] = 0x0d; 
+            rconCmd[ strlen( rconCmd ) + 1 ] = 0x00;
+#else
+            getline( &rconCmd, &rconCmdSize, stdin );
+            rconCmd[ strlen( rconCmd ) - 1 ] = 0x0d;
+            rconCmd[ strlen( rconCmd ) - 0 ] = 0x00; 
+#endif     
+            if  (( rconCmd[0] == 'q' ) && ( rconCmd[1] == 0x0d )) 
+                exitLoop = 1;
+            else {
+                errCode = rdrvCommand( rPtr, 2, rconCmd, rconResp, &bytesRead );
+                if ( (0 == errCode) && (bytesRead > 0) ) {
+                    for (i=0; i<bytesRead; i++) printf("%c", rconResp[i]);
+                    printf("\n");
+                }
+                else {
+                    printf("\nNo Response/Error Response\n");
+                }
+            }
+        }
+    }
+
+    // Close the RCON port
+    //
+    if ( rPtr != NULL ) {
+        if ( isConnected ) rdrvDisconnect( rPtr );
+        rdrvDestroy( rPtr );
     }
 
     return( errCode );

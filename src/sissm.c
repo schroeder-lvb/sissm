@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.1 Beta 20191219 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.2 Beta 20200207 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.1 Beta 20191219"
+#define VERSION    "SISSM v0.2.2 Beta 20200207"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -194,7 +194,7 @@ int sissmSigInstall( void )
 
 #ifndef _WIN32
 
-#define BT_BUF_SIZE 100
+#define BT_BUF_SIZE 4096
 static FILE *segfaultFPW = NULL;
 
 void sissmSegfaultSigaction( int signal, siginfo_t *si, void *arg )
@@ -215,6 +215,10 @@ void sissmSegfaultSigaction( int signal, siginfo_t *si, void *arg )
     strings = backtrace_symbols(buffer, nptrs);
     if (strings == NULL) {
         perror( "backtrace_symbols" );
+        if ( segfaultFPW != NULL ) {
+            fprintf( segfaultFPW, "Segfault Backtrace Error\n" );
+            fclose( segfaultFPW );
+        };
         exit( EXIT_FAILURE );
     }
 
@@ -228,7 +232,7 @@ void sissmSegfaultSigaction( int signal, siginfo_t *si, void *arg )
     if ( segfaultFPW != NULL ) fclose( segfaultFPW );
 
     free(strings);
-    exit( 0 );
+    exit( EXIT_FAILURE );
 }
 
 //  ==============================================================================================
@@ -617,7 +621,7 @@ int sissmMainLoop( void )
 
 
 //  ==============================================================================================
-//  main
+//  main (sissm_main & sissm_terminal)
 //
 //  This is the application starting point.  SISSM requires one and only one parameter:  
 //  configuration file. All configuration variables are defined in the configuration file.
@@ -627,7 +631,7 @@ int sissmMainLoop( void )
 
 #define SISSM_DEFAULT_CONFIG_NAME               "sissm_default.cfg"
 
-int main( int argc, char *argv[] )
+int sissm_main( int argc, char *argv[] )
 {
     int errCode = 0;
     char configFileName[ 256 ];
@@ -649,7 +653,8 @@ int main( int argc, char *argv[] )
     default:             // all other cases show help and do not run
         errCode = 1;
     }
-    if (  errCode ) printf("\n%s\nSyntax: sissm config-file\n\n", VERSION);
+    if ( errCode )
+        printf("\n%s\nSyntax: sissm config-file / sissm -t hostname rconport rconpass\n%s\n", VERSION, COPYRIGHT);
 
 #ifndef _WIN32 
 #if SISSM_CRASHREPORT
@@ -683,5 +688,43 @@ int main( int argc, char *argv[] )
 
     return( errCode );
 }
+
+int sissm_terminal( int argc, char *argv[] )
+{
+    int paramError = 1;
+#ifdef _WIN32
+    logPrintfInit( 2, "nul", 1 );
+#else
+    logPrintfInit( 2, "/dev/null", 1 );
+#endif
+    if ( argc == 5 ) {
+        rdrvTerminal( argv[2], argv[3], argv[4] );
+    }
+    else if ( paramError ) {
+        printf("\n\nSISSM RCON Terminal Tool\n./sissm -t [hostname/IP][port#][rconpassword]");
+        printf("\nExample  ./sissm -t 127.0.0.1 27015 myRconPassword\n\n");
+    }
+    return 0;
+}
+
+
+int main( int argc, char *argv[] ) 
+{
+    int errCode;
+    int terminalMode = 0;
+
+    if ( argc > 1 )  {
+        if ( 0 == strncmp( argv[1], "-t", 2 ) )  {
+            terminalMode = 1;
+            errCode = sissm_terminal( argc, argv );
+        }
+    }
+    if (!terminalMode) 
+        errCode = sissm_main( argc, argv );
+
+    return( errCode );
+
+};
+
 
 
