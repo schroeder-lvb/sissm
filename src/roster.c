@@ -431,6 +431,48 @@ char *rosterLookupNameFromIP( char *playerIP )
 
 
 //  ==============================================================================================
+//  rosterLookupNameFromGUID
+//
+//  Uses the database to translate player GUID to player name string.  Empty string
+//  (not NULL) is returned if data is not found.
+//
+char *rosterLookupNameFromGUID( char *playerGUID )
+{
+    static char playerName[256];
+    int i;
+    strclr( playerName );
+    for (i=0; i<ROSTER_MAX; i++) {
+        if ( 0 == strcmp( masterRoster[i].steamID, playerGUID )) {
+            strlcpy( playerName, masterRoster[i].playerName, 256 );
+            break;
+        }
+    }
+    return( playerName );
+}
+
+
+//  ==============================================================================================
+//  rosterLookupIPFromGUID
+//
+//  Uses the database to lookup player IP# from GUID.  Empty string
+//  (not NULL) is returned if data is not found.
+//
+char *rosterLookupIPFromGUID( char *playerGUID )
+{
+    static char playerIP[256];
+    int i;
+    strclr( playerIP );
+    for (i=0; i<ROSTER_MAX; i++) {
+        if ( 0 == strcmp( masterRoster[i].steamID, playerGUID )) {
+            strlcpy( playerIP, masterRoster[i].IPaddress, 256 );
+            break;
+        }
+    }
+    return( playerIP );
+}
+
+
+//  ==============================================================================================
 //  rosterLookupSteamIDFromName
 //
 //  Uses the database to translate player name to SteamID.  Empty string (not NULL)
@@ -576,6 +618,44 @@ void rosterDump( int humanFlag, int npcFlag )
 
 
 //  ==============================================================================================
+//  rosterParseCacheDestroyed
+//
+//  This is one of series of parser called by event callback routine.
+//  This one is associated with the Cache Destruction event.
+//
+//  [2020.03.05-00.35.45:360][277]LogGameplayEvents: Display: Objective 4 owned by team 1 was 
+//      destroyed for team 0 by YourPlayerName6[76560000000000006], YourPlayerName7[76560000000000007], 
+//      YourPlayerName1[76560000000000001], YourPlayerName4[76560000000000004], 
+//      YourPlayerName5[76560000000000005]. 
+//
+#define DESTROY1_STRING "owned by team 1 was destroyed for team 0 by "
+#define DESTROY2_STRING "owned by team 0 was destroyed for team 1 by "
+#define DESTROY_PREFIX  "[76"
+
+void rosterParseCacheDestroyed( char *destroyString, int maxChars, char *playerName, char *playerGUID, char *playerIP )
+{
+    char localBuffer[ 4096 ];
+    char *p, *q;
+
+    strlcpy( localBuffer, destroyString, 4096 );
+
+    p = strstr( localBuffer, DESTROY1_STRING );
+    if ( p == NULL ) p = strstr( localBuffer, DESTROY2_STRING );
+
+    if ( p != NULL ) {
+        p += strlen( DESTROY1_STRING );
+        q = strstr( p, DESTROY_PREFIX );
+        if ( q != NULL ) if ( strlen( q ) >= 18 ) {
+            strlcpy( playerGUID, q+1, 18 );
+            strlcpy( playerIP,   rosterLookupIPFromGUID( playerGUID ), maxChars );
+            strlcpy( playerName, rosterLookupNameFromGUID( playerGUID ), maxChars );
+        }
+    }
+    return;
+}
+
+
+//  ==============================================================================================
 //  rosterParsePlayerSynthConn
 //
 //  This is one of series of parser called by event callback routine.
@@ -665,6 +745,53 @@ void rosterParsePlayerDisConn( char *connectString, int maxSize, char *playerNam
         strlcpy( playerName, rosterLookupNameFromIP( playerIP ), maxSize );
         strlcpy( playerGUID, rosterLookupSteamIDFromName( playerName ), maxSize );
     }
+}
+
+
+//  ==============================================================================================
+//  rosterParsePlayerChat
+//
+//  Parse the log line 'say' chat log into originator GUID and the said text string
+//  [2019.08.30-23.39.33:262][176]LogChat: Display: name(76561198000000001) Global Chat: !ver sissm
+//  [2019.09.15-03.44.03:500][993]LogChat: Display: name(76561190000000002) Team 0 Chat: !v
+//
+int rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chatLine )
+{
+    int errCode = 1, i;
+    char strIn2[256];
+    char *steamID = NULL, *chatText = NULL;
+
+    // check if this is a valid chat line
+    //
+    if ( NULL != strstr( strIn, "LogChat: Display:" )) {
+
+        // make a copy and get rid of last carriage return
+        //
+        strlcpy( strIn2, strIn, 256 );
+        for (i = 0; i<strlen( strIn2 ); i++ )
+            if ( strIn2[i] == '\015') strIn2[i] = 0;
+
+        // Go find the first character of typed text.  Check 3 cases for a match.
+        // if none found, chatText is NULL
+        //
+        if ( chatText == NULL )  chatText = strstr( strIn2, "Global Chat: " );
+        if ( chatText == NULL )  chatText = strstr( strIn2, "Team 0 Chat: " );
+        if ( chatText == NULL )  chatText = strstr( strIn2, "Team 1 Chat: " );
+        if ( chatText != NULL )  {
+            chatText += 13;
+            strlcpy( chatLine, chatText, maxChars );
+            errCode = 0;
+        }
+
+        // Find the steam ID of the originator
+        //
+        strclr( clientID );
+        if ( NULL != (steamID = strstr( strIn2, "\(76" ) )) {
+            strlcpy( clientID, &steamID[1], 18 );
+        }
+
+    }
+    return errCode;
 }
 
 

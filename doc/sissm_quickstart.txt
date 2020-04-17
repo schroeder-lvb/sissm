@@ -3,7 +3,10 @@ Quick Start Guide for SISSM
 JS Schroeder -- last updated:  2019.09.05
 ===============================
 
-This is a quick-start install guide for SISSM, if -- 
+For source, description and documentation of SISSM, visit:
+https://github.com/schroeder-lvb/sissm
+
+This is a quick-start install instruction site for SISSM, if --
 *  You are using pre-compiled executable package (Windows/Debian9/Ubuntu18)
 *  You already have a working Co-op mode Insurgency Sandstorm Server, and
 *  You have full control of your server (shell access) for installing 3rd party software, 
@@ -20,14 +23,13 @@ bEnabled=True
 Password=mysecretpassword
 ListenPort=27015
 
-B)  Your Game Server launcher script -- Make sure logging is enabled
+B) Your Game Server launcher script -- Make sure logging is enabled
 
 Linux -
 ./InsurgencyServer-Linux-Shipping [ ...your params... ] -log -LogCmds="LogGameplayEvents Log"
 
 Windows -
 InsurgencyServer-Win64-Shipping [ ...your params... ] -log -LogCmds="LogGameplayEvents Log"
-
 
 NOTE: If you are hosting multiple server instances *FROM THE SAME INSTALL FOLDER* you
 must specify unique log file for each.  Do this by changing "-log" with e.g., "-log=server1.log",
@@ -38,15 +40,17 @@ Wrapper (SAW)" users hosting more than one instance of the game.
 Step 2: Download the Quick Install .zip file to your server
 ---------------------------------
 
-http://cassandra.confluvium.info/sissm
+https://github.com/schroeder-lvb/sissm_releases
 
 Download the latest 'quick-start' package and unzip to an empty folder:
 
 *  sissm                  Linux executable
-*  sissm.exe              Windows executable
 *  sissm_restricted       Linux variant for GSPs - script execution is disabled for security
+*  sissm.exe              Windows executable
 *  sissm_restricted.exe   Windows variant for GSPs - script execution is disabled for security
 *  sissm_example.cfg    Starter configuration (from which you will make a copy and edit)
+
+(There may be 32- and 64-bit versions of the Windows executable.)
 
 SISSM must run on the same machine alongside your game server, with read access to 
 the game log (Insurgency.log) and Admins.txt files.

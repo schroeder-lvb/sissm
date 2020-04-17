@@ -792,10 +792,10 @@ int apiKickOrBan( int isBan, char *playerGUID, char *reason )
     int bytesRead, errCode;
 
     if ( isBan ) {
-        snprintf( rconCmd, API_T_BUFSIZE, "ban %s -1 %s", playerGUID, reason );
+        snprintf( rconCmd, API_T_BUFSIZE, "ban %s -1 \"%s\"", playerGUID, reason );
     }
     else {
-        snprintf( rconCmd, API_T_BUFSIZE, "kick %s %s", playerGUID, reason );
+        snprintf( rconCmd, API_T_BUFSIZE, "kick %s \"%s\"", playerGUID, reason );
     }
     errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
 
@@ -828,7 +828,7 @@ int apiRcon( char *commandOut, char *statusIn )
 //
 int apiPlayersGetCount( void )
 {
-    return ( rosterCount() );
+    return ( rosterCount() );  
 }
 
 //  ==============================================================================================

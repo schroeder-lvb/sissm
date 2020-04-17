@@ -1,4 +1,41 @@
-Beta 02.2 (0.2.2) 202002xx
+Beta 02.3 (0.2.3) 20200416
+
+    Bugfix: !bs command upper bot limit check was fixed at 60 - now configurable from sissm.cfg (picladmin)
+
+    sissm_example.cfg
+        Completed baseline bot adjuster table for all stock security and insurgent maps
+
+    Added a non-linear bias table for dynamic bot loading (pidynbots); changes to sissm.cfg:
+        pidynbots.BotBias      "0  0  1  2  2  3  2  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0"
+        pidynbots.MaxBotsCrashProtect    100    // maximumenemies/soloenemies max for crash protect
+
+    Added "auto-kick" to piantirush plugin for checkpoint -- kicks player (1) that blows weapons cache early
+    It is disabled by default.
+    IMPORTANT: Engine.ini modification is required - see doc/piantirush.txt for more details
+        piantirush.autoKickEarlyDestruction   0     // 1=auto kick rushers that blows up cache early
+        piantirush.destroyOkPrompt                    "Cache destruction AUTHORIZED if team concurs"
+        piantirush.destroyDenyPrompt                           "Early destruct DENIED at this time."
+        piantirush.destroyHoldPrompt                   "*Cache desturct UNAUTHORIZED - 'aa' or '11'"
+        piantirush.earlyDestroyKickMessage    "Auto-kicked for Unauthorized early cache destruction"
+        piantirush.earlyDestroyPlayerRequest                       "aa pp 00 11 22 33 44 55 ask req"
+        piantirush.destroySpeedup            90                 // sec destruct speedup if requested
+
+    Added optional check for minimum name length requirements; set to 0 to disable (allow any)
+        pigateway.minPlayerNameLength         4          // minimum player name length (def 4)
+        pigateway.minPlayerNameMsg      "player name too short"
+
+    Macros table (picladmin)
+        Increased Macro table from 64 to 128
+        Added more example entries to sissm_example.cfg:  hotpotato, bigmoney, etc.
+
+    Added check & kick for minimum player name character length.  It is disabled by default 
+        pigateway.minPlayerNameLength         0     // minimum player name length (def 0 = no check)
+        pigateway.minPlayerNameMsg      "player name too short"
+
+    Added auto-kick on "troll word" detect in chat content.  List racial slur words here.
+        pigateway.chatTrollWords   "admin: admins: admin;"       // auto-kick on chat string match
+    
+Beta 02.2 (0.2.2) 20200208
 
     Bugfix: made hardcoded counterattack 'defendTimer' adjustable from sissm.cfg. 
     Bugfix: player greeting will no longer triple print when player name starts with *

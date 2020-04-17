@@ -52,7 +52,7 @@
 //
 
 #define NUM_RESPONSES  (5)
-#define NUM_MACROS     (64)
+#define NUM_MACROS     (128)
 #define NUM_REASONS    (9)
 
 static struct {
@@ -374,9 +374,9 @@ int _cmdBotScaled( char *arg, char *arg2, char *passThru )
             if ( 1 == sscanf( arg2, "%d", &botCount )) {  // check for 2nd param
                 botCountMin = botCountMax;
                 botCountMax = botCount;
-                if ( botCountMin > botCountMax ) errCode = 1;
-                if ( botCountMax > 60 )          errCode = 1;
-                if ( botCountMax <  2 )          errCode = 1;
+                if ( botCountMin > botCountMax )                   errCode = 1;
+                if ( botCountMax > picladminConfig.botMaxAllowed ) errCode = 1;
+                if ( botCountMax <  2 )                            errCode = 1;
             }
         }
     }

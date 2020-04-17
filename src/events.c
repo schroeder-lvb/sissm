@@ -74,6 +74,7 @@ struct {
     { SISSM_EV_TRAVEL,              17, SS_SUBSTR_TRAVEL      },
     { SISSM_EV_SESSIONLOG,          18, SS_SUBSTR_SESSIONLOG  },
     { SISSM_EV_OBJECT_SYNTH,        19, "~SYNTHOBJ~"          },
+    { SISSM_EV_CACHE_DESTROY,       20, SS_SUBSTR_DESTROY     },
     { -1,                           -1, "*"                   },
 
 };

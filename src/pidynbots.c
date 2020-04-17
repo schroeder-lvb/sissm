@@ -58,8 +58,10 @@ static struct {
     int MinimumEnemies; 
     int MaximumEnemies; 
     int MaxPlayersToScaleEnemyCount;
-    double AIDifficulty;
-    char Adjuster[PIDYN_MAXADJUSTERS][CFS_FETCH_MAX];
+    int MaxBotsCrashProtect;
+    double AIDifficulty;                                 
+    char Adjuster[PIDYN_MAXADJUSTERS][CFS_FETCH_MAX];      // side/map/objective nbots adjustments 
+    char BotBias[CFS_FETCH_MAX];                         // nbots count vs humans adjustment table
 
     int enableObjAdj;                       // 1 to enable objective adj; turn off if using webmin
     int enableDisconnAdj;                         // 1 to enable AI adjust when player disconnects
@@ -92,9 +94,10 @@ int pidynbotsInitConfig( void )
     pidynbotsConfig.MaxPlayersToScaleEnemyCount = (int) cfsFetchNum( cP, "pidynbots.MaxPlayerToScaleEnemyCount", 10.0);
     pidynbotsConfig.AIDifficulty = (double) cfsFetchNum( cP, "pidynbots.AIDifficulty",    0.5 );  // AIDifficulty
 
-    pidynbotsConfig.enableObjAdj     = (int) cfsFetchNum( cP, "pidynbots.enableObjAdj", 0.0 );  
-    pidynbotsConfig.enableDisconnAdj = (int) cfsFetchNum( cP, "pidynbots.enableDisconnAdj", 0.0 );  
-    pidynbotsConfig.enableConnAdj    = (int) cfsFetchNum( cP, "pidynbots.enableConnAdj", 0.0 );  
+    pidynbotsConfig.enableObjAdj         = (int) cfsFetchNum( cP, "pidynbots.enableObjAdj", 0.0 );  
+    pidynbotsConfig.enableDisconnAdj     = (int) cfsFetchNum( cP, "pidynbots.enableDisconnAdj", 0.0 );  
+    pidynbotsConfig.enableConnAdj        = (int) cfsFetchNum( cP, "pidynbots.enableConnAdj", 0.0 );  
+    pidynbotsConfig.MaxBotsCrashProtect  = (int) cfsFetchNum( cP, "pidynbots.MaxBotsCrashProtect", 100.0 ); 
 
     strlcpy( pidynbotsConfig.showInGame, cfsFetchStr( cP, "pidynbots.showInGame", "" ), CFS_FETCH_MAX );  
 
@@ -104,6 +107,10 @@ int pidynbotsInitConfig( void )
         snprintf( varArray, 256, "pidynbots.Adjuster[%d]", i );
         strlcpy( pidynbotsConfig.Adjuster[i], cfsFetchStr( cP, varArray,  "" ), CFS_FETCH_MAX);
     }
+
+    // Read the botbias table
+    //
+    strlcpy( pidynbotsConfig.BotBias, cfsFetchStr( cP, "pidynbots.botbias",  "" ), CFS_FETCH_MAX);
 
     cfsDestroy( cP );
     return 0;
@@ -185,7 +192,7 @@ static int _computeBotParams( int refresh )
     double aiDifficulty;
     char *objName, *mapName, objLetter;
     char strBuf[256], *w;
-    int adjust = 0, errCode = 0, offsetIndex;
+    int adjust = 0, errCode = 0, botBias, offsetIndex;
 
     // default parameters
     // 
@@ -194,6 +201,7 @@ static int _computeBotParams( int refresh )
     minHuman     = 1;
     maxHuman     = pidynbotsConfig.MaxPlayersToScaleEnemyCount;
     currHuman    = rosterCount();
+
 
 #if 0 
     // DEBUG tap for simulating humans joining and leaving - take out this block later
@@ -243,15 +251,6 @@ static int _computeBotParams( int refresh )
                     if ( !errCode ) maxBots += adjust;
                 }
             }
-
-            // validate to keep the server from crashing
-            // 
-            if ( !errCode) {
-                if ( minBots > maxBots ) errCode = 1;
-                if ( maxBots > 40 )      errCode = 1;
-                if ( minBots < 0  )      errCode = 1;
-            }           
- 
             break;
         }
     }
@@ -281,6 +280,22 @@ static int _computeBotParams( int refresh )
         if ( 0L == p2pGetL( "picladmin.p2p.botAdminControl", 0L )) {  // check if in-game admin took control
             logPrintf( LOG_LEVEL_INFO, "pidynbots", "Adjusting bots %d:%d" , minBots, maxBots );
 
+            // Apply BotBias - this changes min/maxenemies by a specified offset in function of 
+            // number of human players are present
+            //
+            botBias = 0;
+            if ( NULL != (w = getWord( pidynbotsConfig.BotBias, currHuman, " " ))) 
+               if ( 1 != sscanf( w, "%d", &botBias )) botBias = 0;
+
+            // validate to keep the server from crashing
+            // 
+            minBots += botBias;
+            maxBots += botBias;
+            if ( maxBots > pidynbotsConfig.MaxBotsCrashProtect )  
+                maxBots = pidynbotsConfig.MaxBotsCrashProtect;
+            if ( minBots < 1  )      minBots =  1;
+            if ( minBots > maxBots ) maxBots = minBots; 
+
             snprintf( strBuf, 256, "%d", minBots );
                 apiGameModePropertySet( "minimumenemies", strBuf );
             snprintf( strBuf, 256, "%d", maxBots );
@@ -292,6 +307,9 @@ static int _computeBotParams( int refresh )
             currBots =  _botScale( currHuman, maxBots, minBots, maxHuman, minHuman );
             snprintf( strBuf, 256, "%d", currBots );
                 apiGameModePropertySet( "soloenemies", strBuf );
+
+            // apiSay("Bias %d Bots %d:%d:%d Humans %d", botBias, minBots, maxBots, currBots, currHuman);
+            // printf("\n****Bias %d Bots %d:%d:%d Humans %d***\n", botBias, minBots, maxBots, currBots, currHuman);
 
             // if enabled in config, update the players by showing new params in-game
             //

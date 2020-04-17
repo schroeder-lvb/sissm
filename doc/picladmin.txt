@@ -11,8 +11,8 @@ this is site configuration dependent.  All commands are available for
 the AUTH root users.
 
 Default command prefix is "!".  You issue PICLADMIN commands by typing
-commands like:  !ban robert.  he server owner may change the prefix
-to use something other than the "!", for example, "amanda".  If this
+commands like:  !ban robert.  The server owner may change the prefix
+to use something other than "!", for example, "amanda".  If this
 is the case you issue a command like:  "amanda ban robert".
 
 
@@ -77,15 +77,16 @@ Example:  !reboot now
 
 ========================
 
-ban (b) [partial-name]
+ban (b) [partial-name] {reason | reason-code}
 Perm-ban a player by partial name
-Examples:  !b rob, !ban ert
+Examples:  !b rob, !ban ert, !ban robert team kills not allowed, !ban rob tk
 
 ========================
 
-banid (bi) [SteamID64]
+banid (bi) [SteamID64] {reason | reason-code}
 Perm-ban a player by SteamID64 - this can be done after a player has signed off.
-Examples:  !bi 76561123123123123, !banid 76561123123123123
+Examples:  !bi 76561123123123123, !banid 76561123123123123, 
+           !bi 76561123123123123 arguing with the admin
 
 ========================
 
@@ -95,9 +96,10 @@ Examples:  !ub 76561123123123123, !unbanid 76561123123123123
 
 ========================
 
-kick (k) [partial-name]
+kick (k) [partial-name] {reason | reason-code}
 Kick a player by partial name
-Examples:  !k ober, !kick robert
+Examples:  !k ober, !kick robert, !kick robert rush, 
+           !kick robert exploding cache without your team
 
 ========================
 
@@ -132,8 +134,8 @@ Example:  !ml, !macroslist
 ========================
 
 info (info)
-Display a list of available macros configured by your administrator
-Example:  !ml, !macroslist
+Display current bot count and difficulty
+Example:  !info
 
 ========================
 
@@ -154,5 +156,42 @@ Allows non-admin players to join a full server for short window of time (def 120
 Partial name or * may be specified for any player names.  If no parameter is specified 
 the join window will close immediately.
 Example:  !allowin jullie, !allowin *, !allowin
+
+
+
+////////// Appendix:  Kick/Ban Reasons and Reason-codes
+
+With exception of trolls, it is generally a good idea to include the reason
+you are kicking or banning a player.  You may suffix your own sentence
+like this:
+
+!ban alice intentionally throwing grenades at your team 
+!kick bob rushing capture points
+
+Depending on your server, a single word 'reason code' for kicks and bans may be  
+attached, and it will be displayed on subject player screen.  These are default
+SISSM reason codes:
+
+rush –   Tactical servers require you concur with your squad BEFORE entering objective zone or exploding a cache.
+tk –     Team kills pre-game/in-game, post-mortem body mutilations are prohibited.
+attack – Personal attacks against other players are prohibited."
+troll –  Reason unspecified
+sex -    Gender discrimination, improper or explicit content in your comms, player name, profile or avatar
+race –   Racist behaviors strictly prohibited on this server
+afk –    Idle Timeout / AFK
+tac –    This is a Military-Tactical server. Please work with your squad.
+
+Example:
+
+!ban alice tk
+!kick bob rush
+
+
+////////// Appendix:  Commands Added by Your Server Owner
+
+In SISSM your server owner may add new commands not listed here.  These are done through defining a macro
+(sequence of RCON commands) and setting the commmand to the appropriate admin level.
+
+Contact your server owner for any server customizations.
 
 
