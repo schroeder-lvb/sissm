@@ -37,7 +37,7 @@
 #define SISSM_EV_TRAVEL                     (17)
 #define SISSM_EV_SESSIONLOG                 (18)
 #define SISSM_EV_OBJECT_SYNTH               (19)                       // active objective change
-
+#define SISSM_EV_CACHE_DESTROY              (20)                       // Cache Destroyed event
 
 // Following substring in log file triggers an event
 //
@@ -55,6 +55,7 @@
 #define SS_SUBSTR_WINLOSE      "LogGameMode: Display: Round Over: Team"
 #define SS_SUBSTR_TRAVEL       "LogGameMode: ProcessServerTravel:"
 #define SS_SUBSTR_SESSIONLOG   "HttpStartUploadingFinished. SessionName:"
+#define SS_SUBSTR_DESTROY      "was destroyed for team"
 
 extern int eventsInit( void );
 extern int eventsRegister( int eventID, int (*callBack)( char * ));

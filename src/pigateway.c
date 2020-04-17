@@ -59,6 +59,10 @@ static struct {
     char adminListFilePath[CFS_FETCH_MAX];
     int  gameChangeLockoutSec;
     int  enableBadNameFilter;
+    int  minPlayerNameLength;               // minimum char length of player name required to join
+    char minPlayerNameMsg[CFS_FETCH_MAX];                 // minimum char length message to player
+
+    char chatTrollWords[CFS_FETCH_MAX];      // auto-kick extreme profanity or trolls in chat text
 
     unsigned int  allowInWindowTimeSec;                 // picladmin !allow window time in seconds
 
@@ -103,6 +107,7 @@ static int _isBadName( char *playerName )
     return( isBad );
 }
 
+
 //  ==============================================================================================
 //  pigatewayCGameChangeAlarmCB
 //
@@ -138,6 +143,12 @@ int pigatewayInitConfig( void )
     strlcpy( pigatewayConfig.adminListFilePath,  
         cfsFetchStr( cP, "pigateway.adminListFilePath",  "admins.txt" ), CFS_FETCH_MAX);
     pigatewayConfig.allowInWindowTimeSec = (unsigned long int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 180 );
+
+    pigatewayConfig.minPlayerNameLength = (int) cfsFetchNum( cP, "pigateway.minPlayerNameLength", 0 );
+    strlcpy( pigatewayConfig.minPlayerNameMsg,  
+        cfsFetchStr( cP, "pigateway.minPlayerNameMsg", "Player name too short" ), CFS_FETCH_MAX);
+    strlcpy( pigatewayConfig.chatTrollWords,  
+        cfsFetchStr( cP, "pigateway.chatTrollWords", "admin: admins: admin;" ), CFS_FETCH_MAX);
 
     cfsDestroy( cP );
 
@@ -219,8 +230,10 @@ int pigatewayClientSynthAddCB( char *strIn )
             apiSay ( "Player %s auto-kicked by server", playerName );
             logPrintf( LOG_LEVEL_INFO, "pigateway", "Bad Name Auto-kick ::%s::%s::%s::", 
                 playerName, playerGUID, playerIP );
+            alreadyKicked = 1;
         }
     }
+
     return 0;
 }
 
@@ -319,7 +332,7 @@ int pigatewayGameEndCB( char *strIn )
 {
     // setup a lockout for admin-only blocking (disable this function)
     // during map change so we don't accidentally kick existing 
-    // players due random re-joinig order
+    // players due random re-joining order
     //
     logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Gateway Lockout is SET" );
     alarmReset( pigatewayConfig.aPtr, pigatewayConfig.gameChangeLockoutSec );
@@ -350,13 +363,48 @@ int pigatewayRoundEndCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  pigatewayCapturedCB
 //
-//  ...
-//  ...
+//  The optional "minimum player name length" is checked whenever an objective is captured.
+//  The reason this is done here, instead of during intiial player connection, is that the
+//  "rcon kick" does not register well on many clients during the server-player negotiation 
+//  phase, causing players to "timeout" instead of seeing the kick message "name too short."
+//  By deferring the kick until end of capture, will increase likelihood the message is properly
+//  displayed.
+//  
 //
+#define PIGATEWAY_MAXROSTER          (16*1024)
+#define PIGATEWAY_STEAMIDLEN         (17)    // length of steamID i.e., strlen("76560000000000005")
+
 int pigatewayCapturedCB( char *strIn )
 {
+    static char rosterBuf[ PIGATEWAY_MAXROSTER ];
+    char   *w;
+    int    i, myLen;
+    char   name[256], guid[256];
+
+    if ( pigatewayConfig.minPlayerNameLength > 0 ) {
+
+        strlcpy( rosterBuf, apiPlayersRoster( 1, "\011" ), PIGATEWAY_MAXROSTER );
+ 
+        for ( i=0 ; ; i++ ){
+            w = getWord( rosterBuf, i, "\011" );  // Fetch one player: "abcd[76560000000000005]"
+            if ( w == NULL ) break;
+
+            myLen = (int) strlen( w );
+            if ( myLen == 0 ) break;
+
+            if ( myLen < (PIGATEWAY_STEAMIDLEN + 2 + pigatewayConfig.minPlayerNameLength) ) {
+
+                strlcpy( name, w, myLen-( PIGATEWAY_STEAMIDLEN+2)+1 );
+                strlcpy( guid, & w[ strlen( name ) + 1], PIGATEWAY_STEAMIDLEN+1 );
+            
+                apiKickOrBan( 0, guid,  pigatewayConfig.minPlayerNameMsg ); 
+                logPrintf( LOG_LEVEL_INFO, "pigateway", "Short Name Auto-kick ::%s::%s", name, guid );
+
+            }
+        }
+    }
     return 0;
 }
 
@@ -371,6 +419,35 @@ int pigatewayPeriodicCB( char *strIn )
     return 0;
 }
 
+
+//  ==============================================================================================
+//  pigatewayChatCB
+//
+//  This plugin is now watching for a short list of "troll" words typed into chat.  For now the
+//  offending player is auto-kicked.  The list of words can be entered in sissm.cfg.  Empty
+//  string "" will disable this feature.  Good candidate for this is racial slurs and social 
+//  engineering hacking attempt.
+//
+int pigatewayChatCB( char *strIn )
+{
+    char clientID[512], chatLine[512], *w;
+    int errCode, i = 0;
+
+    if ( 0 != strlen( pigatewayConfig.chatTrollWords ) ) {
+        if ( 0 == (errCode = rosterParsePlayerChat( strIn, 512, clientID, chatLine ))) {
+            while (1 == 1 ) {
+               w = getWord( pigatewayConfig.chatTrollWords, i++, " " );
+               if ( w == NULL ) break;
+               if ( 0 == strlen( w ) ) break;
+               if (NULL != strcasestr( chatLine, w )) {
+                    apiKickOrBan( 0, clientID, "Troll Detect: Generating Report" );
+                    logPrintf( LOG_LEVEL_INFO, "pigateway", "Troll Detect Auto-kick ::%s::'%s'", clientID, chatLine );
+               }
+            }
+        }
+    }
+    return 0;
+}
 
 //  ==============================================================================================
 //  pigatewayInstallPlugin
@@ -404,6 +481,7 @@ int pigatewayInstallPlugin( void )
     eventsRegister( SISSM_EV_PERIODIC,             pigatewayPeriodicCB );
     eventsRegister( SISSM_EV_CLIENT_ADD_SYNTH,     pigatewayClientSynthAddCB );
     eventsRegister( SISSM_EV_CLIENT_DEL_SYNTH,     pigatewayClientSynthDelCB );
+    eventsRegister( SISSM_EV_CHAT,                 pigatewayChatCB     );
 
     timeRestarted = apiTimeGet();
     return 0;

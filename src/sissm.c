@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.2 Beta 20200207 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.3 Beta 20200416 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.2 Beta 20200207"
+#define VERSION    "SISSM v0.2.3 Beta 20200416"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -67,6 +67,7 @@
 #include "picladmin.h"
 #include "pidynbots.h"
 #include "pitacnomic.h"
+#include "pistats.h"
 
 
 //  ==============================================================================================
@@ -381,6 +382,7 @@ int sissmInitPlugins( void )
     picladminInstallPlugin();     // admin in-game command executioner from the chat input
     pidynbotsInstallPlugin();                           // dynamic-bots adjustments plugin 
     pitacnomicInstallPlugin();         // shortcut phrases for tac-comm without microphone
+    pistatsInstallPlugin();               // generate data for gathering player statistics
 
     // "Third Party" Plugins - for customizations
     //

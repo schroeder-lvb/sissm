@@ -51,7 +51,11 @@ extern void rosterReset( void );
 extern void rosterInit( void );
 extern int  rosterParse( char *buf, int n );
 extern int  rosterCount( void );
+
+
 extern char *rosterLookupNameFromIP( char *playerIP );
+extern char *rosterLookupIPFromGUID( char *playerGUID );
+extern char *rosterLookupNameFromGUID( char *playerGUID );
 extern char *rosterLookupSteamIDFromName( char *playerName );
 extern char *rosterLookupSteamIDFromPartialName( char *partialName, int minChars );
 extern char *rosterLookupIPFromName( char *playerName );
@@ -60,6 +64,10 @@ extern void rosterDump( int humanFlag, int npcFlag );
 
 extern void rosterParsePlayerConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
 extern void rosterParsePlayerDisConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
+
+extern int  rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chatLine );
+
+extern void rosterParseCacheDestroyed( char *destroyString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
 
 extern void rosterParsePlayerSynthConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
 extern void rosterParsePlayerSynthDisConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );

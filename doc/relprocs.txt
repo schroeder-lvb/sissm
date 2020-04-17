@@ -21,8 +21,11 @@ ___ Build 4 Windows versions for Quick-Start Package:  Standard & Restricted x 3
 
 ___ Create Quick-Start package in Windows environment 
     4 Windows binaries, 2 Linux binaries, Example sissm.cfg, Example badwords.txt, README
-___ Post Quick-Start package to Cassandra
-___ Update index.html with latest w/ date tag, any new DOC files
+
+_d_ Post Quick-Start package to Cassandra [Discontinued]
+_d_ Update index.html with latest w/ date tag, any new DOC files [Discontinued]
+
+___ Update Github Binary Download Site
 
 ___ Linux:  git status, verify no files added inadvertantly
 ___ Linux:  Commit, Push 

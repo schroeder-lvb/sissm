@@ -488,7 +488,7 @@ int pigreetingsAlarmCB( char *alarmMsg )
 
 
 //  ==============================================================================================
-//  ...
+//  pigreetingsInstallPlugin
 //
 //  This method is exported and is called from the main sissm module.
 //

@@ -13,14 +13,14 @@ $ sudo apt-get install build-essential unzip git
 
 2) Unzip or git-clone sissm/src
 
-$ md ~/[your work area]
+$ mkdir ~/[your work area]
 $ cd ~/[your work area]
 
 $ unzip [SISSM release source].zip
     or
 $ git clone https://github.com/schroeder-lvb/sissm.git
 
-This will create a 'src' subfolderw under [your work area] containing
+This will create a 'src' subfolder under [your work area] containing
 all source files, and 'Makefile' will appear at ~/[your work area]
 
 3) Change "#define SISSM_RESTRICTED" value (0 or 1) for the SISSM variant you wish to build.

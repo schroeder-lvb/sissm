@@ -260,56 +260,34 @@ int pitacnomicClientSynthAddCB( char *strIn )
 int pitacnomicChatCB( char *strIn )
 {
     int errCode = 0, i;
-    char *typeObj, strIn2[256];
-    char *chatText = NULL;
+    char *typeObj, clientID[256], chatText[256];
     char *w, *v;
 
     logPrintf( LOG_LEVEL_INFO, "pitacnomic", "Client chat ::%s::", strIn );
 
     // check if this is a valid chat line 
     //
-    if ( NULL != strstr( strIn, "LogChat: Display:" )) { 
-
-        // make a copy and get rid of last carriage return 
-        //
-        strlcpy( strIn2, strIn, 256 );
-        for (i = 0; i<strlen( strIn2 ); i++ ) 
-            if ( strIn2[i] == '\015') strIn2[i] = 0;
-
-        // Go find the first character of typed text.  Check 3 cases for a match.
-        // if none found, chatText is NULL 
-        //
-        if ( chatText == NULL )  chatText = strstr( strIn2, "Global Chat: " ); 
-        if ( chatText == NULL )  chatText = strstr( strIn2, "Team 0 Chat: " ); 
-        if ( chatText == NULL )  chatText = strstr( strIn2, "Team 1 Chat: " ); 
-        if ( chatText != NULL )  chatText += 13;
- 
-        // If the chat text is found, make sure it is *only* 2 character,
-        // after that, look for a match in shorts[] table.
-        //
-        if ( chatText != NULL ) {
-
-            if (( 2 == strlen( chatText ))) {
-                chatText[2] = 0;
-                for (i = 0; i<PITACNOMIC_MAXSHORTS; i++) {
-                    if ( 0 == strncmp( pitacnomicConfig.shorts[i], chatText, 2 )) {
-                        // match is found on the table.  Parse for phrase to be
-                        // sent to the game.
-                        //
-                        if (NULL != (w = getWord( pitacnomicConfig.shorts[i], 1, "\007" ) )) {
-                            typeObj = rosterGetObjectiveType();
-                            if ( NULL != strcasestr( typeObj, "capturable"  ) ) {
-                                ;
-                            }
-                            if ( NULL != strcasestr( typeObj, "weaponcache" ) ) {
-                                if (NULL != (v = getWord( pitacnomicConfig.shorts[i], 2, "\007" ) )) {
-                                    w = v;
-                                 }
-                            }
-                            apiSaySys( w );
+    if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatText ))) {
+        if (( 2 == strlen( chatText ))) {
+            chatText[2] = 0;
+            for (i = 0; i<PITACNOMIC_MAXSHORTS; i++) {
+                if ( 0 == strncmp( pitacnomicConfig.shorts[i], chatText, 2 )) {
+                    // match is found on the table.  Parse for phrase to be
+                    // sent to the game.
+                    //
+                    if (NULL != (w = getWord( pitacnomicConfig.shorts[i], 1, "\007" ) )) {
+                        typeObj = rosterGetObjectiveType();
+                        if ( NULL != strcasestr( typeObj, "capturable"  ) ) {
+                            ;
                         }
-                        break;
+                        if ( NULL != strcasestr( typeObj, "weaponcache" ) ) {
+                            if (NULL != (v = getWord( pitacnomicConfig.shorts[i], 2, "\007" ) )) {
+                                w = v;
+                             }
+                        }
+                        apiSaySys( w );
                     }
+                    break;
                 }
             }       
         }

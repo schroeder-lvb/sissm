@@ -72,11 +72,21 @@ static struct {
     char warnRusherDestructible[CFS_FETCH_MAX];
     int  warnRusherDelaySec;
 
+    int  autoKickEarlyDestruction;       // 1 = autokick players that explodes weapons cache early
+    int  destroySpeedup;                                 // speed up cache blow timer if requested
+    char destroyOkPrompt[CFS_FETCH_MAX];      // prompt authorizing players to proceed w/ destruct
+    char destroyDenyPrompt[CFS_FETCH_MAX];                  // prompt denying players for destruct
+    char destroyHoldPrompt[CFS_FETCH_MAX];         // prompt ordering players not to destroy cache
+    char earlyDestroyKickMessage[CFS_FETCH_MAX];     // the 'reason' message to show kicked player
+    char earlyDestroyPlayerRequest[CFS_FETCH_MAX];    // list of request cmd for  early cache blow
+
 } piantirushConfig;
 
-static alarmObj *aPtr  = NULL;                     // Alarm for going back to normal capture rate
-static alarmObj *dPtr  = NULL;                              // Alarm for displaying warning rules
-static int lastState = -1;                          // last state of capture rate: { -1, 0, 1, 2 }
+static alarmObj *aPtr  = NULL;                      // Alarm for going back to normal capture rate
+static alarmObj *dPtr  = NULL;                               // Alarm for displaying warning rules
+static alarmObj *wPtr  = NULL;                               // Alarm for weapons destroy hold msg
+static alarmObj *rPtr  = NULL;             // Delay prompt for player request for early cache blow
+static int lastState = -1;                           // last state of capture rate: { -1, 0, 1, 2 }
 
 
 //  ==============================================================================================
@@ -98,12 +108,19 @@ static void _captureSpeed( int isSlow )
         isSlowCopy = 0;
     }
 
+    if ( isSlowCopy != 0 ) {
+        alarmReset( wPtr, 10 );   // delayed prompt for cache destruction HOLD order
+    }
+
     if (lastState != isSlowCopy) {
         switch ( isSlowCopy ) {
 	case 1:    // slow rate when moderate number of people are in game
             apiGameModePropertySet( "ObjectiveCaptureTime", piantirushConfig.slowObjectiveCaptureTime );
             apiGameModePropertySet( "ObjectiveSpeedup"    , piantirushConfig.slowObjectiveSpeedup );
             apiSay( piantirushConfig.slowPrompt );
+
+            // alarmReset( wPtr, 10 );  // delayed prompt for cache destruction HOLD order
+
             logPrintf(LOG_LEVEL_INFO, "piantirush", "**Set Capture Time to SLOW");
             lastState = 1;
             break;
@@ -111,13 +128,23 @@ static void _captureSpeed( int isSlow )
             apiGameModePropertySet( "ObjectiveCaptureTime", piantirushConfig.lockObjectiveCaptureTime );
             apiGameModePropertySet( "ObjectiveSpeedup"    , piantirushConfig.lockObjectiveSpeedup );
             apiSay( piantirushConfig.lockPrompt );  
+
+            // alarmReset( wPtr, 10 );   // delayed prompt for cache destruction HOLD order
+
             logPrintf(LOG_LEVEL_INFO, "piantirush", "**Set Capture Time to LOCK");
             lastState = 2;
             break;
         default:    // normal case: expected value '0' 
             apiGameModePropertySet( "ObjectiveCaptureTime", piantirushConfig.fastObjectiveCaptureTime );
             apiGameModePropertySet( "ObjectiveSpeedup"    , piantirushConfig.fastObjectiveSpeedup );
-            if ( lastState != 0 ) apiSay( piantirushConfig.fastPrompt );
+
+            if ( lastState != 0 ) { 
+                if ( NULL != strstr( rosterGetObjectiveType(), "Capturable" )) 
+                    apiSay( piantirushConfig.fastPrompt );
+                else if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" )) {
+                    if (piantirushConfig.autoKickEarlyDestruction) apiSay( piantirushConfig.destroyOkPrompt );
+                }
+            }
             logPrintf(LOG_LEVEL_INFO, "piantirush", "**Set Capture Time to NORMAL");
             lastState = 0;
             break;
@@ -138,6 +165,47 @@ static void _captureSpeedForceNext( void )
 {
     lastState = -1;
 }
+
+
+//  ==============================================================================================
+//  _notifyNoDestroyCB
+//
+//  Alarm handler to display destroy hold on weapons cache
+//  Delayed transaction is necessary due to system process delay of determining if the 
+//  'next' objective is a cache or territory.  It also helps to declutter what is printed
+//  on game screen.
+//
+static int _notifyNoDestroyCB( char *str ) 
+{
+    if (piantirushConfig.autoKickEarlyDestruction) {
+        if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" ))  {
+            apiSay( piantirushConfig.destroyHoldPrompt );
+        }
+    }
+    return 0;
+}
+  
+
+//  ==============================================================================================
+//  _earlyDestroyReqCB
+//
+//  When a player requests (aa, req, 00, 11, etc.) to blow the cache, introduce a 5 second
+//  delay to 'call HQ for permission' then print if the request is granted or denied.  The
+//  delay is needed for cosmetic and anti-confusion reasons as this module needs to work with
+//  existing pitacnomic module that handles aa, 00, 11, etc. prompting with the player.
+//
+static int _earlyDestroyReqCB( char *str )
+{
+    if ( alarmStatus( aPtr ) < (long) piantirushConfig.destroySpeedup ) {
+        apiSaySys( piantirushConfig.destroyOkPrompt );
+        alarmCancel( aPtr );
+    }
+    else {
+        apiSay( piantirushConfig.destroyDenyPrompt );
+    }
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  _rulesAlarmCB 
@@ -230,11 +298,30 @@ int piantirushInitConfig( void )
     piantirushConfig.warnRusherDelaySec = (int)            
         cfsFetchNum( cP, "piantirush.warnRusherDelaySec", 20 );
 
+    piantirushConfig.autoKickEarlyDestruction = (int)
+        cfsFetchNum( cP, "piantirush.autoKickEarlyDestruction", 0 );
+    piantirushConfig.destroySpeedup = (int)
+        cfsFetchNum( cP, "piantirush.destroySpeedup", 90 );
+
+    strlcpy( piantirushConfig.destroyOkPrompt,     // prompt authorizing players destroy the cache
+        cfsFetchStr( cP, "piantirush.destroyOkPrompt", "Cache destruction AUTHORIZED if team concurs" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.destroyDenyPrompt,     // prompt denying players destroy the cache
+        cfsFetchStr( cP, "piantirush.destroyDenyPrompt", "Early destruct DENIED at this time." ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.destroyHoldPrompt,     // prompt ordering players to halt destruction of cache
+        cfsFetchStr( cP, "piantirush.destroyHoldPrompt", "*Cache desturct UNAUTHORIZED - 'aa' or '11'" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.earlyDestroyKickMessage,     // 'reason' displayed to kicked player 
+        cfsFetchStr( cP, "piantirush.earlyDestroyKickMessage", "Auto-kicked for Unauthorized early cache destruction" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.earlyDestroyPlayerRequest,     // command typed by players to request early destroy
+        cfsFetchStr( cP, "piantirush.earlyDestroyPlayerRequest", "aa pp 00 11 22 33 44 55 ask req" ), CFS_FETCH_MAX);
+
     cfsDestroy( cP );
 
     aPtr  = alarmCreate( _normalSpeedAlarmCB );
     dPtr  = alarmCreate( _rulesAlarmCB );
+    wPtr  = alarmCreate( _notifyNoDestroyCB );
+    rPtr  = alarmCreate( _earlyDestroyReqCB );
 
+    alarmReset( rPtr, 0L );
     return 0;
 }
 
@@ -255,10 +342,13 @@ void _startOfEverything( void )
         // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start LOCK alarm set %d", piantirushConfig.lockIntervalSec);
         _captureSpeed( 2 );
     }
-    else  {
+    else if (currentPlayerCount > piantirushConfig.nPlayerExemption)  { 
         alarmReset( aPtr, piantirushConfig.slowIntervalSec );
         // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start SLOW alarm set %d", piantirushConfig.lockIntervalSec);
         _captureSpeed( 1 );
+    }
+    else {
+        alarmCancel( aPtr );
     }
     return;
 
@@ -287,10 +377,10 @@ int piantirushClientDelCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushInitCB
 //
-//  ...
-//  ...
+//  Start of SISSM - in case it is "hot restarted" (game is running, sissm was restarted) make sure
+//  the capture rate is set to "normal" until SISSM and the game are synchronized.
 //
 int piantirushInitCB( char *strIn )
 {
@@ -311,10 +401,9 @@ int piantirushRestartCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushMapChangeCB
 //
-//  ...
-//  ...
+//  Force a capture rate update on map change
 //
 int piantirushMapChangeCB( char *strIn )
 {
@@ -323,10 +412,9 @@ int piantirushMapChangeCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushGameStartCB
 //
-//  ...
-//  ...
+//  Force SLOW or LOCKED rate if qualified by # of players
 //
 int piantirushGameStartCB( char *strIn )
 {
@@ -336,10 +424,9 @@ int piantirushGameStartCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushGameEndCB
 //
-//  ...
-//  ...
+//  Force a capture rate update on end of game
 //
 int piantirushGameEndCB( char *strIn )
 {
@@ -348,10 +435,11 @@ int piantirushGameEndCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushRoundStartCB
 //
-//  ...
-//  ...
+//  Force SLOW or LOCKED rate if qualified by # of players
+//  Since this is start of round, put up a delayed warning message on screen
+//  that anti-rush algorithm is active.
 //
 int piantirushRoundStartCB( char *strIn )
 {
@@ -362,10 +450,9 @@ int piantirushRoundStartCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushRoundEndCB
 //
-//  ...
-//  ...
+//  Force a capture rate update on end of round
 //
 int piantirushRoundEndCB( char *strIn )
 {
@@ -374,10 +461,9 @@ int piantirushRoundEndCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushCapturedCB
 //
-//  ...
-//  ...
+//  Reset the capture rate timers to SLOW or LOCKED when the current objective is captured.  
 //
 int piantirushCapturedCB( char *strIn )
 {
@@ -412,10 +498,12 @@ int piantirushPeriodicCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushSigKillCB
 //
-//  ...
-//  ...
+//  This event handler executes whenever SISSM is terminated.  Since this can happen at 
+//  any time, it is very important for SISSM to leave the game server in the "normal"
+//  capture rate state.  If SISSM abruptly exited leaving the game server in LOCKED capture
+/// rate, then the game becomes unplayable.
 //
 int piantirushSigKillCB( char *strIn )
 {
@@ -428,15 +516,71 @@ int piantirushSigKillCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  piantirushObjectSynt
 //
-//  ...
-//  ...
+//  This is a callback routine invoked when Objective change is detected synthetically
+//  (by polling).  Simply schedule a warning to be printed to game (default 20 sec).
+//  
 int piantirushObjectSynth( char *strIn )
 {
     alarmReset( dPtr, piantirushConfig.warnRusherDelaySec );
     return 0;
 }
+
+//  ==============================================================================================
+//  piantirushCacheDestroyed
+//
+//  This is a callback for when Cache is destroyed.  It checks number of seconds remaining on
+//  timer and if a player destroyed this cache before time, he is kicked.
+//  
+int piantirushCacheDestroyed( char *strIn )
+{
+    char playerName[256], playerGUID[256], playerIP[256];
+
+    rosterParseCacheDestroyed( strIn, 256, playerName, playerGUID, playerIP );
+    // apiSay( "Cache destroyed by %s[%s]", playerName, playerGUID  );
+
+    if ( piantirushConfig.autoKickEarlyDestruction ) {
+        if ( alarmStatus( aPtr ) >= 2L ) {
+            apiKickOrBan( 0, playerGUID, piantirushConfig.earlyDestroyKickMessage );
+            logPrintf( LOG_LEVEL_INFO, "piantirush", "%s[%s] Auto-kicked for early cache destruction", playerName, playerGUID );
+            apiSay( "'%s' auto-kicked for rushing", playerName );
+        }
+    }
+    return 0;
+}
+
+//  ==============================================================================================
+//  piantirushChatCB
+//
+//  The timer for early cache-explode auto-kick can be accelerated (exempted) if a player
+//  makes the effort to communicate with the team that the cache is about to be blown.
+//  The pitacnomic plugin has several user defined two-letter-codes indicating early explosion
+//  of cache.  This routine checks if such a code is registered, and if the timing
+//  qualifies for eary explostion, resets the timer so the player will not be auto-kicked.
+//  It will also schedule a "go/no-go" message to be printed on screen 5 seconds after -- the
+//  reason for delay is due to potential for message prioritisation printing out-of-sequence
+//  prompt that can be very confusing for the players.
+// 
+//  
+int piantirushChatCB( char *strIn )
+{
+    char clientID[256], chatLine[256];
+    int errCode;
+
+    if ( piantirushConfig.autoKickEarlyDestruction ) {
+        if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" ))  {
+            if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatLine ))) {
+                if ( NULL != strstr( piantirushConfig.earlyDestroyPlayerRequest, chatLine )) {
+                    alarmReset( rPtr, 2 );        // give answer 5 seconds later for cosmetics 
+
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  piantirushInstallPlugins
@@ -470,7 +614,8 @@ int piantirushInstallPlugin( void )
     eventsRegister( SISSM_EV_PERIODIC,             piantirushPeriodicCB );
     eventsRegister( SISSM_EV_SIGTERM,              piantirushSigKillCB );
     eventsRegister( SISSM_EV_OBJECT_SYNTH,         piantirushObjectSynth );
-
+    eventsRegister( SISSM_EV_CACHE_DESTROY,        piantirushCacheDestroyed );
+    eventsRegister( SISSM_EV_CHAT,                 piantirushChatCB     );
 
     return 0;
 }
