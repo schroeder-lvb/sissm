@@ -23,5 +23,7 @@ extern int isReadable( char *fileName );
 extern void  replaceDoubleColonWithBell( char *strInOut );
 extern char *computeElapsedTime( unsigned long timeMark, unsigned long timeNow );
 
+extern void strClean( char *strIn );
+
 extern int debugPoke( char *fileName, int *valueOut );
 

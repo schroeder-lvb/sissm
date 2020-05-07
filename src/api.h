@@ -20,6 +20,7 @@ extern int   apiServerRestart( char *reasonForRestart );
 extern int   apiGameModePropertySet( char *gameModeProperty, char *value );
 extern char *apiGameModePropertyGet( char *gameModeProperty );
 extern int   apiSay( const char * format, ... );
+// extern int   apiSayMute( int muteFlag, const char * format, ... );
 extern int   apiSaySys( const char * format, ... );
 extern int   apiKickOrBan( int isBan, char *playerGUID, char *reason );
 extern int   apiRcon( char *commandOut, char *statusIn );
@@ -42,6 +43,13 @@ extern int   apiBadNameCheck( char *nameIn );
 #define WORDLISTMAXELEM     (1024)
 #define WORDLISTMAXSTRSZ      (32)
 
+#define API_MAXENTITIES       (64)
+
+#define API_R_BUFSIZE                (4*1024)
+#define API_T_BUFSIZE                (4*1024)
+#define API_MAXSAY                       (80)       // Maximum string that can be printed by "say"
+
+
 
 typedef char idList_t[IDLISTMAXELEM][IDLISTMAXSTRSZ];
 extern int   apiIdListRead( char *listFile, idList_t idList );
@@ -63,4 +71,10 @@ extern int apiWordListCheck( char *stringTested, wordList_t wordList );
 //
 extern unsigned long apiGetLastRebootTime( void );
 extern char *apiGetLastRebootReason( void );
+
+// for translating CharacterID to/from Player Name
+//
+char *apiNameToCharacter( char *playerName );
+char *apiCharacterToName( char *characterID );
+
 

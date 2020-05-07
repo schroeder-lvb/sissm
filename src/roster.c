@@ -482,8 +482,8 @@ char *rosterLookupSteamIDFromName( char *playerName )
 {
     static char steamID[256];
     int i;
+
     strclr( steamID );
- 
     for (i=0; i<ROSTER_MAX; i++) {
         if ( 0 == strcmp( masterRoster[i].playerName, playerName )) {
             strlcpy( steamID, masterRoster[i].steamID, 256 ); 

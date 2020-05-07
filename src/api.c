@@ -46,10 +46,6 @@
 
 #define API_MAX_GROUPS                  ( 6 )                    // max number of privilege groups 
 
-#define API_R_BUFSIZE                (4*1024)
-#define API_T_BUFSIZE                (4*1024)
-#define API_MAXSAY                       (80)       // Maximum string that can be printed by "say"
-
 #define API_LOG2RCON_DELAY_MICROSEC  (250000)          // system delay between log to rcon (tuned) 
 #define API_LISTPLAYERS_PERIOD           (10)     // #seconds periodic for listserver roster fetch
 
@@ -103,6 +99,17 @@ static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file pat
 //
 static char lastRebootReason[256];                          // short description of last reboot
 static unsigned long lastRebootTime;                               // store time of last reboot
+
+// Data used for translating CharacterID and Playernames
+// This is used by piantirush for detecting cap rushers on 
+// territorial point
+//
+struct {
+    char charID[ 256 ];                       // system internal ID e.g., BP_Character_Player_C_0
+    char playerName[ 256 ];                        // player commmon name e.g., "robert", "alice"
+} soldierTranslate[ API_MAXENTITIES ];
+
+static char _cachedName[256];
 
 
 //  ==============================================================================================
@@ -436,21 +443,6 @@ int _apiPlayerDisconnectedCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  _apiMapChangeCB
-//
-//  Call-back function dispatched when the game system log file indicates a map change.
-//  Simply update the name which can be read back from Plugins via the API at later time.
-//
-int _apiMapChangeCB( char *strIn )
-{
-    char _currMap[API_LINE_STRING_MAX];
-
-    rosterParseMapname( strIn, API_LINE_STRING_MAX, _currMap );
-    rosterSetMapName( _currMap );
-    return 0;
-}
-
-//  ==============================================================================================
 //  _apiTravelCB
 //
 //  Call-back function dispatched when the game system log file indicates a travel.
@@ -482,6 +474,272 @@ int _apiSessionLogCB( char *strIn )
 
 
 //  ==============================================================================================
+
+
+//  ==============================================================================================
+//  _apiBPCharInitCB
+//
+//  Call-back for CharacterID-to-PlayerName Translation function
+//  Initialize the internal table - to be called at start of app
+//  and at map change.
+//
+int _apiBPCharInitCB( char *strIn )
+{
+    int i;
+
+    strclr( _cachedName );
+    for ( i=0; i<API_MAXENTITIES; i++ ) {
+        strclr( soldierTranslate[ i ].charID );
+        strclr( soldierTranslate[ i ].playerName );
+    }
+    logPrintf( LOG_LEVEL_INFO, "api", "BPChar Translation Table cleared" );
+    return 0;
+}
+
+//  ==============================================================================================
+//  _apiBPCharNameCB (internal)
+//
+//  Call-back for CharacterID-to-PlayerName Translation function 'SS_SUBSTR_BP_PLAYER_CONN'
+//  This function parses the log string of the form:
+//    [2020.04.17-15.16.06:068][601]LogGameMode: Verbose: RestartPlayerAtPlayerStart PlayerName
+//  and updates the static var _cacheName with 'PlayerName'
+//
+int _apiBPCharNameCB( char *strIn )
+{
+    char *w, *n = NULL;
+    if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_PLAYER_CONN ) )) {
+        if (NULL != ( n = &w[ strlen( SS_SUBSTR_BP_PLAYER_CONN ) ])) {
+            if ( n != NULL ) {
+                strlcpy( _cachedName, n, 256 );
+                strClean( _cachedName );   // in-line remove trailing CR or LF 
+                // printf("\nStored to cachedName ::%s::\n", n);
+            }
+        }
+    }
+    return 0;
+}
+
+
+
+//  ==============================================================================================
+//  _apiBPCharPlayerCB
+//
+//  Call-back for CharacterID-to-PlayerName Translation function 'SS_SUBSTR_BP_CHARNAME'
+//  This function parses the log string of the form:
+//    [2020.04.17-15.16.06:101][601]LogGameMode: Verbose: PAWNREUSE: 'INSPlayerController_0' cached new pawn 'BP_Character_Player_C_0'.
+//  and inserts CharacterID and PlayerName pair into the lookup table.
+//
+int _apiBPCharPlayerCB( char *strIn )
+{
+    char *w, *n = NULL;
+    int i;
+
+    if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_CHARNAME ) )) {
+        w = strstr( strIn, "BP_Character_Player" );
+        if ( w != NULL ) {
+            if ( NULL != (n = getWord( w, 0, " .'" )) ) {
+                ;;
+                // printf("\nConnect ::%s::%s\n", n, _cachedName );
+            }
+        }
+    }
+
+    if (( 0 != strlen( _cachedName )) && ( n != NULL )) {
+
+        // First pass, remove preexisting or duplicate characterID and playerName
+        //
+        for ( i = 0; i<API_MAXENTITIES; i++ )  {
+            if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
+                strclr( soldierTranslate[ i ].charID );
+                strclr( soldierTranslate[ i ].playerName );
+            }
+            if ( 0 == strcmp( _cachedName, soldierTranslate[ i ].playerName )) {
+                strclr( soldierTranslate[ i ].charID );
+                strclr( soldierTranslate[ i ].playerName );
+            }
+        }
+
+        // insert into the translation table
+        //
+        for ( i = 0; i<API_MAXENTITIES; i++ )  {
+            if ( 0 == strlen( soldierTranslate[ i ].charID ) ) {
+                strlcpy( soldierTranslate[ i ].playerName, _cachedName, 256 );
+                strlcpy( soldierTranslate[ i ].charID,               n, 256 );
+                logPrintf( LOG_LEVEL_INFO, "api", "BPChar %s bound to '%s'", n, _cachedName );
+                break;
+            }
+        }
+
+#if 0
+// -------
+// old code
+    int duplicateUpdated = 0;
+        // Insert into translation database
+        // First pass, look for duplicate (anomaly) in characterID
+        //
+        duplicateUpdated = 0;
+        for ( i = 0; i<API_MAXENTITIES; i++ )  {
+            if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
+                strlcpy( soldierTranslate[ i ].playerName, _cachedName, 256 );
+                duplicateUpdated = 1;
+                break;
+            }
+        }
+
+        // if duplicate was not found, find the first open slot
+        // and insert into the translation table
+        //
+        if ( !duplicateUpdated ) {
+            for ( i = 0; i<API_MAXENTITIES; i++ )  {
+                if ( 0 == strlen( soldierTranslate[ i ].charID ) ) {
+                    strlcpy( soldierTranslate[ i ].playerName, _cachedName, 256 );
+                    strlcpy( soldierTranslate[ i ].charID,               n, 256 );
+                    break;
+                }
+            }
+        }
+// -------
+#endif
+
+
+
+    }
+
+    strclr( _cachedName );
+    return 0;
+}
+
+
+//  ==============================================================================================
+//  _apiBPCharDisconnectCB
+//
+//  Call-back for CharacterID-to-PlayerName Translation function 'SS_SUBSTR_BP_PLAYER_DISCONN'
+//
+//  This function parses the log string of the form:
+//    [2020.04.17-15.44.53:971][572]LogGameMode: Verbose: PAWNREUSE: BP_Character_Player_C_0 role 3 Unpossessed
+//  and removes the matching CharacterID-Playername record from the lookup table.
+//
+int _apiBPCharDisconnectCB( char *strIn )
+{
+    char *w, *n = NULL;
+    int i;
+
+    if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_PLAYER_DISCONN ) )) {
+        w = strstr( strIn, "BP_Character_Player" );
+        if ( w != NULL ) {
+            if ( NULL != (n = getWord( w, 0, " .'" )) ) {
+                // printf("\nDisconnect ::%s::\n", n);
+                ;
+            }
+        }
+    }
+
+    if ( n != NULL ) {
+
+        // Remove from translation database
+        // Check all entries and remove duplicates to be safe
+        //
+        for ( i = 0; i<API_MAXENTITIES; i++ )  {
+            if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
+                logPrintf( LOG_LEVEL_INFO, "api", "BPChar '%s' unbound", n );
+                strclr( soldierTranslate[ i ].charID     );
+                strclr( soldierTranslate[ i ].playerName );
+            }
+        }
+    }
+
+#if 0
+// old code
+    if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_PLAYER_DISCONN ) )) {
+        w = strstr( strIn, "BP_Character_Player" );
+        if ( w != NULL ) {
+            if ( NULL != (n = getWord( w, 0, " .'" )) ) {
+                // printf("\nDisconnect ::%s::\n", n);
+                ;
+            }
+        }
+    }
+
+    if (( 0 != strlen( _cachedName )) && ( n != NULL )) {
+
+        // Remove from translation database
+        // Check all entries and remove duplicates to be safe
+        //
+        for ( i = 0; i<API_MAXENTITIES; i++ )  {
+            if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
+                strclr( soldierTranslate[ i ].charID     );
+                strclr( soldierTranslate[ i ].playerName );
+            }
+        }
+    }
+//
+#endif
+
+    return 0;
+}
+
+
+//  ==============================================================================================
+//  _apiMapChangeCB
+//
+//  Call-back function dispatched when the game system log file indicates a map change.
+//  Simply update the name which can be read back from Plugins via the API at later time.
+//
+int _apiMapChangeCB( char *strIn )
+{
+    char _currMap[API_LINE_STRING_MAX];
+
+    rosterParseMapname( strIn, API_LINE_STRING_MAX, _currMap );
+    rosterSetMapName( _currMap );
+
+    _apiBPCharInitCB( strIn );
+
+    return 0;
+}
+
+
+
+//  ==============================================================================================
+//  apiNameToCharacter
+//
+//  Translate playerName ("Robert") to internal Character ID ("BP_Character_Player_C_0")
+//  If translation is not successful, empty string is returned.
+//
+char *apiNameToCharacter( char *playerName )
+{
+    int i;
+    static char w[ 256 ];
+
+    strclr( w );
+    for ( i = 0; i<API_MAXENTITIES; i++ )  {
+        if ( 0 == strcmp( playerName, soldierTranslate[ i ].playerName )) {
+            strlcpy( w, soldierTranslate[ i ].charID, 256 );
+            break;
+        }
+    }
+    return( w );
+}
+
+//  ==============================================================================================
+//  apiCharacterToName
+//
+//  Translate internal Character ID ("BP_Character_Player_C_0") to playerName ("Robert")
+//  If translation is not successful, empty string is returned.
+//
+char *apiCharacterToName( char *characterID )
+{
+    int i;
+    static char w[ 256 ];
+
+    strclr( w );
+    for ( i = 0; i<API_MAXENTITIES; i++ )  {
+        if ( 0 == strcmp( characterID, soldierTranslate[ i ].charID )) {
+            strlcpy( w, soldierTranslate[ i ].playerName, 256 );
+            break;
+        }
+    }
+    return( w );
+}
 
 
 //  ==============================================================================================
@@ -559,6 +817,15 @@ int apiInit( void )
     eventsRegister( SISSM_EV_TRAVEL,      _apiTravelCB );
     eventsRegister( SISSM_EV_SESSIONLOG,  _apiSessionLogCB );
 
+    // These callbacks are used for detecting players entering
+    // and leaving territorial capture zone (piantirush)
+    //
+    eventsRegister( SISSM_EV_BP_PLAYER_CONN,    _apiBPCharNameCB );
+    eventsRegister( SISSM_EV_BP_PLAYER_DISCONN, _apiBPCharDisconnectCB );
+    eventsRegister( SISSM_EV_BP_CHARNAME,       _apiBPCharPlayerCB );
+    // eventsRegister( SISSM_EV_BP_TOUCHED_OBJ,  -- used by plugins
+    // eventsRegister( SISSM_EV_BP_UNTOUCHED_OBJ,  -- used by plugins
+
     // Setup Alarm (periodic callbacks) for fetching roster from RCON
     // 
     _apiPollAlarmPtr = alarmCreate( _apiPollAlarmCB );
@@ -592,6 +859,10 @@ int apiInit( void )
     //
     lastRebootTime = apiTimeGet();
     strlcpy( lastRebootReason, "Restart", 256 );
+
+    // Clear the BPChar translation table
+    //
+    _apiBPCharInitCB( "" );
 
     return( _rPtr == NULL );
 }
@@ -751,6 +1022,37 @@ int apiSay( const char * format, ... )
     return errCode;
 }
 
+#if 0
+//  ==============================================================================================
+//  apiSayMute
+//
+//  Copy of apiSay except the first parameter is a mtue flag
+//
+int apiSayMute( int muteFlag, const char * format, ... )
+{
+    static char buffer[API_T_BUFSIZE];
+    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
+    int bytesRead, errCode;
+    int triplePrint = 0;
+
+    va_list args;
+    va_start( args, format );
+    vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
+
+    snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
+    if ( 0 != strlen( buffer ) )  {  // say only when something to be said
+        if ( buffer[0] == '*' ) triplePrint = 1;
+        if ( 0 != (int) muteFlag ) {
+            errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+            if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+            if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+        }
+    }
+    va_end (args);
+    return errCode;
+}
+#endif
+
 //  ==============================================================================================
 //  apiSaySys
 //
@@ -828,7 +1130,11 @@ int apiRcon( char *commandOut, char *statusIn )
 //
 int apiPlayersGetCount( void )
 {
-    return ( rosterCount() );  
+#if (SISSM_TEST == 0)
+      return ( rosterCount() );  
+#else
+      return ( 3 );       // test mode, simulate 3 people
+#endif
 }
 
 //  ==============================================================================================
@@ -1074,4 +1380,5 @@ char *apiGetServerNameRCON( int forceCacheRefresh )
     }
     return ( hostName );
 }
+
 
