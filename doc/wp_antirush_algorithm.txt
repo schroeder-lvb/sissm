@@ -101,6 +101,42 @@ details.
 
 
 
+////////////////////// Design Notes
+
+      I                                      A -> A'          A' -> B
+    Objective Start          Slow-Fast       Start            Objective Capture
+    Slow Cap                 Cap Switch     Counterattack     Start next Objective
+    (Ev:SOR)                                (Ev:SOO)         (Ev:SOO)
+    (Ev:SOO)                 (Alarm)                         (Ev:SynSOO)
+    (Ev:SynSOO)
+      ^                         ^              ^               ^
+      |                         |              |               |
+ ====================================================================== >>>  time
+
+     
+Case Nominal 1:
+                 ^        ^
+                 |        |
+             Enter      timer (Kicked)
+
+Case Nominal 2:
+                 ^    ^
+                 |    |
+             Enter  Exit (not kicked)
+
+
+Case Overlap (not kicked)
+                          ^          ^
+                          |          | 
+                         Enter    timer (not-kicked)
+
+Case Counterattack
+                                                ^        ^
+                                                |        |
+                                             Enter  timer (not-kicked)
+
+
+
 
 
 

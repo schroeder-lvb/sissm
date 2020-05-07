@@ -1,0 +1,336 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+PIANTIRUSH - Checkpoint/Hardcore Antirush Algorithm
+JS Scheorder - last revised:  2020.05.07
+
+==========================================================================
+                 Quick Start – PIANTIRUSH Plugin Configuration
+==========================================================================
+
+PIANTIRUSH is a very complex plugin to customize for your server.  It is recommended you first run the example parameters on your private server.  Recruit 2 friends (to total 3) to help you evaluate various functions before deciding on what may be good fit for your server community.
+
+1.  Stop your server & SISSM, make backup of your sissm.cfg and your last executable binary.
+
+2.  Update SISSM executable binary to the latest release (beta 0.2.4 or later).
+
+3.  Update your sissm.cfg with the new piantirush block of parameters from latest distribution sissm_example.cfg (also see appendix of this document).
+
+4.  Edit sissm.cfg to enable all features for testing:
+
+piantirush.pluginState   1    // master ‘enable’ for the PIANTIRUSH plugin
+piantirush.earlyBreachShow  1   // 1=display names of rushers entering capture zone early
+piantirush.autoKickEarlyDestruction   1  // 1=auto-kick rushers blowing up weapons cache 
+piantirush.autoKickEarlyBreach  1  // 1=auto-kick rushers occupying the capture zone early
+
+5.  Modify your Engine.ini as follows:
+
+[Core.Log]
+LogGameplayEvents=Verbose
+LogDemo=Verbose
+LogObjectives=Verbose
+LogGameMode=Verbose
+LogNet=Verbose
+LogINSGameInstance=Verbose
+LogUObjectGlobals=Verbose
+
+6.  Restart your game server and latest SISSM executable
+
+7.  After “play test” and seeing how things work in full, walk through parameters in your sissm.cfg file, disable features you don’t want, adjust some numbers and customize the text prompts to suit your needs.
+
+8.  Optional:  For deep-dive on customizing PIANTIRUSH plugin, read on!
+
+
+==========================================================================
+                            Background
+==========================================================================
+
+Please read wp_antirush_algorithm.txt for white paper presentation for the concept behind anti-rush algorithm.  This document focuses on how to setup your sissm.cfg file for your server.
+
+This plugin addresses early capture of two objective types which are handled differently:
+
+Type 1: Territorial Objective (“Capture Point”)
+*  Warn players at start of new objective
+*  Notify when it is safe to enter the objective zone
+*  Display names of rushers entering objective zone early
+*  Slow down (or lock down) capture timer 
+*  Auto-kick rushers occupying the objective zone greater than time allowed
+
+Type 2: Destructible Objective (“Weapons Cache”)
+*  Warn players at start of new objective
+*  Notify when it is safe to destroy the weapons cache
+*  Auto-kick rushers blowing up the cache before allowed time.
+
+Server operators may enable/disable any of the above sub-features individually, as they see fit.
+
+Auto-kick seems harsh, but it is meant to be a teaching function.  This is done by you defining a friendly text explaining the server policy, optionally inviting him/her to come back.
+
+Algorithms for handling both cases are time based.  When an objective is captured, SISSM creates a protection window of time within which a rusher will encounter disciplinary mechanism.  Longer time window is needed as more people join the server.  SISSM define 3 segments of time window, called “fast”, “slow” and “locked.”  
+
+“Fast” is for 1-2 players under which the anti-rush algorithm is disabled.
+
+==========================================================================
+                   Parameter Customization
+==========================================================================
+
+///////////////////////////////////////////////
+Engine.ini Changes
+///////////////////////////////////////////////
+
+Changes to Engine.ini is needed only if you are 1) enabling player auto-kick or 2) enabling displaying on player names entering territorial objectives early.
+
+[Core.Log]
+LogGameplayEvents=Verbose
+LogDemo=Verbose
+LogObjectives=Verbose
+LogGameMode=Verbose
+LogNet=Verbose
+LogINSGameInstance=Verbose
+LogUObjectGlobals=Verbose
+
+///////////////////////////////////////////////
+Territorial Objective ‘slow down’ and Time Window Explained
+///////////////////////////////////////////////
+
+First block of parameters define time parameters (“fast”, “slow”, “locked”).  Let’s walk through these:
+
+piantirush.fastPrompt                  "Objective breach is AUTHORIZED if your team concurs"
+piantirush.fastObjectiveCaptureTime  30                 // see NWI doc: objectivecapturetime
+piantirush.fastObjectiveSpeedup    0.25                     // see NWI doc: objectivespeedup
+
+piantirush.nPlayerExemption           2     // disable for low # players (def 2), 0 disables
+piantirush.slowIntervalSec          135                         // sec to lock cap rate slow
+piantirush.slowPrompt                            "Objective locked for the next 135 seconds"
+piantirush.slowObjectiveCaptureTime  90                 // see NWI doc: objectivecapturetime
+piantirush.slowObjectiveSpeedup    0.00                     // see NWI doc: objectivespeedup
+
+piantirush.nPlayerLockThreshold       5      // min threshold to go into locked mode (def 5)
+piantirush.lockIntervalSec          180                         // sec to lock cap rate slow
+piantirush.lockPrompt                            "Objective locked for the next 180 seconds"
+piantirush.lockObjectiveCaptureTime 210                 // see NWI doc: objectivecapturetime
+piantirush.lockObjectiveSpeedup    0.00                     // see NWI doc: objectivespeedup
+
+nPlayerExemption defines the minimum number of players anti-rush algorithm stays dormant.  In this example, “2” means no action is taken by this plugin when there are only 1 or 2 players in the game.  This is your “fast” state (SISSM will not slow down game play).
+
+nPlayerLockThreshold defines the transition point from “slow” to “locked” state.  Using this example of value “5”, this plugin goes into “slow” state for 3 & 4 players, and player count of 5 or more switches to “locked” state.
+
+You see three sets of capture time parameters for each of the states:  ObjectiveCaptureTime and ObjectiveSpeedup.  These are described in the Official NWI Server Setup Guide. 
+
+Two parameters slowIntervalSec and lockIntervalSec describe number of seconds after successful capture of the previous objective.  So for example, if you have 6 players in game and the players just captured Objective “B” in game, an 180-second timer is started during which a player entering the next capture zone “C” will encounter ObjectiveCaptureTime of 210 (your in-game capture progress barely moves, making the objective appear “locked.”).   After 180-seconds have elapsed, SISSM will re-program the ObjectiveCaptureTime to “30” or “fast” state.
+
+///////////////////////////////////////////////
+Displaying Server Rules
+///////////////////////////////////////////////
+
+Many server operators use pigreetings plugin to display server rules.  In case you are not using that, this plugin has capability to display your server policy so that new players are not disciplined unfairly.
+
+piantirush.warnRusherCapturable                 "Await orders or type 'aa' before breaching"
+piantirush.warnRusherDestructible                "Await orders or type 'aa' before destruct"
+piantirush.warnRusherDelaySec        12       // show n-seconds after start of new objective
+
+Since SISSM has many plugins throwing so much information on player screen, adding “12” seconds of delay after each objective to display these important warnings helps to de-clutter the player screen.  If you are using pigreetings plugin to display redundant rules, you can disable this block by setting strings to null:
+
+piantirush.warnRusherCapturable                 ""
+piantirush.warnRusherDestructible               ""
+piantirush.warnRusherDelaySec        12       // show n-seconds after start of new objective
+
+///////////////////////////////////////////////
+Territorial Objective
+///////////////////////////////////////////////
+
+All above features are non-punitive.  If you are looking to simply slow-down game play, and you don’t mind players rushing the zones.  This is a good balanced approach that allows mix of fast and slow players for general public server.
+
+Unfortunately it does nothing to slow down game play in presence of players rushing to weapons cache  and exploding it before rest of your team is still resupplying at the previous objective! 
+
+///////////////////////////////////////////////
+Displaying Names of Rushers Entering Objective Capture Zone
+///////////////////////////////////////////////
+
+SISSM can be configured to display names of players entering objective capture zone early.  This is useful if you are not running auto-kick, but prefer to administer your server by voice.  This also exposes the rushers to the team by name, thereby exerting peer pressure to slow them down.
+
+piantirush.earlyBreachShow            1    // 1=display player name entering objective early
+piantirush.earlyBreachWarn            "premature breach warning"
+piantirush.earlyBreachExit            "is off the objective"
+
+///////////////////////////////////////////////
+Auto-Kick Feature for Extreme Team-Tactical Servers 
+///////////////////////////////////////////////
+
+SISSM can be configured to auto-kick those exploding the weapons cache early, or entering into the territorial objective zones.  These can be enabled/disabled independently.
+
+piantirush.autoKickEarlyDestruction   1     // 1=auto kick rushers that blows up cache early
+piantirush.autoKickEarlyBreach        1                     // 1=auto kick rushers objective
+
+Getting auto-kicked should be a learning experience, not an object of revenge for server policy violation!  It is important you provide a friendly text that shows up on player screen associated with the kick:
+
+piantirush.earlyDestroyKickMessage    "Auto-kicked for Unauthorized early cache destruction"
+piantirush.earlyBreachTimeKickedMessage "Auto-kicked for early territorial zone breach"
+
+///////////////////////////////////////////////
+Grace Periods and Tolerances 
+///////////////////////////////////////////////
+
+Grace period for early explosion of cache is programmed here.
+
+piantirush.earlyDestroyTolerance     10
+
+This allows a player to blow the cache “10 seconds” before the mandated delay.  For example, for a server populated with 6 players you are ‘authorized to blow’ 180 seconds of elapsed time since the last objective capture.  This parameter allows 10 seconds of tolerance so a player blowing the cache at 170 seconds elapsed time will not get kicked.
+
+For territorial objective captures, it is common for players to temporarily enter capture zones while “slicing the pie” or by accident.  PIANTIRUSH does not immediately auto-kick players for simply entering the capture zone early.  Instead it keeps cumulative timers of allowed number of section a player is occupying the capture zone early.  
+
+piantirush.earlyBreachMaxTime        12   // #secs allowed to early-occupy point before kick
+
+This BreachMaxTime of “12” represents anyone can enter the capture zone for as much as 12 cumulative seconds per objective.  When a player enters and “sits” at capture point for more than 12 seconds, s/he is auto-kicked.  This allows enough time for the team to verbally warn the offending player s/he needs to “get off the point.”
+
+The BreachMaxTime is a cumulative one – meaning that it does not clear when a player exists the capture point.  If a rusher enters the zone for 8 seconds, exits, and re-enters the point again, s/he will be kicked after 4 seconds on this 2nd entry.  This cumulative “counter” is objective specific (cleared when the objective is captured).  This reduces those trying to exploit the algorithm by stepping in/out of the zone repeatedly.
+
+///////////////////////////////////////////////
+Integration with PITACNOMIC “Two Letter Code” Plugin 
+///////////////////////////////////////////////
+
+This plugin works, optionally, in conjunction with PITACNOMIC (tactical no-microphone) Plugin.
+
+PITACNOMIC is provided for majority players that does not use in-game microphone for various reasons.  They can still do “tactical communications” by typing a two double-letter codes like ‘aa’ or ‘11’.  See documentation for PITACNOMIC for details.
+
+PIANTIRUSH plugin recognizes the two letter commands listed here:
+
+piantirush.earlyDestroyPlayerRequest                       "aa ff pp 00 11 22 33 44 ask req"
+piantirush.earlyBreachPlayerRequest                        "aa ff pp 00 11 22 33 44 ask req"
+
+This does two things.  First, SISSM checks if you are “safe to blow” or “safe to enter” objective by returning “authorized” or “denied” prompt.  Secondly it can be optionally programmed to ‘speed up’ the protection window time by the number of seconds you specify.
+
+piantirush.destroySpeedup            90                 // sec destruct speedup if requested
+piantirush.earlyBreachSpeedup        90      // #secs on timer to shave if 'aa', '11' issued
+
+For example, if you have 6 players in game, your protection window is 180 seconds.  If someone types ‘aa’ to ask permission to blow the cache early, SISSM will speed-up the timer to allow players to enter the objective or blow the cache as early as 90 seconds elapsed time since the last objective.  However, typing ‘aa’ prior to Speedup time (say, immediately after capture of last objective) will do nothing, and players will get “denied” response.
+
+This feature is provided to 1) encourage team communication, and 2) avoid “senseless waiting” for the clock after all enemy AIs are eliminated.
+
+///////////////////////////////////////////////
+Integration with PICLADMIN Plugin (!fast on)
+///////////////////////////////////////////////
+
+This plugin works optionally in conjunction with the PICLADMIN (command-line administration) Plugin.  Namely, it recognizes the administrator command “!fast on” and “!fast off”.
+
+When an admin types “!fast on” from in-game chat, the anti-rush algorithm is temporarily disabled for the duration of the current map (“game”).  Capture rates are not slowed down, weapons cache can be blown up at any time, time-based auto-kicks are disabled, and no anti-rush prompting appears on screen.
+
+“!fast on” is provided for when you are running a public server, but all players are “regulars” and you find auto-kick and other SISSM enforcement features to be of nuisance.
+
+“!fast on” defaults back to “off” state at start of next map.
+
+You can manage privilege level for the !fast command in picladmin plugin.  You may choose to give moderators this command privilege, for example.
+
+///////////////////////////////////////////////
+Customization for Your Server
+///////////////////////////////////////////////
+
+Recommended settings by various server community cultures:
+
+Private Password-protected Servers
+Game regulation not needed for private server – no need for this plugin.
+
+piantirush.pluginState                0
+
+Open Access Semi-Tactical Servers for New, Fast, Slow Players
+Good option for all player types to “co-exist” - no auto kicks, slows down game play
+
+piantirush.pluginState                1
+piantirush.earlyBreachShow            1
+piantirush.autoKickEarlyDestruction   0
+piantirush.autoKickEarlyBreach        0
+
+Open Access Balanced-Tactical Servers
+For most tactical servers – only auto-kicks on early weapons cache explosion.
+
+piantirush.pluginState                1
+piantirush.earlyBreachShow            1
+piantirush.autoKickEarlyDestruction   1
+piantirush.autoKickEarlyBreach        0
+
+Open Access Extreme-Team Tactical Servers
+Strict role-playMILSIM servers running with or without admin supervision
+
+piantirush.pluginState                1
+piantirush.earlyBreachShow            1
+piantirush.autoKickEarlyDestruction   1
+piantirush.autoKickEarlyBreach        1
+
+==========================================================================
+                              Appendix
+==========================================================================
+
+///////////////////////////////////////////////
+Disabled Feature (BreachMaxTaps) and Map Bugs 
+///////////////////////////////////////////////
+
+Currently BreachMaxTaps is set to “0”.  This feature is designed to auto-kick rebellious players that step in/out of capture point to create a nuisance as a form of protest against the auto-kick feature.
+
+Unfortunately the “PowerPlant Security” map, near objective B, has a no-hysteresis bug where a player slowly going up the stairs can generate 40 events per second of capture enter-exit event oscillations.  For this reason, please keep piantirush.earlyBreachMaxTaps to zero to disable.   The problem has been reported to NWI but a fix is not expected since the problem is specific to the requirement of SISSM.
+
+///////////////////////////////////////////////
+PIANTIRUSH Complete Parameter List
+///////////////////////////////////////////////
+
+piantirush.pluginState                1                 // 1=enable plugin, 0=disable plugin
+
+piantirush.fastPrompt                  "Objective breach is AUTHORIZED if your team concurs"
+piantirush.fastObjectiveCaptureTime  30                 // see NWI doc: objectivecapturetime
+piantirush.fastObjectiveSpeedup    0.25                     // see NWI doc: objectivespeedup
+
+piantirush.nPlayerExemption           2     // disable for low # players (def 2), 0 disables
+piantirush.slowIntervalSec          135                         // sec to lock cap rate slow
+piantirush.slowPrompt                            "Objective locked for the next 135 seconds"
+piantirush.slowObjectiveCaptureTime  90                 // see NWI doc: objectivecapturetime
+piantirush.slowObjectiveSpeedup    0.00                     // see NWI doc: objectivespeedup
+
+piantirush.nPlayerLockThreshold       5      // min threshold to go into locked mode (def 5)
+piantirush.lockIntervalSec          180                         // sec to lock cap rate slow
+piantirush.lockPrompt                            "Objective locked for the next 180 seconds"
+piantirush.lockObjectiveCaptureTime 210                 // see NWI doc: objectivecapturetime
+piantirush.lockObjectiveSpeedup    0.00                     // see NWI doc: objectivespeedup
+
+// These display the extra "rules" about capture point rushing.  Comment out or set to
+// null string ("") to disable.
+//
+piantirush.warnRusherCapturable                 "Await orders or type 'aa' before breaching"
+piantirush.warnRusherDestructible                "Await orders or type 'aa' before destruct"
+pianti
+// Optional auto-kick players that blow weapons cache or enter teriritoral objective early
+// Only the triggering player will be kicked with the 'reason' text displayed on screen.
+// The following Engine.ini entries are required for these feature to work -
+//
+// [Core.Log]
+// LogGameplayEvents=Verbose
+// LogDemo=Verbose
+// LogObjectives=Verbose
+// LogGameMode=Verbose
+// LogNet=Verbose
+// LogINSGameInstance=Verbose
+// LogUObjectGlobals=Verbose
+//
+// *** NOTE:  Due to a map bug in PowerPlant Objective-B Security, please keep
+// piantirush.earlyBreachMaxTaps to 0, or otherwise the players will be
+// kicked erroneously at the staircase!  (Location: 5180,8925,417)
+//
+piantirush.earlyBreachShow            1    // 1=display player name entering objective early
+piantirush.earlyBreachWarn            "premature breach warning"
+piantirush.earlyBreachExit            "is off the objective"
+
+piantirush.autoKickEarlyDestruction   1     // 1=auto kick rushers that blows up cache early
+piantirush.destroyOkPrompt                    "Cache destruct is AUTHORIZED if team concurs"
+piantirush.destroyDenyPrompt                           "Early destruct DENIED at this time."
+piantirush.destroyHoldPrompt                  "*Destruct NOT authorized - type 'aa' or '11'"
+piantirush.earlyDestroyKickMessage    "Auto-kicked for Unauthorized early cache destruction"
+piantirush.earlyDestroyPlayerRequest                       "aa ff pp 00 11 22 33 44 ask req"
+piantirush.destroySpeedup            90                 // sec destruct speedup if requested
+piantirush.earlyDestroyTolerance     10
+
+piantirush.autoKickEarlyBreach        1                     // 1=auto kick rushers objective
+piantirush.earlyBreachSpeedup        90      // #secs on timer to shave if 'aa', '11' issued
+piantirush.earlyBreachMaxTime        12   // #secs allowed to early-occupy point before kick
+piantirush.earlyBreachMaxTaps         0              // Max# taps on obj for kick, 0=disable
+piantirush.earlyBreachPlayerRequest                        "aa ff pp 00 11 22 33 44 ask req"
+piantirush.earlyBreachTapsKickMessage   "Auto-kicked for excessive number of nuisance objective taps"
+piantirush.earlyBreachTimeKickedMessage "Auto-kicked for early territorial zone breach"
+
+
+
+

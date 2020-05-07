@@ -1,3 +1,12 @@
+Beta 02.4 (0.2.4) 20200507
+
+    PIAntiRush: Added "auto-kick" for early objective entry -- kicks players that occupies objective zone early
+    Clean-up "!fast on" and "!fast off" picladmin commands to be compatible with piantirush
+    See doc/sissm_example.cfg "piantirush" section for a new block of data additions.
+    See doc/piantirush.txt for detailed setup inforamtion on the improved anti-rush algorithm
+    Note:  not tested with mods/community maps!  Please report any compatibility problems or bugs!
+    Note:  Version 0.2.4 is an anti-rush single-feature release due to code complexity 
+
 Beta 02.3 (0.2.3) 20200416
 
     Bugfix: !bs command upper bot limit check was fixed at 60 - now configurable from sissm.cfg (picladmin)

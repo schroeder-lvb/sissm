@@ -15,7 +15,7 @@
 
 
 
-#define SISSM_MAXALARMS       (64)
+#define SISSM_MAXALARMS       (128)
 
 typedef struct {
 

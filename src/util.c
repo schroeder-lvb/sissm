@@ -130,6 +130,22 @@ void strTrimInPlace(char * s)
     return;
 }
 
+//  ==============================================================================================
+//  strClean
+//
+//  Remove LF and CR terminators in string, inline 
+//
+void strClean( char *strIn )
+{
+    int w = strlen( strIn );
+    
+    if ( w > 0 ) {
+        if ( strIn[ w-1 ] == 0x0d ) strIn[ w-1 ] = 0;
+        else if ( strIn[ w-1 ] == 0x0a ) strIn[ w-1 ] = 0;
+    }
+    return;
+}
+
 
 //  ==============================================================================================
 //  strclr

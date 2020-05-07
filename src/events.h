@@ -17,27 +17,34 @@
 #define SISSM_MAXEVENTS                     (32)
 #define SISSM_MAXPLUGINS                    (32)
 
-#define SISSM_EV_INIT                       ( 0)    // order of the indeces must match
-#define SISSM_EV_RESTART                    ( 1)    // the sequence of eventsTable[]
-#define SISSM_EV_CLIENT_ADD                 ( 2)
-#define SISSM_EV_CLIENT_DEL                 ( 3)
-#define SISSM_EV_MAPCHANGE                  ( 4)
-#define SISSM_EV_GAME_START                 ( 5)
-#define SISSM_EV_GAME_END                   ( 6)
-#define SISSM_EV_ROUND_START                ( 7)
-#define SISSM_EV_ROUND_END                  ( 8)
-#define SISSM_EV_OBJECTIVE_CAPTURED         ( 9)
-#define SISSM_EV_PERIODIC                   (10)
-#define SISSM_EV_CLIENT_ADD_SYNTH           (11)
-#define SISSM_EV_CLIENT_DEL_SYNTH           (12)
-#define SISSM_EV_SHUTDOWN                   (13)
-#define SISSM_EV_CHAT                       (14)
+#define SISSM_EV_CHAT                       ( 0)
+#define SISSM_EV_INIT                       ( 1)    // order of the indeces must match
+#define SISSM_EV_RESTART                    ( 2)    // the sequence of eventsTable[]
+#define SISSM_EV_CLIENT_ADD                 ( 3)
+#define SISSM_EV_CLIENT_DEL                 ( 4)
+#define SISSM_EV_MAPCHANGE                  ( 5)
+#define SISSM_EV_GAME_START                 ( 6)
+#define SISSM_EV_GAME_END                   ( 7)
+#define SISSM_EV_ROUND_START                ( 8)
+#define SISSM_EV_ROUND_END                  ( 9)
+#define SISSM_EV_OBJECTIVE_CAPTURED         (10)
+#define SISSM_EV_PERIODIC                   (11)
+#define SISSM_EV_CLIENT_ADD_SYNTH           (12)
+#define SISSM_EV_CLIENT_DEL_SYNTH           (13)
+#define SISSM_EV_SHUTDOWN                   (14)
 #define SISSM_EV_SIGTERM                    (15)
 #define SISSM_EV_WINLOSE                    (16)
 #define SISSM_EV_TRAVEL                     (17)
 #define SISSM_EV_SESSIONLOG                 (18)
 #define SISSM_EV_OBJECT_SYNTH               (19)                       // active objective change
 #define SISSM_EV_CACHE_DESTROY              (20)                       // Cache Destroyed event
+
+#define SISSM_EV_BP_PLAYER_CONN             (21)
+#define SISSM_EV_BP_PLAYER_DISCONN          (22)
+#define SISSM_EV_BP_CHARNAME                (23)
+#define SISSM_EV_BP_TOUCHED_OBJ             (24)
+#define SISSM_EV_BP_UNTOUCHED_OBJ           (25)
+
 
 // Following substring in log file triggers an event
 //
@@ -56,6 +63,15 @@
 #define SS_SUBSTR_TRAVEL       "LogGameMode: ProcessServerTravel:"
 #define SS_SUBSTR_SESSIONLOG   "HttpStartUploadingFinished. SessionName:"
 #define SS_SUBSTR_DESTROY      "was destroyed for team"
+
+#define SS_SUBSTR_BP_PLAYER_CONN        " RestartPlayerAtPlayerStart "
+#define SS_SUBSTR_BP_PLAYER_DISCONN     " Unpossessed"
+#define SS_SUBSTR_BP_CHARNAME           "' cached new pawn '"
+// #define SS_SUBSTR_BP_TOUCHED_OBJ        " has been touched by sol"  
+// #define SS_SUBSTR_BP_UNTOUCHED_OBJ      " has stopped being touched by sol" 
+#define SS_SUBSTR_BP_TOUCHED_OBJ        " entered."
+#define SS_SUBSTR_BP_UNTOUCHED_OBJ      " exited."
+
 
 extern int eventsInit( void );
 extern int eventsRegister( int eventID, int (*callBack)( char * ));
