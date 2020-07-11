@@ -45,6 +45,8 @@
 #define SISSM_EV_BP_TOUCHED_OBJ             (24)
 #define SISSM_EV_BP_UNTOUCHED_OBJ           (25)
 
+#define SISSM_EV_MAP_OBJECTIVE              (26)
+
 
 // Following substring in log file triggers an event
 //
@@ -71,6 +73,8 @@
 // #define SS_SUBSTR_BP_UNTOUCHED_OBJ      " has stopped being touched by sol" 
 #define SS_SUBSTR_BP_TOUCHED_OBJ        " entered."
 #define SS_SUBSTR_BP_UNTOUCHED_OBJ      " exited."
+
+#define SS_SUBSTR_MAP_OBJECTIVE "LogObjectives: Verbose: Authority: Adding objective '"
 
 
 extern int eventsInit( void );

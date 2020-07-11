@@ -466,7 +466,7 @@ int pidynbotsGameEndCB( char *strIn )
 //
 int pidynbotsRoundStartCB( char *strIn )
 {
-    // logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round Start Event ::%s::", strIn );
+    logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round Start Event ::%s::", strIn );
 
     _computeBotParams( 1 );
 

@@ -7,7 +7,7 @@ SISSM must execute on the same machine hosting your Sandstorm server.  This is b
 
 *  Compiled for Linux and Windows servers
 *  Auto-reboots ISS servers for stability, as non-intrusively as possible, with early warnings sent to your game clients
-*  Adaptive Checkpoint mode Anti-rusher algorithm adjusts territorial objective capture rate
+*  Adaptive Checkpoint mode Anti-rusher algorithm adjusts territorial objective capture rate, with optional offender auto-kick 
 *  Auto-kicks bad-name players
 *  Reserved slots for approved list of players (typically Admins.txt)
 *  Sent to your game clients: greetings (2 lines at start) and server rules (up to 10 items)
@@ -17,8 +17,7 @@ SISSM must execute on the same machine hosting your Sandstorm server.  This is b
 *  "Command line Administrator" allows your admins in-game control of the server including rudiementary macro execution
 *  "Dynamic Bot" allows adjusting min/max bot counts per map per objective-leg -- also works with wave respawn checkpoint
 *  "Tactical No-Mic" allows non-microphone users to communicate by typing 2-letter codes of common tactical phrases
-*  HTML server status generator
-*  Provides in-game chat-box command line interface for the admins
+*  HTML status page generator
 *  Setup custom admin privilege levels each group with attributes and list of allowed commands
 *  Includes RCON Terminal mini-tool for server operators and modders
 *  Generates a player connection log to help facilitate after-the-fact ban

@@ -1,0 +1,57 @@
+# Advanced Chat Circleus
+# https://insurgencysandstorm.mod.io/advanced-chat
+132641
+
+# CompoundCity 
+# https://insurgencysandstorm.mod.io/compound
+95897
+
+# Toro 
+# https://insurgencysandstorm.mod.io/toro
+94277
+
+# TheFarm
+# https://insurgencysandstorm.mod.io/thefarm
+123669
+
+# Junkyard
+# https://insurgencysandstorm.mod.io/junkyard-by-synthean13
+115402
+
+# Metro 
+# https://insurgencysandstorm.mod.io/operation-metro
+115420
+
+# Macedonia
+# https://insurgencysandstorm.mod.io/macedonia
+134579
+
+# Banane 
+# https://insurgencysandstorm.mod.io/banane1
+130226
+
+# Noshar Canals 
+# https://insurgencysandstorm.mod.io/noshahr-canals
+# 98204
+
+# Highlands
+# https://insurgencysandstorm.mod.io/highlands1
+100082
+
+# Pruefstand 7
+# https://insurgencysandstorm.mod.io/pruefstand-72
+120200
+
+MountainPass
+# https://insurgencysandstorm.mod.io/mountainpass
+109375
+
+# Road to Sandstorm
+# https://insurgencysandstorm.mod.io/road-to-sandstorm
+132198
+
+# panzerschlacht
+# https://insurgencysandstorm.mod.io/panzerschlacht
+138788
+
+

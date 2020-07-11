@@ -31,10 +31,14 @@ extern char *apiGetServerNameRCON( int forceCacheRefresh );
 extern char *apiGetMapName( void );
 extern char *apiGetSessionID( void );
 extern unsigned long apiTimeGet( void );
-extern char  *apiTimeGetHuman( unsigned long timeMark );
+extern char *apiTimeGetHuman( unsigned long timeMark );
 extern unsigned long apiGetLastRosterTime( void );
 extern int   apiBadNameCheck( char *nameIn );
 
+extern int   apiMapcycleRead( char *mapcycleFilePath );
+extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight );
+extern char *apiMapList(void );
+extern int   apiIsSupportedGameMode( char *candidateMode  );
 
 #define IDLISTMAXELEM        (256)
 #define IDLISTMAXSTRSZ        (40)
@@ -74,7 +78,11 @@ extern char *apiGetLastRebootReason( void );
 
 // for translating CharacterID to/from Player Name
 //
-char *apiNameToCharacter( char *playerName );
-char *apiCharacterToName( char *characterID );
+extern char *apiNameToCharacter( char *playerName );
+extern char *apiCharacterToName( char *characterID );
+extern int apiBPPlayerCount( void );
 
-
+// for looking up objective letter 'A' 'B' 'C'... from cached objective
+// name instead of parsing the names of the objective  (3rd party maps)
+//
+extern char apiLookupObjectiveLetterFromCache( char *objectiveName );

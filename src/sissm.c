@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.4 Beta 20200506-1045 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.5 20200711-1100 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.4 Beta 20200506-1045"
+#define VERSION    "SISSM v0.2.5 20200711-1100"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -83,7 +83,7 @@
 #define SM_POLLING_TRACKING      (4002)    // active loop monitoring server behavior changes
 #define SM_INVALID               (-1)      // internal error
 
-#define SISSM_POLLING_INTERVAL_MICROSEC (50000)        // 50ms file polling interval
+#define SISSM_POLLING_INTERVAL_MICROSEC (10000)        // 10ms file polling interval (was 50)
 
 // Configuration variables read from the .cfg file
 // at start of this app.  Each plugin (including this one) should 
