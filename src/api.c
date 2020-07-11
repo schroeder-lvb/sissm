@@ -52,11 +52,18 @@
 #define API_ROSTER_STRING_MAX         (80*64)            // max size of contatenated roster string 
 #define API_LINE_STRING_MAX             (256)   
 
+#define API_MAXMAPS                     (512)    // max maps listed in mapcycle.txt
+
 //  ==============================================================================================
 //  Data definition  
 //
 //
 //
+
+#if SISSM_TEST
+static int _overrideAliveCount = 0;
+#endif
+
 static rdrvObj *_rPtr = NULL;                    // RCON driver handle - interface to game server
 static alarmObj *_apiPollAlarmPtr  = NULL;      // used to periodically poll roster (listplayers)
 
@@ -80,6 +87,10 @@ char everyoneCmds[ API_LINE_STRING_MAX ];             // list of commands enable
 char everyoneMacros[ API_LINE_STRING_MAX ];             // list of macros enabled for 'everyone'
 char everyoneAttr[ API_LINE_STRING_MAX ];           // list of attributes enabled for 'everyone'
 
+static char removeCodes[ API_LINE_STRING_MAX ];   // color codes to optionally remove (circleus)
+static char sayPrefix[ API_LINE_STRING_MAX ];            // replacement ADMIN: prefix (circleus) 
+static char sayPostfix[ API_LINE_STRING_MAX ];            // postfix for each message e.g., </>
+
 struct {
     char groupname[ API_LINE_STRING_MAX ];           // name of the group e.g., "sradmin, admin"
     char groupcmds[ API_LINE_STRING_MAX ];         // allowed commands e.g., "rcon help version"
@@ -94,6 +105,23 @@ struct {
 
 static wordList_t badWordsList;                                               // Bad words list
 static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file path to admins.txt
+
+static char mapcycleFilePath[ API_LINE_STRING_MAX ];          // full file path to mapcycle.txt
+
+struct {
+    char mapName[ 256];    // map name required for traveler
+    char reqName[ 256 ];   // map name requested by player (typed)
+    char scenario[ 256 ];  // scenario name
+    char traveler[ 256 ];  // traveler name (derived)
+    int  dayNight;         // 0 = day, 1 = night
+    int  secIns;           // -1 = unknown/n.a., 0 = security, 1 = insurgent 
+    char gameMode[ 40 ];   // game mode (checkpoint, checkpointhardcore, etc.)
+} mapCycleList[ API_MAXMAPS ];
+
+char mapNameMerged[ API_MAXMAPS ][40];
+
+char mutAllowed[ 16000 ];                             // allowed mutators list, space separated
+char mutDefault[   256 ];          // default mutator(s) - should match what is on the launcher
 
 // Reboot reason & time, for analytics and web display
 //
@@ -110,6 +138,32 @@ struct {
 } soldierTranslate[ API_MAXENTITIES ];
 
 static char _cachedName[256];
+
+#define API_OBJECTIVES_MAX    (64)
+
+static char _objectiveListCache[API_OBJECTIVES_MAX][ API_LINE_STRING_MAX ];
+
+
+//  ==============================================================================================
+//  apiRemoveCodes
+//
+//  Removes list of embedded substring codes from a string
+//
+void apiRemoveCodes( char *apiSayString )
+{
+    int j = 0;
+    char *w;
+
+    if ( 0 != strlen( removeCodes ) ) {
+        while ( 1 == 1 ) {
+            w = getWord( removeCodes, j++, " " );
+            if ( w == NULL ) break;
+            if ( 0 == strlen( w ) ) break;
+            strRemoveInPlace( apiSayString, w );
+        };
+    };
+    return;
+}
 
 
 //  ==============================================================================================
@@ -398,6 +452,39 @@ int _apiPollAlarmCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  _apiChatCB
+//
+//  Call-back function for player typing something into the chat box - for the API module 
+//  this is used to aid debug/developemt only.
+// 
+int _apiChatCB( char *strIn )
+{
+    
+#if SISSM_TEST
+
+    if ( NULL != strstr( strIn, "debug0000" )) {
+        _overrideAliveCount = 0;
+    }
+
+    if ( NULL != strstr( strIn, "debug0001" )) {
+        _overrideAliveCount = 1;
+    }
+
+    if ( NULL != strstr( strIn, "debug0002" )) {
+        _overrideAliveCount = 2;
+    }
+
+    if ( NULL != strstr( strIn, "debug0003" )) {
+        _overrideAliveCount = 3;
+    }
+
+#endif
+    
+    return 0;
+}
+
+
 	
 //  ==============================================================================================
 //  _apiPlayerConnectedCB
@@ -497,6 +584,30 @@ int _apiBPCharInitCB( char *strIn )
 }
 
 //  ==============================================================================================
+//  apiBPPlayerCount
+//
+//  Count how many human player BPChars are active in the table.
+//
+int apiBPPlayerCount( void )
+{
+    int i;
+    int countPlayers = 0;
+
+    for ( i=0; i<API_MAXENTITIES; i++ ) {
+        if (0 != strlen( soldierTranslate[ i ].playerName ) ) countPlayers++;
+    }
+
+#if SISSM_TEST
+    if ( _overrideAliveCount ) countPlayers = _overrideAliveCount;
+#endif
+
+    return countPlayers;
+}
+
+//  ==============================================================================================
+//  _apiBPCharNameCB (internal)
+
+//  ==============================================================================================
 //  _apiBPCharNameCB (internal)
 //
 //  Call-back for CharacterID-to-PlayerName Translation function 'SS_SUBSTR_BP_PLAYER_CONN'
@@ -544,7 +655,7 @@ int _apiBPCharPlayerCB( char *strIn )
         }
     }
 
-    if (( 0 != strlen( _cachedName )) && ( n != NULL )) {
+    if (( 0 != strlen( _cachedName )) && ( n != NULL ) ) {
 
         // First pass, remove preexisting or duplicate characterID and playerName
         //
@@ -678,6 +789,30 @@ int _apiBPCharDisconnectCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  _apiBPCharTouchCB
+//
+//  Call-back function dispatched when a character enters a territorial (or weapons cache) zone.
+//  This CB is subject to poortly designed map where this event can oscillate at rate of 
+//  60 events per second.   
+//
+int _apiBPCharTouchCB( char *strIn )  
+{
+    return 0;
+}
+  
+//  ==============================================================================================
+//  _apiBPCharUntouchCB
+//
+//  Call-back function dispatched when a character leaves a territorial (or weapons cache) zone.
+//  This CB is subject to poortly designed map where this event can oscillate at rate of 
+//  60 events per second.  
+//
+int _apiBPCharUntouchCB( char *strIn )
+{
+    return 0;
+};
+
 
 //  ==============================================================================================
 //  _apiMapChangeCB
@@ -688,11 +823,24 @@ int _apiBPCharDisconnectCB( char *strIn )
 int _apiMapChangeCB( char *strIn )
 {
     char _currMap[API_LINE_STRING_MAX];
+    int i;
 
+    // There are two ways to find the current map.  The code below works by watching
+    // the Insurgency.log file which works for all game modes.  For Co-op this is 
+    // later superceded by synthetic map change event, reading data from activeobjectives
+    // gamemodeproperty.
+    //
     rosterParseMapname( strIn, API_LINE_STRING_MAX, _currMap );
+    strClean( _currMap );
     rosterSetMapName( _currMap );
 
     _apiBPCharInitCB( strIn );
+
+    // on map change, clear the objectives
+    //
+    for (i=0; i<API_OBJECTIVES_MAX; i++) strclr( _objectiveListCache[i]) ;
+    logPrintf(LOG_LEVEL_INFO, "api", "Map change to ::%s:: and resetting the internal objectives cache", _currMap );
+
 
     return 0;
 }
@@ -741,6 +889,69 @@ char *apiCharacterToName( char *characterID )
     return( w );
 }
 
+//  ==============================================================================================
+//  _apiMapObjectiveCB
+//
+//  Call-back function dispatched when the game system log file indicates a map change.
+//  Simply update the name which can be read back from Plugins via the API at later time.
+//
+int _apiMapObjectiveCB( char *strIn )
+{
+    int i;
+    char *w;
+
+    for (i = 0; i<API_OBJECTIVES_MAX; i++) {
+
+        if ( 0 == strlen( _objectiveListCache[i] )) {
+
+            w = getWord( strIn, 1, "'" );
+            if ( w != NULL ) {
+                strlcpy( _objectiveListCache[i], w, API_LINE_STRING_MAX );
+                logPrintf(LOG_LEVEL_INFO, "api", "Reading map objectives list ::%s:: index %d", _objectiveListCache[i], i );
+            }
+            break;
+
+        }
+    }
+    return 0;
+}
+
+//  ==============================================================================================
+//  apiLookupObjectiveLetterFromCache
+//
+//  Make an exact match lookup of objective letter ('A', 'B', 'C'...) from label coming from
+//  the Insurgency.log file.  This mechanism was implemented because many 3rd party MOD
+//  maps do not comply with the objective labeling conventions used by NWI.  This look up uses
+//  a pre-game dump that appears on Insurgency.log at start of each map to obtain the sequence #.
+//  If exact match is not found, ' ' (space) will be returned.
+// 
+//  During SISSM hot-restart, this routine may fail to lookup the objective letter until the
+//  next map change.
+//
+char apiLookupObjectiveLetterFromCache( char *objectiveName ) 
+{
+    char retChar = ' ';
+    int i;
+
+    for ( i = 0; i<API_OBJECTIVES_MAX; i++ ) {
+       if ( 0 == strcmp( objectiveName, _objectiveListCache[i] )) {
+           retChar = i + 'A';
+           break;
+       }
+       if ( 0 == strlen( _objectiveListCache[i] )) {
+           break;
+       }
+    }
+    return retChar;
+};
+
+
+//  ==============================================================================================
+//  _apiMapObjectiveCB
+//
+//  Call-back function dispatched when the game system log file indicates a map change.
+//  Simply update the name which can be read back from Plugins via the API at later time.
+
 
 //  ==============================================================================================
 //  apiInit
@@ -753,7 +964,7 @@ int apiInit( void )
     cfsPtr cP;
     char varImg[256];
     char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
-    int    count, i, myPort, badWordsCount;
+    int    count, i, myPort, badWordsCount, mapsCount;;
     char   serverName[API_LINE_STRING_MAX];
 
     // Read the "sissm" systems configuration variables
@@ -770,6 +981,11 @@ int apiInit( void )
     // read the Bad Words filename
     //
     strlcpy( badWordsFilePath, cfsFetchStr( cP, "sissm.badWordsFilePath", "" ), CFS_FETCH_MAX );
+
+    // read the Mapcycle filepath
+    //
+    strlcpy( mapcycleFilePath, cfsFetchStr( cP, "sissm.mapcycleFilePath", "" ), CFS_FETCH_MAX );
+
 
     // read the AUTH related permission block
     //
@@ -797,6 +1013,12 @@ int apiInit( void )
         }
     }
 
+    // Used with Circleus' "Advanced Chat" mod
+    //
+    strlcpy( removeCodes, cfsFetchStr( cP, "sissm.removeCodes", ""), API_LINE_STRING_MAX );
+    strlcpy( sayPrefix,   cfsFetchStr( cP, "sissm.sayPrefix",  ""),  API_LINE_STRING_MAX );
+    strlcpy( sayPostfix,  cfsFetchStr( cP, "sissm.sayPostfix", ""),  API_LINE_STRING_MAX );
+
     //  Close the configuration file reader
     //
     cfsDestroy( cP );
@@ -823,8 +1045,16 @@ int apiInit( void )
     eventsRegister( SISSM_EV_BP_PLAYER_CONN,    _apiBPCharNameCB );
     eventsRegister( SISSM_EV_BP_PLAYER_DISCONN, _apiBPCharDisconnectCB );
     eventsRegister( SISSM_EV_BP_CHARNAME,       _apiBPCharPlayerCB );
-    // eventsRegister( SISSM_EV_BP_TOUCHED_OBJ,  -- used by plugins
-    // eventsRegister( SISSM_EV_BP_UNTOUCHED_OBJ,  -- used by plugins
+    eventsRegister( SISSM_EV_BP_TOUCHED_OBJ,    _apiBPCharTouchCB );
+    eventsRegister( SISSM_EV_BP_UNTOUCHED_OBJ,  _apiBPCharUntouchCB );
+
+    // Event to handle cahching of map objective list 
+    //
+    eventsRegister( SISSM_EV_MAP_OBJECTIVE, _apiMapObjectiveCB );
+
+    // This hook is mostly used for DEBUG use, non-production
+    //
+    eventsRegister( SISSM_EV_CHAT,                _apiChatCB );
 
     // Setup Alarm (periodic callbacks) for fetching roster from RCON
     // 
@@ -848,6 +1078,12 @@ int apiInit( void )
     badWordsCount = apiWordListRead( badWordsFilePath, badWordsList );
     logPrintf( LOG_LEVEL_CRITICAL, "api", "BadWords list %d words from file %s", badWordsCount, badWordsFilePath );
 
+    // Read the Mapcycle.txt
+    //
+    mapsCount = apiMapcycleRead( mapcycleFilePath );
+    logPrintf( LOG_LEVEL_CRITICAL, "api", "Maplist read %d maps from file %s", mapsCount, mapcycleFilePath);
+
+
     // Clear the internal roster & gamestate tracking variables
     //
     strclr( rosterPrevious );
@@ -863,6 +1099,10 @@ int apiInit( void )
     // Clear the BPChar translation table
     //
     _apiBPCharInitCB( "" );
+
+    // on init clear the cache of objectives names
+    //
+    for (i=0; i<API_OBJECTIVES_MAX; i++) strclr( _objectiveListCache[i]) ;
 
     return( _rPtr == NULL );
 }
@@ -1009,7 +1249,9 @@ int apiSay( const char * format, ... )
     va_start( args, format ); 
     vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
 
-    snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
+    apiRemoveCodes( buffer );                         // remove color codes if mod is not installed
+
+    snprintf( rconCmd, API_T_BUFSIZE, "say %s%s%s", sayPrefix, buffer, sayPostfix );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
         if ( buffer[0] == '*' ) triplePrint = 1;
         if ( 0 == (int) p2pGetF("api.p2p.sayDisable", 0.0 ) ) {
@@ -1070,7 +1312,9 @@ int apiSaySys( const char * format, ... )
     va_start( args, format ); 
     vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
 
-    snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
+    apiRemoveCodes( buffer );                         // remove color codes if mod is not installed
+
+    snprintf( rconCmd, API_T_BUFSIZE, "say %s%s%s", sayPrefix, buffer, sayPostfix );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
         if ( buffer[0] == '*' ) triplePrint = 1;
         errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
@@ -1381,4 +1625,278 @@ char *apiGetServerNameRCON( int forceCacheRefresh )
     return ( hostName );
 }
 
+
+//  ==============================================================================================
+//  apiMapcycleRead
+//
+//  Reads system Mapcycle.txt - it must be formatted such that:
+//  1) metatag #SISSM mapname=<mapname> is included
+//  2) full scenario format is used
+//
+int apiMapcycleRead( char *mapcycleFile )
+{
+    FILE *fpr;
+    int   i, j;
+    char  tmpLine[256], lastMapName[256], lastReqName[256];
+    char  *w, *w2, *v, *u, *scenarioName;
+
+    strclr( lastMapName );
+    for (i = 0; i<API_MAXMAPS; i++) {
+        strclr( mapCycleList[i].mapName );
+        strclr( mapCycleList[i].reqName );
+        strclr( mapCycleList[i].scenario );
+        strclr( mapCycleList[i].traveler );
+        strclr( mapCycleList[i].gameMode );
+        mapCycleList[i].dayNight =  0;
+        mapCycleList[i].secIns   = -1;
+
+        strclr( mapNameMerged[i] );
+    }
+
+    // mutator meta:  #SISSM.allowmutator, and #SISSM.defaultmutator
+    //
+    strclr( mutAllowed );
+    strclr( mutDefault );
+
+    i = 0;
+    if ( NULL != (fpr = fopen( mapcycleFile, "rt" ))) {
+        while ( !feof( fpr ) ) {
+            if (NULL != fgets( tmpLine, 255, fpr )) {
+
+                // part 1:  parse the "#SISSM.mapname" line
+                //
+                // printf("\nDEBUG - reading %s", tmpLine );
+                if ( tmpLine == strcasestr( tmpLine, "#SISSM.mapname" )) {
+                    if ( NULL != (w = getWord( tmpLine, 1, "= ,;:\015\012" ))) {
+                        strlcpy( lastMapName, w, 256 );
+                        strlcpy( lastReqName, w, 256 );
+                        if ( NULL != (w2 = getWord( tmpLine, 2, "= ,;:\015\012" ))) {
+                            if (0 != strlen( w2 )) strlcpy( lastReqName, w2, 256 );
+                        }
+                        // printf("\nDEBUG - reading map name ::%s::", lastMapName );
+
+                        // create a merged list for "maplist" command
+                        //
+                        for ( j = 0; j<API_MAXMAPS; j++ ) {
+                            if ( 0 == strcasecmp( mapNameMerged[j], lastReqName ) ) 
+                                break;
+                            if ( 0 == strlen( mapNameMerged[j] ) ) {
+                                strlcpy( mapNameMerged[j], lastReqName, 40 ); 
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // part 2:  parse the scenario name and the game mode (checkpoint, hardcorecheckpoint, etc.)
+                //
+                else if ( tmpLine == strcasestr( tmpLine, "\(Scenario=\"" )) {
+                    scenarioName = getWord( tmpLine, 1, "=\"" );
+                    if (( scenarioName != NULL ) && ( 0 != strlen( lastMapName )) )  {
+                        strlcpy( mapCycleList[i].scenario, scenarioName, 256 );
+                        strlcpy( mapCycleList[i].mapName,  lastMapName,  256 );
+                        strlcpy( mapCycleList[i].reqName,  lastReqName,  256 );
+                        strlcpy( mapCycleList[i].traveler, lastMapName,  256 );
+                        strncat( mapCycleList[i].traveler, "?Scenario=", 256 );
+                        strncat( mapCycleList[i].traveler, scenarioName, 256 );
+
+                        // parse the gamemode
+                        //
+                        if ( NULL != ( v = strcasestr( tmpLine, "mode=\"" )  )) {
+                            if ( NULL != (u = getWord( v, 1, "\"" )) ) {
+                                strncat( mapCycleList[i].traveler, "?Game=", 256 );
+                                strncat( mapCycleList[i].traveler, u,        256 );
+                                strlcpy( mapCycleList[i].gameMode, u,         40 );
+                            }
+                        }
+
+                        // parse the day/night
+                        //
+                        if ( NULL != strcasestr( tmpLine, "lighting=\"night\"" )) { 
+                            mapCycleList[i].dayNight = 1;
+                            strncat( mapCycleList[i].traveler, "?Lighting=Night", 256 );
+                        }
+                        else {
+                            strncat( mapCycleList[i].traveler, "?Lighting=Day", 256 );
+                        }
+                        mapCycleList[i].secIns = -1;
+                        if ( NULL != strcasestr( scenarioName, "insurgent"  )) 
+                            mapCycleList[i].secIns = 1;
+                        if ( NULL != strcasestr( scenarioName, "security"   )) 
+                            mapCycleList[i].secIns = 0;
+ 
+                        logPrintf( LOG_LEVEL_INFO, "api", "Mapcycle %03d tag %s traveler ::Sec/Ins:%1d Day/Night:%1d ::%s:: GameMode ::%s::", 
+                            i,
+                            mapCycleList[i].reqName,  mapCycleList[i].secIns,  mapCycleList[i].dayNight, 
+                            mapCycleList[i].traveler, mapCycleList[i].gameMode );
+
+                        if ( ++i >= API_MAXMAPS ) break; 
+
+                    }
+                }
+                else if ( tmpLine == strcasestr( tmpLine, "#SISSM.allowmutator" )) {
+                    j = 1;
+                    while ( 1 == 1 ) {
+                        u = getWord( tmpLine, j++, " ,=:\012\015" );
+                        if ( u == NULL )        break;
+                        if ( 0 == strlen( u ) ) break;
+                        strlcat( mutAllowed, u,   16000 );
+                        strlcat( mutAllowed, " ", 16000 );
+                    } 
+                }
+                else if ( tmpLine == strcasestr( tmpLine, "#SISSM.defaultmutator" )) {
+                    j = 1;
+                    while ( 1 == 1 ) {
+                        u = getWord( tmpLine, j++, " ,=:\012\015" );
+                        if ( u == NULL )        break;
+                        if ( 0 == strlen( u ) ) break;
+                        strlcat( mutDefault, u,   256 );
+                        strlcat( mutDefault, " ", 256 );
+                    } 
+                }
+            }
+        }
+    }
+
+#if 0
+    if ( i != 0 ) {
+        printf("\nMaps ------------------------\n");
+        for ( j = 0; j<API_MAXMAPS; j++ ) {
+            if ( 0 == strlen( mapNameMerged[j] ) ) break;
+            printf("::%s:: ",  mapNameMerged[j] );
+        }
+        printf("\nMutators ------------------------");
+        printf("\nMutAllowed ::%s::",    mutAllowed );
+        printf("\nMutDefault ::%s::\n",  mutDefault );
+    }
+#endif
+
+    return( i );
+}
+
+//  ==============================================================================================
+//  apiMapList
+//
+//  Return a space separated list of available maps 
+//  Information is derivedd from meta-tags in Mapcycle
+//
+char *apiMapList( void )
+{
+    int j;
+    static char mapList[4096];
+
+    strclr( mapList );
+    for ( j = 0; j<API_MAXMAPS; j++ ) {
+        if ( 0 == strlen( mapNameMerged[j] ) ) break;
+        strncat( mapList, mapNameMerged[j], 4096 );
+        strncat( mapList, " ",              4096 );
+    }
+    return( mapList );
+}
+
+
+//  ==============================================================================================
+//  apiIsSupportedGameMode
+//
+//  Look up if candidateMode is a supported gamemode as listed in Mapcycle.txt
+//
+int apiIsSupportedGameMode( char *candidateMode  )
+{
+    int isGameMode = 0;
+    int j;
+
+    for ( j = 0; j<API_MAXMAPS; j++ ) {
+        if ( 0 == strcasecmp( mapCycleList[j].gameMode, candidateMode ) ) {
+            isGameMode = 1;
+            break;
+        }
+    }
+    return( isGameMode );
+}
+
+//  ==============================================================================================
+//  apiMapChange
+//
+//  Look up valid traveler and change map
+//
+int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight )
+{
+    int i, errCode = 1;
+    char strOut[300], strResp[300];
+
+    for (i = 0; i<API_MAXMAPS; i++ ) {
+
+        if ( 0 == strlen( mapCycleList[i].reqName ))  
+            break;
+
+        // For map change to execute, the mapCycleList[].travel element must match input parameters 
+        // on 1) day-night, 2) ins-security, and 3) either gamemode must be 'blank' or must match what is specified
+        //
+        if ( NULL != strcasestr( mapCycleList[i].reqName, mapName ) ) {
+            if ( mapCycleList[i].dayNight == dayNight ) {
+                if (( mapCycleList[i].secIns == -1 ) || ( mapCycleList[i].secIns == secIns )) {
+                    if ( ( 0 == strlen( gameMode )) || ( 0 == strcasecmp( mapCycleList[i].gameMode, gameMode )) ) {
+                        snprintf( strOut, 300, "travel %s", mapCycleList[i].traveler );
+                        logPrintf( LOG_LEVEL_INFO, "api", "*** Admin command map change ::%s::", strOut );
+                        apiRcon( strOut, strResp );
+                        errCode = 0;
+                        break;
+                    }
+                } 
+            }
+        } 
+    }
+
+    if ( errCode ) {
+        logPrintf( LOG_LEVEL_INFO, "api", 
+            "Admin issued invalid map change ::%s::%d::%d", 
+            mapName, secIns, dayNight );
+    }
+                        
+    return( errCode );
+}
+
+
+//  ==============================================================================================
+//  apiMutList
+//
+//  Return a space-separated list of available mutators
+//  Information is derivedd from meta-tags in Mapcycle
+//
+char *apiMutList( void )
+{
+    return( mutAllowed );
+}
+
+
+#if 0
+
+//  ==============================================================================================
+//  apiMutList
+//
+//  Return a space-separated list of available mutators
+//  Information is derivedd from meta-tags in Mapcycle
+//
+char *apiMutQueue( char *mutNext )
+{
+    if ( NULL == mutNext ) { 
+        strlcpy( mutQueue, "none" , 256 );
+    }
+    else if ( 0 == strlen( mutNext ) ) { 
+        strlcpy( mutQueue, "none", 256 ) ;
+    }
+    else {
+        j = 0;
+        while ( 1 == 1 ) {
+            strlcpy( mutQueue, getWord( mutNext, j++, " ," ), 256 ); 
+            if ( 0 == strlen( w = getWord( mutNext, j++, " ," , 256 ))) { break; }
+            strncat( mutQueue, "," );
+            strncat( mutQueue, " " );
+
+        
+
+    }
+}
+
+#endif
 

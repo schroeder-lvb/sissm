@@ -80,6 +80,7 @@ struct {
     { SISSM_EV_BP_CHARNAME,         23, SS_SUBSTR_BP_CHARNAME       },
     { SISSM_EV_BP_TOUCHED_OBJ,      24, SS_SUBSTR_BP_TOUCHED_OBJ    },
     { SISSM_EV_BP_UNTOUCHED_OBJ,    25, SS_SUBSTR_BP_UNTOUCHED_OBJ  },
+    { SISSM_EV_MAP_OBJECTIVE,       25, SS_SUBSTR_MAP_OBJECTIVE     },
 
     { -1,                           -1, "*"                   },
 

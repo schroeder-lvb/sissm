@@ -13,6 +13,8 @@
 //
 //  ==============================================================================================
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +27,6 @@
 
 #include "bsd.h"
 #include "util.h"
-
 
 //  ==============================================================================================
 //  elapsedTime
@@ -143,6 +144,18 @@ void strClean( char *strIn )
         if ( strIn[ w-1 ] == 0x0d ) strIn[ w-1 ] = 0;
         else if ( strIn[ w-1 ] == 0x0a ) strIn[ w-1 ] = 0;
     }
+    return;
+}
+
+//  ==============================================================================================
+//  strRemoveInPlace
+//
+//  In-line remove a substring, if found
+//
+void strRemoveInPlace(char * s, const char *toremove )
+{
+    while ( NULL != ( s = strcasestr( s, toremove ) ))
+        memmove( s, s+strlen( toremove ), 1+strlen( s+strlen( toremove ) ));
     return;
 }
 

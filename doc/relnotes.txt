@@ -1,3 +1,111 @@
+
+Beta 02.5 (0.2.5) 20200711
+
+    ------------------------------------
+    Feature changes:
+
+    Added !rules command, up to 5 lines
+    Added !contact command, single line
+    Enhanced anti-rush algo to allow immediate objective capture/blow when there are less than 'N' live players (default 2)
+    Added !maplist and !map commands for admins/moderators to change maps immediately.   Specially formatted Mapcycle.txt
+        is required.  You must also add sissm.mapcycleFilePath to sissm.cfg (see below).  Example Mapcycle.txt is posted here:  
+        https://github.com/schroeder-lvb/sissm/blob/master/doc/example_Mapcycle.txt
+    Added doc/example_Mapcycle.txt, doc/example_Mods.txt and doc/example_sissm.cfg files to github repo/quick-start package.
+
+    ------------------------------------
+    Internal changes:
+
+    Increased poll rate of Insurgency.log tailing due to some maps spewing huge amounts of error/warnings
+    Added alternate algorithm for determining current objective on 3rd party maps that are using non-compliant labeling
+    Added time filter to prevent the "say" buffer from overflowing on faulty maps missing zone enter/exit hysteresis 
+
+    ------------------------------------
+    sissm.cfg changes:
+
+    1) Please remove 'contact' and 'rules' from the macros table, add it to commands table to look like this:
+
+        sissm.everyonecmds   "help version info ask prep warn rules contact"
+        sissm.everyonemacros ""
+
+    2) Added new !rules and !contacts commands/entries
+
+        // When a player types !rules, these messages are shown on screen
+        // with 'n' second interval (default 2).  Up to 5 lines can be
+        // displayed.
+        //
+        picladmin.rulesInfo[0]  "1 Harrassment, racism, sexism prohibited"
+        picladmin.rulesInfo[1]  "2 Hostile, lewd, immature behaviors prohibited"
+        picladmin.rulesInfo[2]  "3 No rush, ask before blowing a cache"
+        picladmin.rulesInfo[3]  "4 No rush, ask before breaching an objective"
+        picladmin.rulesInfo[4]  "5 No rushing to objectives by yourself"
+        picladmin.rulesIntervalSec  2   // #secs between rules lines are displayed
+
+        // single line printed when a player types !contact.  This may be a web site,
+        // clan name on a forum, or email
+        //
+        picladmin.contactInfo  "Find us at www.example.com"
+
+    3) Added new a "low-players-alive (LMS)" antirush algorithm exemption
+
+        piantirush.autoKickExemptLMS          2  // max # survivors to allow early capture
+        piantirush.autoKickExemptMsg  "Early objective capture is AUTHORIZED NOW due to low survivors"
+
+    4) Added filepath to Mapcycle.txt and allow "map" and "maplist" commands to moderators & higher
+
+        sissm.mapcycleFilePath                  "/home/ins/iss/Insurgency/Config/Server/Mapcycle.txt"
+
+        And append/allow "map" and "maplist" commands to moderators & higher:
+
+        See 'example_sissm.cfg' for updates to: sissm.groupcmds[0], sissm.groupcmds[1], sissm.groupcmds[2]
+        See 'example_Mapcycle.txt' for special formatting required for !map and !maplist commands
+
+    5) Support for Circleus' Advanced Chat Mod color codes
+
+        sissm.removeCodes       "<bold> <Red> <BLUE> <green> <yellow> <orange> <purple> <cyan> </>"
+
+        When defined, SISSM will remove all above tags from the messages sent to the player console.  
+        This is useful if you are running modded and unmodded servers but wish to share the 
+        same/similar sissm.cfg file.  This way you may change SISSM text strings to include a color 
+        code for your modded servers, and define 'removeCodes' for your unmodded servers.
+
+    6) Optional pre/post-fix for greetings (connected/disconnected messages) for those looking to colorize player names.
+
+        pigreetings.connectedPrefix         "'"    // player name prefix string for connect
+        pigreetings.connectedPostfix        "'"    // player name postfix string for connect
+        pigreetings.connectedAsAdminPrefix  "'"    // admin name prefix string for connect
+        pigreetings.connectedAsAdminPostfix "'"    // admin name postfix string for connect
+        pigreetings.disconnectedPrefix      "'"    // player/admin disconnect prefix string
+        pigreetings.disconnectedPostfix     "'"    // player/admin disconnect postfix string
+ 
+    7) Engine.ini changes - please include the following to your Engine.ini.  These are required for two
+        features:  1) running MODDED maps that use non-standard objective labeling, 2) running anti-rush
+        plugin that detects/displays/auto-kicks 'rush' players on Checkpoint/HardcoreCheckpoint.
+
+    [Core.Log]
+        LogGameplayEvents=Verbose
+        LogDemo=Verbose
+        LogObjectives=Verbose
+        LogGameMode=Verbose
+        LogNet=Verbose
+        LogINSGameInstance=Verbose
+        LogUObjectGlobals=Verbose
+
+     ---------------
+     Konwn Issues/Bugs
+
+     For WINE/Linux, SISSM fails to recognize admin command due to startup file sync.  It will
+        "fix itself" over time.  Another workaround: you may also manually restart sissm.  This 
+        seem to only happen when the server is cold-restarted.  Investigating.
+
+     Circleus' Advanced Hud color option does not work with some third-party maps that 
+       overrides the system HUD.  Since there is no way to detect this for automatic disable,
+       a future SISSM plugin must be written to disable color for 'listed' maps known to override the HUD.
+
+     Currently SISSM !map command does not support on-the-fly mutator change.  Most servers run specific
+        and set mutator, but future SISSM command must be implemented if you want to change
+        mutator sets "on the fly."
+
+
 Beta 02.4 (0.2.4) 20200507
 
     PIAntiRush: Added "auto-kick" for early objective entry -- kicks players that occupies objective zone early

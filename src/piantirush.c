@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 // #include <unistd.h>
-// #include <time.h>
+#include <time.h>
 #include <stdarg.h>
 // #include <sys/stat.h>
 
@@ -97,6 +97,9 @@ static struct {
     char earlyBreachWarn[CFS_FETCH_MAX];                        // warn premature breach on screen
     char earlyBreachExit[CFS_FETCH_MAX];              // info cap rusher has existed the objective
 
+    int  autoKickExemptLMS;            // max # of surviving players to exempt auto-kick algorithm
+    char autoKickExemptMsg[CFS_FETCH_MAX];                              // exempt message when LMS 
+
 } piantirushConfig;
 
 static int _localMute = 0;
@@ -109,10 +112,24 @@ static alarmObj *tPtr  = NULL;                              // Alarm for territo
 static alarmObj *rPtr  = NULL;             // Delay prompt for player request for early cache blow
 static alarmObj *bPtr  = NULL;                 // Delay prompt for player request for early breach
 static int lastState = -1;                          // last state of capture rate: { -1, 0, 1, 2 }
-static int kickArmed = 0;             // kick safety interlock : must be non-zero to allow kicking
+
+
+// Two kickeArmed variable serve as a safety interlock so people don't get kicked
+// on following conditions:
+//
+// kickArmed is the normal enabler that is 'armed' when warning is printed on screen
+// and is 'disarmed' when a cap rate timer expires.  kickArmed2 handles the race condition
+// of looking at number of alive players.  If under any condition # alive players is below
+// set threshold, autokick is 'disarmed'.  Both kidkArmed and kickArmed2 must be True for
+// playrers to get kicked.
+// 
+static int kickArmed = 0;                   // armed on warning printed, disarmed on timer expiry
+static int kickArmed2 = 2;    // armed or disarmed by periodic poller according to #alive players
+
 
 static char _lastObjLetter = '~';
 
+static int  _peakAlivePlayer = -1;                // peak # of alive players on this objective leg
 
 // Data structure to keep track of 'premature breach' cap rushers that enters territorial zone
 // early (time interval count), or repeatedly "taps" the point as nuisance (count based).
@@ -141,6 +158,76 @@ static int _localSay( const char * format, ... )
         va_start( args, format );
         vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
         errCode = apiSay( buffer );
+        va_end (args);
+    }
+    return errCode;
+}
+
+//  ==============================================================================================
+//  _fastChecksum
+//
+//  Compute rudimentary 32-bit checksum of a string; for speed string length is limited to 255.
+//
+static unsigned long _fastChecksum( char *strIn ) 
+{
+    int i;
+    register unsigned int checksum = 0L;
+    register unsigned char *p;
+    int len = strlen( strIn );
+
+    p = (unsigned char *) strIn;
+    if ( len > 255 ) len = 255;
+    for ( i = 0; i<len; i++ ) checksum += (unsigned int) *p++;
+    return ((unsigned long) checksum); 
+}
+
+
+//  ==============================================================================================
+//  _localSayThrottled
+//
+//  same as _localSay except it filters out duplicate message within N seconds
+//
+
+#define THROTTLE_HISTO  (128) 
+static long throttle[THROTTLE_HISTO][2];
+static int  throttleIndex = -1;
+
+static int _localSayThrottled( const char * format, ... )
+{
+    static char buffer[API_T_BUFSIZE];
+    int errCode = 0, i, suppressPrint;
+    unsigned long checksum, timeNow;
+   
+
+    if ( throttleIndex == -1 )  {
+         memset( &throttle[0][0], 0, sizeof(long)*THROTTLE_HISTO*2 );
+         throttleIndex = 0;
+    }
+
+    if ( 0 == _localMute ) {
+        va_list args;
+        va_start( args, format );
+        vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
+
+        checksum = _fastChecksum( buffer );
+        timeNow  = (unsigned long ) time(NULL);
+
+        suppressPrint = 0;
+        for ( i = 0; i<THROTTLE_HISTO; i++ ) {
+            if ( (timeNow ) == throttle[i][0] ) {
+                if ( checksum == throttle[i][1] ) {
+                    suppressPrint = 1;
+                    break;
+                }
+            }
+        }
+
+        if ( 0 == suppressPrint ) errCode = apiSay( buffer );
+
+        throttle[ throttleIndex ][0] = timeNow;
+        throttle[ throttleIndex ][1] = checksum;
+        if ( (++throttleIndex) >= THROTTLE_HISTO ) throttleIndex = 0;
+
         va_end (args);
     }
     return errCode;
@@ -254,7 +341,7 @@ static void _capRusherPeriodicCheck( void )
     int i;
     char *g, playerGUID[64];
 
-    if (( kickArmed ) && (piantirushConfig.autoKickEarlyBreach))  {    // check for master 'armed' status (safety interlock)
+    if ( kickArmed2 && kickArmed && piantirushConfig.autoKickEarlyBreach)  {    // check for master 'armed' status (safety interlock)
         
         for (i = 0; i<SISSM_MAXPLAYERS; i++) {
             if ( 0 != territorialRushers[i].playerCharID[0] ) {
@@ -559,6 +646,7 @@ void _startOfEverything( void )
         alarmCancel( aPtr );  
         _captureSpeed( 0 );   
     }
+
     return;
 
 }
@@ -720,6 +808,9 @@ int piantirushPeriodicCB( char *strIn )
 {
     static int lastFastState = -1;
     int currFastState;
+    int playersAlive;
+    static int lastLivePlayerCount = -1;
+    int currLivePlayerCount;
 
     currFastState = (int) p2pGetF( "piantirush.p2p.fast", 0.0 ) ;
  
@@ -746,6 +837,80 @@ int piantirushPeriodicCB( char *strIn )
     if ( (piantirushConfig.autoKickEarlyBreach) ) {
         _capRusherPeriodicCheck();
     }
+
+    // Process exemption of auto-kick on LMS conditions
+    //
+    playersAlive = apiBPPlayerCount();
+
+    if ( playersAlive > _peakAlivePlayer ) {           // keep track of peak# of players
+        _peakAlivePlayer = playersAlive;
+    }
+ 
+    if ( kickArmed && (_peakAlivePlayer > piantirushConfig.autoKickExemptLMS) ) {              
+        if ( playersAlive <= piantirushConfig.autoKickExemptLMS )  {
+            _localSay( piantirushConfig.autoKickExemptMsg );
+
+            if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" ))  {
+                alarmCancel( rPtr );  // cancel any pending 'aa' request
+                _localSay( piantirushConfig.destroyOkPrompt );
+                kickArmed = 0;                    // kick safety : disable kick
+                alarmCancel( aPtr );
+                _captureSpeed( 0 );
+           }
+
+           else if ( NULL != strstr( rosterGetObjectiveType(), "Captur" ))  {
+               alarmCancel( bPtr );   // cancel any pending 'aa' request  
+               _localSay( piantirushConfig.breachOkPrompt );
+                kickArmed = 0;                    // kick safety : disable kick
+               alarmReset( aPtr, 2L );
+               _capRusherClear();
+
+           }
+        }
+    }
+  
+    // Useful information to print to the screen or log file - to determine
+    // number of live players.  Only log changes to cut down on clutter.
+    //
+    currLivePlayerCount = apiBPPlayerCount();
+    if ( lastLivePlayerCount  != currLivePlayerCount ) {
+        logPrintf( LOG_LEVEL_INFO, "piantirush", "Change in live player count: %d -> %d", 
+            lastLivePlayerCount, currLivePlayerCount );
+        lastLivePlayerCount = currLivePlayerCount;
+    }
+
+    // State machine to handle kickArmed2 interlock that is compatible
+    // with wave-respawn option (where number of players alive may go 'up' 
+    // at any time.  Kickarmed2 is initialized to 2 at start of the objective. It is
+    // primed when live players exceeds threshold.  After prime it is allowed to 
+    // disarm when LMS condition occurs, and it is latched at this state until start 
+    // of next objective.
+    // 
+    switch ( kickArmed2 ) {
+    case 2:   // armed because objective has just begun
+        if ( currLivePlayerCount > piantirushConfig.autoKickExemptLMS ) 
+            kickArmed2 = 1;
+        break;
+    case 1:   // armed because minimum alive count exceeded the exemption threshold
+        if ( currLivePlayerCount <= piantirushConfig.autoKickExemptLMS ) 
+            kickArmed2 = 0;
+        break;
+    default:  // =0 disarmed because we are below minimum exemption threshold
+        ;;    // do nothing, wait for synthetic objective event to set it back to "2"
+        break;
+    }
+
+#if 0
+    // Exception processing - regardless of the condition if min player exemption is set,
+    // do not kick anyone as long as # player falls below the threshold.
+    //
+    if ( 0 != piantirushConfig.autoKickExemptLMS  ) {              
+        kickArmed2 = 1;
+        if ( currLivePlayerCount <= piantirushConfig.autoKickExemptLMS ) kickArmed2 = 0;
+    }
+    else 
+        kickArmed2 = 1;
+#endif
 
     return 0;
 }
@@ -789,6 +954,12 @@ int piantirushObjectSynth( char *strIn )
         alarmCancel( tPtr );
     }
 
+    // reset the variable that keeps track of peak# of "alive" player for this objective
+    // leg.  This is used to track when to disarm auto-kick algorithm on LMS condition.
+    //
+    _peakAlivePlayer = -1;                // peak # of alive players on this objective leg
+    kickArmed2 = 2;
+
     return 0;
 }
 
@@ -807,7 +978,7 @@ int piantirushCacheDestroyed( char *strIn )
 
     if ( piantirushConfig.autoKickEarlyDestruction ) {
         if ( ( _fastMode == 0 ) && ( alarmStatus( aPtr ) >= piantirushConfig.earlyDestroyTolerance )) {
-            if ( kickArmed ) {
+            if ( kickArmed2 && kickArmed ) {
 #if (SISSM_TEST == 0)
                 apiKickOrBan( 0, playerGUID, piantirushConfig.earlyDestroyKickMessage );
 #endif
@@ -873,7 +1044,6 @@ int piantirushObjTouchCB( char *strIn )
 {
     char *w, *n, *m;
     char charID[64], tmpCharID[64], playerName[64]; 
-    char armedStatus[64];
 
     // First check if the time is within the territory  protection window zone (i.e., "too early")
     //
@@ -891,10 +1061,8 @@ int piantirushObjTouchCB( char *strIn )
                     if ( 0 != strlen( m )) {
                         strlcpy( playerName, m, 64 );
 
-                        if ((piantirushConfig.earlyBreachShow)  && (kickArmed)) {
-                            strclr( armedStatus);
-                            if (kickArmed) strlcpy( armedStatus, "*", 64);
-                            _localSay( "'%s' %s%s", playerName, piantirushConfig.earlyBreachWarn, armedStatus );
+                        if ( (piantirushConfig.earlyBreachShow) && ( kickArmed2 && kickArmed )) {
+                            _localSayThrottled( "'%s' %s", playerName, piantirushConfig.earlyBreachWarn );
                         }
 
                         // call the cap-rush algo submodule here
@@ -936,7 +1104,7 @@ int piantirushObjUntouchCB( char *strIn )
                     m = apiCharacterToName( charID );
                     if ( 0 != strlen( m )) {
                         strlcpy( playerName, m, 64 );
-                        if ( kickArmed ) _localSay( "'%s' %s", playerName, piantirushConfig.earlyBreachExit );
+                        if ( kickArmed2 && kickArmed ) _localSayThrottled( "'%s' %s", playerName, piantirushConfig.earlyBreachExit );
                         _capRusherExitZone( charID );
                     }
                 }
@@ -1038,6 +1206,10 @@ int piantirushInitConfig( void )
 
     strlcpy( piantirushConfig.earlyBreachWarn, cfsFetchStr( cP, "piantirush.earlyBreachWarn", "premature breach warning"), CFS_FETCH_MAX);   
     strlcpy( piantirushConfig.earlyBreachExit, cfsFetchStr( cP, "piantirush.earlyBreachExit", "has left the objective"), CFS_FETCH_MAX);   
+
+    piantirushConfig.autoKickExemptLMS = (int) cfsFetchNum( cP, "piantirush.autoKickExemptLMS", 2 );
+    strlcpy( piantirushConfig.autoKickExemptMsg, cfsFetchStr( cP, "piantirush.autoKickExemptMsg", 
+        "Early objective capture is AUTHORIZED due to low survivors"), CFS_FETCH_MAX);   
 
     cfsDestroy( cP );
 

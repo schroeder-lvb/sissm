@@ -6,6 +6,7 @@ ___ Remove all debug code, debug-markers from src/*
 ___ Audit any embedded PIIs such as passwords
 ___ Tag update with Version#/Date 
 ___ Update Release Notes
+___ Update Announcement.txt
 ___ Example .CFG file update
 ___ Example .CFG file update header w/ rev#
 ___ Update Documentation if changes require it

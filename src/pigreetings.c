@@ -68,6 +68,13 @@ static struct {
     char connectedAsAdmin[CFS_FETCH_MAX];            // admin connect suffix "yyy admin connected"
     char disconnected[CFS_FETCH_MAX];               // player disconnect suffix "xxx disconnected"
 
+    char connectedPrefix[CFS_FETCH_MAX];                     // player name prefix tag, connecting
+    char connectedPostfix[CFS_FETCH_MAX];                   // player name postfix tag, connecting 
+    char connectedAsAdminPrefix[CFS_FETCH_MAX];               // admin name prefix tag, connecting
+    char connectedAsAdminPostfix[CFS_FETCH_MAX];             // admin name postfix tag, connecting
+    char disconnectedPrefix[CFS_FETCH_MAX];        // admin & player name prefix tag for disonnect
+    char disconnectedPostfix[CFS_FETCH_MAX];     // admin & player name postfix tag for disconnect
+
     char roundLoseMsg[CFS_FETCH_MAX];                             // end of round message COOP-Win
     char roundWinMsg[CFS_FETCH_MAX];                             // end of round message COOP-Lose
     char roundPvPMsg[CFS_FETCH_MAX];                  // end of round message COOP firstmap or PvP
@@ -185,6 +192,16 @@ int pigreetingsInitConfig( void )
     strlcpy( pigreetingsConfig.disconnected, cfsFetchStr( cP, "pigreetings.disconnected", "disconnected" ), CFS_FETCH_MAX );
     strlcpy( pigreetingsConfig.connectedAsAdmin, cfsFetchStr( cP, "pigreetings.connectedasadmin", "[admin] connected" ), CFS_FETCH_MAX );
 
+    // String 'tags' encapsulates the player names on connect/disconnect notifications, for use with color/bold codes
+    // Defaults to single quote (') marks 
+    // 
+    strlcpy( pigreetingsConfig.connectedPrefix,         cfsFetchStr( cP, "pigreetings.connectedPrefix",         "\'" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.connectedPostfix,        cfsFetchStr( cP, "pigreetings.connectedPostfix",        "\'" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.connectedAsAdminPrefix,  cfsFetchStr( cP, "pigreetings.connectedAsAdminPrefix",  "\'" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.connectedAsAdminPostfix, cfsFetchStr( cP, "pigreetings.connectedAsAdminPostfix", "\'" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.disconnectedPrefix,      cfsFetchStr( cP, "pigreetings.disconnectedPrefix",      "\'" ), CFS_FETCH_MAX );
+    strlcpy( pigreetingsConfig.disconnectedPostfix,     cfsFetchStr( cP, "pigreetings.disconnectedPostfix",     "\'" ), CFS_FETCH_MAX );
+
     // read round win and lose messages, set to "" to disable
     // 
     strlcpy( pigreetingsConfig.roundWinMsg,  cfsFetchStr( cP, "pigreetings.roundwinmsg",  "" ), CFS_FETCH_MAX );
@@ -255,7 +272,11 @@ int pigreetingsClientSynthDelCB( char *strIn )
     // 
     if (!_isIncognito( playerGUID ) && !_isMaskDisconnect() ) {
         if ( 0 != strlen( pigreetingsConfig.disconnected ) ) 
-            apiSay( "'%s' %s [%d]", playerName, pigreetingsConfig.disconnected, apiPlayersGetCount() );
+            apiSay( "%s%s%s %s [%d]", 
+                pigreetingsConfig.disconnectedPrefix,
+                playerName, 
+                pigreetingsConfig.disconnectedPostfix,
+                pigreetingsConfig.disconnected, apiPlayersGetCount() );
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "%s disconnected [%d]", playerName, apiPlayersGetCount() );
     }
 
@@ -280,10 +301,17 @@ int pigreetingsClientSynthAddCB( char *strIn )
         if ( (apiTimeGet() - timeRestarted) > PIGREETINGS_RESTART_LOCKOUT_SEC ) {   // check if we are restarting
        
            if  ( apiIsAdmin( playerGUID ) && (0 != strlen( pigreetingsConfig.connectedAsAdmin)) ) 
-               apiSay( "'%s' %s [%d]", playerName, pigreetingsConfig.connectedAsAdmin, apiPlayersGetCount() );
+               apiSay( "%s%s%s %s [%d]", 
+                    pigreetingsConfig.connectedAsAdminPrefix,
+                    playerName, 
+                    pigreetingsConfig.connectedAsAdminPostfix,
+                    pigreetingsConfig.connectedAsAdmin, apiPlayersGetCount() );
            else if ( 0 != strlen( pigreetingsConfig.connected ))
-               apiSay( "'%s' %s [%d]", playerName, pigreetingsConfig.connected, apiPlayersGetCount() );
-
+               apiSay( "%s%s%s %s [%d]", 
+                    pigreetingsConfig.connectedPrefix,
+                    playerName, 
+                    pigreetingsConfig.connectedPostfix,
+                    pigreetingsConfig.connected, apiPlayersGetCount() );
         }
         logPrintf( LOG_LEVEL_CRITICAL, "pigreetings", "SynAdd Client ::%s::%s::%s::", playerName, playerGUID, playerIP );
     }

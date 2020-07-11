@@ -25,6 +25,7 @@
 #include "log.h"
 #include "util.h"
 #include "roster.h"
+#include "api.h"
 
 #include "winport.h"   // strcasestr
 
@@ -171,6 +172,7 @@ char rosterGetCoopObjectiveLetter( void )
     char retVal = ' ';
     char *w = NULL;
 
+    strClean( rosterObjective );
     if ( NULL == (w = strstr( rosterObjective, "ODCheckpoint_" ) ) ) {
         if ( NULL == (w = strstr( rosterObjective, "OCCheckpoint_" ) ) )  {
             retVal = ' ';
@@ -180,6 +182,27 @@ char rosterGetCoopObjectiveLetter( void )
     if ( w != NULL ) {
         retVal = w[ 13 ];  // extract 'A' from "OxCheckpoint_A_0"
     }
+
+    // Third party maps do not necessarily follow the NWI objective convension.
+    // This alternate lookup method uses dummp of objective name after map change
+    // found in Insurgency.log file.
+    //
+    if ( retVal == ' ' ) {
+        retVal = apiLookupObjectiveLetterFromCache( rosterObjective );
+        logPrintf( LOG_LEVEL_INFO, "roster", "Using objective list cache and found objective letter ::%c:: from ::%s::", retVal, rosterObjective );
+    }
+    else {
+        logPrintf( LOG_LEVEL_INFO, "roster", "Using parser and found objective letter ::%c::", retVal );
+    }
+
+    // At start of the server, the data from activeobjective seems unreliable.
+    // This is a kluge to assume unreadable objective is 'A'
+    //
+    if ( retVal == ' ' ) {
+        retVal = 'A';
+        logPrintf( LOG_LEVEL_INFO, "roster", "Unnown Objective letter - Assuming ::%c::", retVal );
+    }
+
     return( retVal );
 }
 

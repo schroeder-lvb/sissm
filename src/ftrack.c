@@ -270,18 +270,21 @@ int ftrackResync( ftrackObj *fPtr )
 //
 void ftrackClose( ftrackObj *fPtr )
 {
+
+    if ( fPtr != NULL ) {
 #ifdef _WIN32
-    if (fPtr->fpr != NULL) {
-        fclose( fPtr->fpr );
-        fPtr->fpr = NULL;
-    }
+        if (fPtr->fpr != NULL) {
+            fclose( fPtr->fpr );
+            fPtr->fpr = NULL;
+        }
 #else
-    if (fPtr->fpr != -1) {
-        close( fPtr->fpr );
-        fPtr->fpr = -1;
-    }
+        if (fPtr->fpr != -1) {
+            close( fPtr->fpr );
+            fPtr->fpr = -1;
+        }
 #endif
-    free( fPtr );
+        free( fPtr );
+    }
     return;
 }
 

@@ -60,6 +60,18 @@ void sleep( int secWait )
 
 
 // ==============================================================================================
+//  stricmp
+//
+//  Case insensitive strcmp, aka strcasecmp
+//
+int strcasecmp( char *str1, char *str2 ) 
+{
+    return( _stricmp( str1, str2 ) );   // MSVC equivalent of strcasecmp
+}
+
+
+
+// ==============================================================================================
 //  strcasestr
 //
 //  Strstr function without case match

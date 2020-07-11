@@ -157,6 +157,36 @@ Partial name or * may be specified for any player names.  If no parameter is spe
 the join window will close immediately.
 Example:  !allowin jullie, !allowin *, !allowin
 
+========================
+
+maplist (mapname) 
+Lists available maps installed on server.
+Note: for this feature to work, a specific mapcycle.txt format with metatag is required!
+Example:  !maplist
+
+========================
+
+map (map) [mapname] {ins} {night}
+Immediately change map 
+Partial match for map name is accepted, and the first matched map is activated
+Note: for this feature to work, a specific mapcycle.txt format with metatag is required!
+Examples:  !map minist, !map ministry ins, !map minis night, !map inist night ins
+
+========================
+
+contact (contact)
+Display contact information for the server
+Example:  !contact
+
+========================
+
+ruiles (rules)
+Display server rules
+Example:  !rules
+
+
+
+
 
 
 ////////// Appendix:  Kick/Ban Reasons and Reason-codes

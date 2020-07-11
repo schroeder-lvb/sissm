@@ -54,6 +54,7 @@
 #define NUM_RESPONSES  (5)
 #define NUM_MACROS     (128)
 #define NUM_REASONS    (9)
+#define NUM_RULES      (5)
 
 static struct {
 
@@ -75,7 +76,15 @@ static struct {
 
     char reason[NUM_REASONS][CFS_FETCH_MAX];
 
+    char contactInfo[CFS_FETCH_MAX];
+    char rulesInfo[NUM_RULES][CFS_FETCH_MAX];
+    int  rulesIntervalSec;
+
 } picladminConfig;
+
+
+static int _rulesIndex = -1;
+static int _rulesTickCount = 0;
 
 
 //  ==============================================================================================
@@ -90,6 +99,8 @@ int _cmdBan(), _cmdKick();
 int _cmdBanId(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
+int _cmdRules(), _cmdContact();
+int _cmdMap(), _cmdMapList();
 
 struct {
 
@@ -134,6 +145,12 @@ struct {
     { "a",      "ask",           "ask",                     _cmdAsk  },
     { "p",      "prep",          "prep",                    _cmdPrep },
     { "w",      "warn",          "warn",                    _cmdWarn },
+
+    { "map",    "map",           "map name [night][ins]",   _cmdMap       },
+    { "maplist","maplist",       "maplist",                 _cmdMapList   },
+
+    { "rules",  "rules",         "rules",                   _cmdRules },
+    { "contact","contact",       "contact",                 _cmdContact },
 
     { "*",      "*",             "*",                       NULL }
 
@@ -800,6 +817,34 @@ int _cmdWarn( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+// ===== "contact"
+// Send warning to cap rushers
+//
+int _cmdContact( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    char outStr[256];
+
+    strlcpy( outStr, picladminConfig.contactInfo, 256 );
+    apiSaySys( outStr );
+
+    return errCode;
+}
+
+// ===== "rules"
+// 
+//
+int _cmdRules( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+
+    if (_rulesIndex == -1 ) {   // handled by periodic callback
+        _rulesIndex = 0;
+    }
+
+    return errCode;
+}
+
 // ===== "fast"
 // Send "fast" info to piantirush plugin
 //
@@ -821,6 +866,84 @@ int _cmdFast( char *arg, char *arg2, char *passThru )
 
     return errCode;
 }
+
+// ===== "map"
+// Change maps 
+//
+int _cmdMap( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    int isNight = 0, isIns = 0;
+    char *w, gameMode[80];
+    int j;
+
+
+    // Look for "ins" (Insurgent) and "night" (Night lighting) modes.
+    //
+    if (NULL != strcasestr( passThru, " night" )) isNight = 1;
+    if (NULL != strcasestr( passThru, " ins"   )) isIns   = 1;
+
+    // Look for optional gamemode:  checkpoint, checkpointhardcore, etc.
+    // Because new game mode may be added as a mod, this table must be 
+    // maintained in the config file.
+    //
+    j = 2;
+    strclr( gameMode );
+    while ( 1 == 1 ) {
+        w = getWord( passThru, j++, " " );
+        if ( w == NULL )       break;
+        if ( 0 == strlen( w )) break;
+        if ( apiIsSupportedGameMode( w ) ) {
+            strlcpy( gameMode, w, 80 );
+            break;
+        }
+    } 
+
+    // change map
+    errCode = apiMapChange( arg, gameMode, isIns, isNight );
+
+    if ( errCode ) {
+        apiSaySys( "Map/mode/side not found" );
+    }
+    return errCode;
+}
+
+
+// ===== "maplist"
+// list maps 
+//
+int _cmdMapList( char *arg, char *arg2, char *passThru ) 
+{ 
+    char *w, *v, outBuf[256];
+    int errCode = 0;
+    int j, i, exitF = 0;;
+
+    w = apiMapList();
+    j = 0;
+    if ( w != NULL ) { 
+        while ( 0 == exitF ) {
+            strclr( outBuf );
+            for (i=0; i<4; i++) {
+                v = getWord( w, j++, " " );
+                if ( NULL == v ) {
+                    exitF = 1;
+                    break;
+                }
+                if ( 0==strlen( v ) ) {
+                    exitF = 1;
+                    break;
+                }
+                strncat( outBuf, v, 256 );
+                strncat( outBuf, " ", 256 );
+            }
+            apiSaySys( "%s", outBuf );
+        }
+    } 
+
+    // apiSaySys( "Maps: %s", w );
+    return errCode;
+}
+
 
 #if 0
 //  ==============================================================================================
@@ -884,6 +1007,23 @@ int picladminInitConfig( void )
     strlcpy( picladminConfig.msgInvalid[2], cfsFetchStr( cP, "picladmin.msgInvalid[2]",  "Unauthroized!" ),   CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgInvalid[3], cfsFetchStr( cP, "picladmin.msgInvalid[3]",  "Unauthroized!" ),   CFS_FETCH_MAX);
     strlcpy( picladminConfig.msgInvalid[4], cfsFetchStr( cP, "picladmin.msgInvalid[4]",  "Unauthorized!" ),   CFS_FETCH_MAX);
+
+
+    // Read the 5-element rules list
+    //
+    strlcpy( picladminConfig.rulesInfo[0], cfsFetchStr( cP, "picladmin.rulesInfo[0]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.rulesInfo[1], cfsFetchStr( cP, "picladmin.rulesInfo[1]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.rulesInfo[2], cfsFetchStr( cP, "picladmin.rulesInfo[2]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.rulesInfo[3], cfsFetchStr( cP, "picladmin.rulesInfo[3]",  "" ),   CFS_FETCH_MAX);
+    strlcpy( picladminConfig.rulesInfo[4], cfsFetchStr( cP, "picladmin.rulesInfo[4]",  "" ),   CFS_FETCH_MAX);
+
+    // Read the interval (sec) on how fast the rules are printed on player screen.  0 = no rules
+    //
+    picladminConfig.rulesIntervalSec = (int) cfsFetchNum( cP, "picladmin.rulesIntervalSec", 2.0 );  //  2sec apart
+
+    // Read the server contacts info
+    //
+    strlcpy( picladminConfig.contactInfo, cfsFetchStr( cP, "picladmin.contactInfo",  "Contact info not set" ),   CFS_FETCH_MAX);
 
     // Read the operator-specified "macro" (alias) sequence
     //
@@ -966,6 +1106,24 @@ int picladminRoundStartCB( char *strIn ) { _resetP2PVars(); return 0; }
 
 
 //  ==============================================================================================
+//  picladminPeriodicCB
+//
+//  Periodic processing at 1Hz.  
+//
+int picladminPeriodicCB( char *strIn ) 
+{ 
+    if (( _rulesIndex != -1 ) && ( picladminConfig.rulesIntervalSec != 0) ) {
+        if ( (++_rulesTickCount) >= picladminConfig.rulesIntervalSec ) {
+            _rulesTickCount = 0;
+            apiSaySys( picladminConfig.rulesInfo[ _rulesIndex++ ]);
+            if ( _rulesIndex >= NUM_RULES ) _rulesIndex = -1;
+        }
+    }
+    return 0; 
+}
+
+
+//  ==============================================================================================
 //  (Unused Callback methods)
 //
 //  Left here for future expansion
@@ -976,7 +1134,6 @@ int picladminInitCB( char *strIn ) { return 0; }
 int picladminRestartCB( char *strIn ) { return 0; }
 int picladminRoundEndCB( char *strIn ) { return 0; }
 int picladminCapturedCB( char *strIn ) { return 0; }
-int picladminPeriodicCB( char *strIn ) { return 0; }
 int picladminShutdownCB( char *strIn ) { return 0; }
 int picladminClientSynthDelCB( char *strIn ) { return 0; }
 int picladminClientSynthAddCB( char *strIn ) { return 0; }
