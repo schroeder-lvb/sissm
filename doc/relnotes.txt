@@ -1,4 +1,28 @@
 
+Beta 02.6 (0.2.6) 20200716 (hotfix to 0.2.5)
+
+    ------------------------------------
+    Bug fixes:
+
+    Fixed antirush plugin messages appearing in game when antirush plugin is not used/disabled.
+    Fixed SISSM crash on some systems when sissm.removeCodes are enabled 
+
+    ------------------------------------
+    Feature changes:
+  
+    Added "soloadmin" picladmin class.  When a player is playing solo on server, the listed admin 
+       commands are available to the solo non-admin player.  Recommended use:  !map, and !maplist.  
+       NOT recommended for any other commands including bot count/difficulty settings due to possibility for trolling.
+
+    ------------------------------------
+    sissm.cfg changes:
+
+    Comemnt out or set to empty string ("") if you do not want to enable solo admin command list:
+
+        sissm.soloadminattr  ""
+        sissm.soloadmincmds  "map maplist"
+
+
 Beta 02.5 (0.2.5) 20200711
 
     ------------------------------------

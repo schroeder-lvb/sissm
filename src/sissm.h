@@ -23,4 +23,10 @@ extern void sissmServerRestart( void );
 extern char *sissmVersion( void );
 extern int  sissmRestartServer( void );
 
+#if SISSM_TEST
+extern int _overrideAliveCount;
+#endif
+
+
+
 

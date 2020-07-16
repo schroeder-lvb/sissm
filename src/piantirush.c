@@ -1213,6 +1213,23 @@ int piantirushInitConfig( void )
 
     cfsDestroy( cP );
 
+    return 0;
+}
+
+//  ==============================================================================================
+//  piantirushInstallPlugins
+//
+//  This method is exported and is called from the main sissm module.
+//
+int piantirushInstallPlugin( void )
+{
+    // Read the plugin-specific variables from the .cfg file 
+    // 
+    piantirushInitConfig();
+
+
+    // Setup alarms
+    //
     aPtr  = alarmCreate( _normalSpeedAlarmCB );
     dPtr  = alarmCreate( _rulesAlarmCB );
     wPtr  = alarmCreate( _notifyNoDestroyCB );
@@ -1227,19 +1244,6 @@ int piantirushInitConfig( void )
 
     kickArmed = 0;
 
-    return 0;
-}
-
-//  ==============================================================================================
-//  piantirushInstallPlugins
-//
-//  This method is exported and is called from the main sissm module.
-//
-int piantirushInstallPlugin( void )
-{
-    // Read the plugin-specific variables from the .cfg file 
-    // 
-    piantirushInitConfig();
 
     // if plugin is disabled in the .cfg file then do not activate
     //

@@ -420,6 +420,9 @@ int rosterParse( char *buf, int n )
 //
 int rosterCount( void )
 {
+#if SISSM_TEST
+    extern int _overrideAliveCount;  // from API
+#endif
     int i, count = 0;
 
     for (i=0; i<ROSTER_MAX; i++) {
@@ -429,6 +432,9 @@ int rosterCount( void )
             }
         }
     }
+#if SISSM_TEST
+    if ( _overrideAliveCount ) count = _overrideAliveCount;
+#endif
     return count;
 }
 

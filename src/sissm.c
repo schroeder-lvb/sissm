@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.5 20200711-1100 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.6 20200716-1130 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.5 20200711-1100"
+#define VERSION    "SISSM v0.2.6 20200716-1130"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -39,6 +39,7 @@
 #include <execinfo.h>    // segfault-backtrace trap
 #endif
 
+#include "sissm.h"
 #include "bsd.h"
 #include "util.h"
 #include "log.h"
@@ -68,6 +69,14 @@
 #include "pidynbots.h"
 #include "pitacnomic.h"
 #include "pistats.h"
+
+
+//  ==============================================================================================
+//  Debug/Development
+//
+#if SISSM_TEST
+int _overrideAliveCount = 0;
+#endif
 
 
 //  ==============================================================================================
@@ -468,6 +477,9 @@ void sissmSplash( void )
     logPrintf(LOG_LEVEL_INFO, "sissm", "--------------------------------------" );
     logPrintf(LOG_LEVEL_INFO, "sissm", "%s", VERSION);
     logPrintf(LOG_LEVEL_INFO, "sissm", "%s", COPYRIGHT);
+#if (SISSM_TEST) 
+    logPrintf(LOG_LEVEL_INFO, "sissm", "***** WARNING - DEVELOPMENT MODE ENABLED *****" );
+#endif
     return;
 }
 
