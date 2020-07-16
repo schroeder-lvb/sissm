@@ -59,11 +59,6 @@
 //
 //
 //
-
-#if SISSM_TEST
-static int _overrideAliveCount = 0;
-#endif
-
 static rdrvObj *_rPtr = NULL;                    // RCON driver handle - interface to game server
 static alarmObj *_apiPollAlarmPtr  = NULL;      // used to periodically poll roster (listplayers)
 
@@ -83,9 +78,14 @@ static unsigned long lastGameStateSuccessTime = 0L;  // marks last time activeob
 //
 char rootguids[ API_LINE_STRING_MAX ];                     // separate list for root owner GUIDs
 char rootname[ API_LINE_STRING_MAX ];                               // name of root group 'root'
+
 char everyoneCmds[ API_LINE_STRING_MAX ];             // list of commands enabled for 'everyone'
 char everyoneMacros[ API_LINE_STRING_MAX ];             // list of macros enabled for 'everyone'
 char everyoneAttr[ API_LINE_STRING_MAX ];           // list of attributes enabled for 'everyone'
+
+char soloAdminCmds[ API_LINE_STRING_MAX ];           // list of commands enabled for 'soloadmin'
+char soloAdminMacros[ API_LINE_STRING_MAX ];           // list of macros enabled for 'soloadmin'
+char soloAdminAttr[ API_LINE_STRING_MAX ];         // list of attributes enabled for 'soloadmin'
 
 static char removeCodes[ API_LINE_STRING_MAX ];   // color codes to optionally remove (circleus)
 static char sayPrefix[ API_LINE_STRING_MAX ];            // replacement ADMIN: prefix (circleus) 
@@ -153,13 +153,15 @@ void apiRemoveCodes( char *apiSayString )
 {
     int j = 0;
     char *w;
+    char removeWord[ API_LINE_STRING_MAX ];
 
     if ( 0 != strlen( removeCodes ) ) {
         while ( 1 == 1 ) {
             w = getWord( removeCodes, j++, " " );
             if ( w == NULL ) break;
             if ( 0 == strlen( w ) ) break;
-            strRemoveInPlace( apiSayString, w );
+            strlcpy( removeWord, w, API_LINE_STRING_MAX );
+            strRemoveInPlace( apiSayString, removeWord );
         };
     };
     return;
@@ -465,18 +467,26 @@ int _apiChatCB( char *strIn )
 
     if ( NULL != strstr( strIn, "debug0000" )) {
         _overrideAliveCount = 0;
+       apiSay("Debug Mode alive=0");
     }
 
     if ( NULL != strstr( strIn, "debug0001" )) {
         _overrideAliveCount = 1;
+       apiSay("Debug Mode alive=1");
     }
 
     if ( NULL != strstr( strIn, "debug0002" )) {
         _overrideAliveCount = 2;
+       apiSay("Debug Mode alive=2");
     }
 
     if ( NULL != strstr( strIn, "debug0003" )) {
         _overrideAliveCount = 3;
+       apiSay("Debug Mode alive=3");
+    }
+    if ( NULL != strstr( strIn, "debug0006" )) {
+        _overrideAliveCount = 6;
+       apiSay("Debug Mode alive=6");
     }
 
 #endif
@@ -989,11 +999,16 @@ int apiInit( void )
 
     // read the AUTH related permission block
     //
-    strlcpy( rootguids, cfsFetchStr( cP, "sissm.rootguids", ""), API_LINE_STRING_MAX );
-    strlcpy( rootname,  cfsFetchStr( cP, "sissm.rootname",  ""), API_LINE_STRING_MAX );
-    strlcpy( everyoneCmds, cfsFetchStr( cP, "sissm.everyonecmds", "" ),   API_LINE_STRING_MAX );
-    strlcpy( everyoneMacros, cfsFetchStr( cP, "sissm.everyonemacros", "" ), API_LINE_STRING_MAX );
-    strlcpy( everyoneAttr, cfsFetchStr( cP, "sissm.everyoneattr", "" ),   API_LINE_STRING_MAX );
+    strlcpy( rootguids,       cfsFetchStr( cP, "sissm.rootguids", ""),         API_LINE_STRING_MAX );
+    strlcpy( rootname,        cfsFetchStr( cP, "sissm.rootname",  ""),         API_LINE_STRING_MAX );
+
+    strlcpy( everyoneCmds,    cfsFetchStr( cP, "sissm.everyonecmds", "" ),     API_LINE_STRING_MAX );
+    strlcpy( everyoneMacros,  cfsFetchStr( cP, "sissm.everyonemacros", "" ),   API_LINE_STRING_MAX );
+    strlcpy( everyoneAttr,    cfsFetchStr( cP, "sissm.everyoneattr", "" ),     API_LINE_STRING_MAX );
+
+    strlcpy( soloAdminCmds,   cfsFetchStr( cP, "sissm.soloadmincmds", "" ),    API_LINE_STRING_MAX );
+    strlcpy( soloAdminMacros, cfsFetchStr( cP, "sissm.soloadminemacros", "" ), API_LINE_STRING_MAX );
+    strlcpy( soloAdminAttr,   cfsFetchStr( cP, "sissm.soloadminattr", "" ),    API_LINE_STRING_MAX );
 
     for (i=0; i<API_MAX_GROUPS; i++) {
         snprintf( varImg, 256, "sissm.groupname[%d]", i);
@@ -1377,7 +1392,8 @@ int apiPlayersGetCount( void )
 #if (SISSM_TEST == 0)
       return ( rosterCount() );  
 #else
-      return ( 3 );       // test mode, simulate 3 people
+    if ( _overrideAliveCount ) return( _overrideAliveCount );
+    else return ( rosterCount() );
 #endif
 }
 
@@ -1485,6 +1501,17 @@ int apiAuthIsAllowedCommand( char *playerGUID, char *command )
             }
         }
     }
+
+    // check if a player is solo, if so grant special privilege "soloadmin"
+    //
+    if ( !isAuthorized ) {
+        if ( NULL != strstr( soloAdminCmds, command )) {
+            if ( 1 == apiPlayersGetCount() ) {
+                isAuthorized = 1;
+            }
+        }
+    }
+ 
     return( isAuthorized );
 }
 
@@ -1522,6 +1549,16 @@ int apiAuthIsAllowedMacro( char *playerGUID, char *command )
             }
         }
     }
+
+    // check if a player is solo, if so grant special privilege "soloadmin"
+    //
+    if ( !isAuthorized ) {
+        if ( NULL != strstr( soloAdminMacros, command )) {
+            if ( 1 == apiPlayersGetCount() ) {
+                isAuthorized = 1;
+            }
+        }
+    }
     return( isAuthorized );
 }
 
@@ -1547,6 +1584,15 @@ int apiAuthIsAttribute( char *playerGUID, char *attribute )
                     isAuthorized = 1;
                     break;
                 }
+            }
+        }
+    }
+    // check if a player is solo, if so grant special privilege "soloadmin"
+    //
+    if ( !isAuthorized ) {
+        if ( NULL != strstr( soloAdminAttr, attribute )) {
+            if ( 1 == apiPlayersGetCount() ) {
+                isAuthorized = 1;
             }
         }
     }

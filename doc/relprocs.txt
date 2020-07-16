@@ -12,9 +12,10 @@ ___ Example .CFG file update header w/ rev#
 ___ Update Documentation if changes require it
 
 ___ Linux version DOA Testing
-___ Build 2 Linux Versions for Quick Install:  Standard & Restricted
-___ Zip src/*, 2 binaries, example .CFG and upload to Windows test platform
+___ Build 2 Linux Versions for Quick Install:  Standard & Restricted to rel-x.x.x/
 ___ Turn-off SISSM_RESTRICTED flag in src/sissm.c
+___ Zip src/*, doc/* 2 binaries:  zip -r zip -r rel-x.x.x.zip rel-0.2.6/* doc/* src/* Makefile
+___ Upload to Windows test platform
 
 ___ Update the Windows sissm.cfg to reflect changes
 ___ Windows version DOA Testing (cl *.c Ws2_32.lib /Fesissm.exe)
