@@ -1,6 +1,7 @@
 SISSM Release Procedure 
 (Post-Testing Release Checklist)
 
+___ Turn off SISSM_TEST in sissm.h
 ___ Make adjustments for github sync, such as new files, removed files
 ___ Remove all debug code, debug-markers from src/*
 ___ Audit any embedded PIIs such as passwords
@@ -14,7 +15,7 @@ ___ Update Documentation if changes require it
 ___ Linux version DOA Testing
 ___ Build 2 Linux Versions for Quick Install:  Standard & Restricted to rel-x.x.x/
 ___ Turn-off SISSM_RESTRICTED flag in src/sissm.c
-___ Zip src/*, doc/* 2 binaries:  zip -r zip -r rel-x.x.x.zip rel-0.2.6/* doc/* src/* Makefile
+___ Zip src/*, doc/* 2 binaries:  zip -r zip -r rel-x.x.x.zip rel-x.x.x/* doc/* src/* Makefile
 ___ Upload to Windows test platform
 
 ___ Update the Windows sissm.cfg to reflect changes

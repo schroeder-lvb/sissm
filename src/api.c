@@ -393,6 +393,32 @@ int _apiSyntheticObjDispatch(char *activeObjectRaw )
 }
 
 //  ==============================================================================================
+//  _apiFetchGameState (local function)
+//
+//  Read GameState by reading gamemodeproperty "activeobjective", update the internal
+//  cache variable, dispatch a change event.   This routine is called from both map change 
+//  event as well as periodic (for "hot-restart" correction).
+//
+static int _apiFetchGameState( void )
+{
+    int errCode = 1;
+
+    strlcpy( gameStateCurrent, apiGameModePropertyGet( "activeobjective" ), API_ROSTER_STRING_MAX );
+    if ( 0 != strlen( gameStateCurrent ) ) {
+        lastGameStateSuccessTime = apiTimeGet();   // record last time value read succesfully
+        errCode = 0;
+        if ( 0 != strncmp( gameStatePrevious, gameStateCurrent, API_ROSTER_STRING_MAX )) {
+            strlcpy( gameStatePrevious, gameStateCurrent, API_ROSTER_STRING_MAX );
+            logPrintf( LOG_LEVEL_INFO, "api", "ActiveObjective ::%s::", gameStatePrevious );
+            _apiSyntheticObjDispatch( gameStatePrevious );
+        }
+    }
+    return errCode;
+}
+
+
+
+//  ==============================================================================================
 //  _apiPollAlarmCB (local function)
 //
 //  Call-back function dispatched by self-resetting periodic alarm (system alarm dispatcher),
@@ -430,17 +456,9 @@ int _apiPollAlarmCB( char *strIn )
             "Listplayer retrieve failure on apiPollAlarmCB, playercount is %d", rosterCount() );
     }
 
-    // Fetch the GameState using activeobjective gamemodeproperties
+    // Fetch the GameState using activeobjective gamemodeproperties  
     //   
-    strlcpy( gameStateCurrent, apiGameModePropertyGet( "activeobjective" ), API_ROSTER_STRING_MAX );
-    if ( 0 != strlen( gameStateCurrent ) ) {
-        lastGameStateSuccessTime = apiTimeGet();   // record last time value read succesfully 
-        if ( 0 != strncmp( gameStatePrevious, gameStateCurrent, API_ROSTER_STRING_MAX )) {
-	    strlcpy( gameStatePrevious, gameStateCurrent, API_ROSTER_STRING_MAX );
-            logPrintf( LOG_LEVEL_INFO, "api", "ActiveObjective ::%s::", gameStatePrevious );
-            _apiSyntheticObjDispatch( gameStatePrevious );
-        }
-    }
+    _apiFetchGameState();
 
     // do a cached-read of server name from RCON.  Once successful, it will read
     // from the cache (not RCON) thereafter
@@ -465,6 +483,9 @@ int _apiChatCB( char *strIn )
     
 #if SISSM_TEST
 
+    // This block of code allows a single developer to test multiplayer 
+    // condition by faking the active player count reported by this module.
+    //
     if ( NULL != strstr( strIn, "debug0000" )) {
         _overrideAliveCount = 0;
        apiSay("Debug Mode alive=0");
@@ -567,10 +588,6 @@ int _apiSessionLogCB( char *strIn )
     logPrintf( LOG_LEVEL_INFO, "api", "SessionID: ::%s::", _currSession );
     return 0;
 }
-
-
-
-//  ==============================================================================================
 
 
 //  ==============================================================================================
@@ -690,40 +707,6 @@ int _apiBPCharPlayerCB( char *strIn )
                 break;
             }
         }
-
-#if 0
-// -------
-// old code
-    int duplicateUpdated = 0;
-        // Insert into translation database
-        // First pass, look for duplicate (anomaly) in characterID
-        //
-        duplicateUpdated = 0;
-        for ( i = 0; i<API_MAXENTITIES; i++ )  {
-            if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
-                strlcpy( soldierTranslate[ i ].playerName, _cachedName, 256 );
-                duplicateUpdated = 1;
-                break;
-            }
-        }
-
-        // if duplicate was not found, find the first open slot
-        // and insert into the translation table
-        //
-        if ( !duplicateUpdated ) {
-            for ( i = 0; i<API_MAXENTITIES; i++ )  {
-                if ( 0 == strlen( soldierTranslate[ i ].charID ) ) {
-                    strlcpy( soldierTranslate[ i ].playerName, _cachedName, 256 );
-                    strlcpy( soldierTranslate[ i ].charID,               n, 256 );
-                    break;
-                }
-            }
-        }
-// -------
-#endif
-
-
-
     }
 
     strclr( _cachedName );
@@ -769,33 +752,6 @@ int _apiBPCharDisconnectCB( char *strIn )
         }
     }
 
-#if 0
-// old code
-    if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_PLAYER_DISCONN ) )) {
-        w = strstr( strIn, "BP_Character_Player" );
-        if ( w != NULL ) {
-            if ( NULL != (n = getWord( w, 0, " .'" )) ) {
-                // printf("\nDisconnect ::%s::\n", n);
-                ;
-            }
-        }
-    }
-
-    if (( 0 != strlen( _cachedName )) && ( n != NULL )) {
-
-        // Remove from translation database
-        // Check all entries and remove duplicates to be safe
-        //
-        for ( i = 0; i<API_MAXENTITIES; i++ )  {
-            if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
-                strclr( soldierTranslate[ i ].charID     );
-                strclr( soldierTranslate[ i ].playerName );
-            }
-        }
-    }
-//
-#endif
-
     return 0;
 }
 
@@ -821,7 +777,7 @@ int _apiBPCharTouchCB( char *strIn )
 int _apiBPCharUntouchCB( char *strIn )
 {
     return 0;
-};
+}
 
 
 //  ==============================================================================================
@@ -833,7 +789,8 @@ int _apiBPCharUntouchCB( char *strIn )
 int _apiMapChangeCB( char *strIn )
 {
     char _currMap[API_LINE_STRING_MAX];
-    int i;
+    int   i;
+    int errCode;
 
     // There are two ways to find the current map.  The code below works by watching
     // the Insurgency.log file which works for all game modes.  For Co-op this is 
@@ -851,6 +808,12 @@ int _apiMapChangeCB( char *strIn )
     for (i=0; i<API_OBJECTIVES_MAX; i++) strclr( _objectiveListCache[i]) ;
     logPrintf(LOG_LEVEL_INFO, "api", "Map change to ::%s:: and resetting the internal objectives cache", _currMap );
 
+
+    // Update the change in GameState.  This may fail on some slower servers, so the following
+    // routine is also called by the periodic CB. 
+    // 
+    errCode = _apiFetchGameState();
+    logPrintf( LOG_LEVEL_INFO, "api", "MapChange ActiveObjective update::%s:: and Error ::%d::", gameStatePrevious, errCode );
 
     return 0;
 }
@@ -957,10 +920,22 @@ char apiLookupObjectiveLetterFromCache( char *objectiveName )
 
 
 //  ==============================================================================================
-//  _apiMapObjectiveCB
+//  _apiRoundStartCB
 //
-//  Call-back function dispatched when the game system log file indicates a map change.
-//  Simply update the name which can be read back from Plugins via the API at later time.
+//  Call-back function dispatched when the round starts
+int _apiRoundStartCB( char  *strIn )
+{
+    int errCode;
+
+    // Update the change in GameState.  This may fail on some slower servers, so the following
+    // routine is also called by the periodic CB. 
+    // 
+    errCode = _apiFetchGameState();
+    logPrintf( LOG_LEVEL_INFO, "api", "RoundStart ActiveObjective update::%s:: and Error ::%d::", gameStatePrevious, errCode );
+
+    return 0;
+}
+
 
 
 //  ==============================================================================================
@@ -999,16 +974,16 @@ int apiInit( void )
 
     // read the AUTH related permission block
     //
-    strlcpy( rootguids,       cfsFetchStr( cP, "sissm.rootguids", ""),         API_LINE_STRING_MAX );
-    strlcpy( rootname,        cfsFetchStr( cP, "sissm.rootname",  ""),         API_LINE_STRING_MAX );
+    strlcpy( rootguids,       cfsFetchStr( cP, "sissm.rootguids", ""),      API_LINE_STRING_MAX );
+    strlcpy( rootname,        cfsFetchStr( cP, "sissm.rootname",  ""),      API_LINE_STRING_MAX );
 
-    strlcpy( everyoneCmds,    cfsFetchStr( cP, "sissm.everyonecmds", "" ),     API_LINE_STRING_MAX );
-    strlcpy( everyoneMacros,  cfsFetchStr( cP, "sissm.everyonemacros", "" ),   API_LINE_STRING_MAX );
-    strlcpy( everyoneAttr,    cfsFetchStr( cP, "sissm.everyoneattr", "" ),     API_LINE_STRING_MAX );
+    strlcpy( everyoneCmds,    cfsFetchStr( cP, "sissm.everyonecmds", "" ),  API_LINE_STRING_MAX );
+    strlcpy( everyoneMacros,  cfsFetchStr( cP, "sissm.everyonemcrs", "" ),  API_LINE_STRING_MAX );
+    strlcpy( everyoneAttr,    cfsFetchStr( cP, "sissm.everyoneattr", "" ),  API_LINE_STRING_MAX );
 
-    strlcpy( soloAdminCmds,   cfsFetchStr( cP, "sissm.soloadmincmds", "" ),    API_LINE_STRING_MAX );
-    strlcpy( soloAdminMacros, cfsFetchStr( cP, "sissm.soloadminemacros", "" ), API_LINE_STRING_MAX );
-    strlcpy( soloAdminAttr,   cfsFetchStr( cP, "sissm.soloadminattr", "" ),    API_LINE_STRING_MAX );
+    strlcpy( soloAdminCmds,   cfsFetchStr( cP, "sissm.soloadmincmds", "" ), API_LINE_STRING_MAX );
+    strlcpy( soloAdminMacros, cfsFetchStr( cP, "sissm.soloadminmcrs", "" ), API_LINE_STRING_MAX );
+    strlcpy( soloAdminAttr,   cfsFetchStr( cP, "sissm.soloadminattr", "" ), API_LINE_STRING_MAX );
 
     for (i=0; i<API_MAX_GROUPS; i++) {
         snprintf( varImg, 256, "sissm.groupname[%d]", i);
@@ -1053,6 +1028,7 @@ int apiInit( void )
     eventsRegister( SISSM_EV_MAPCHANGE,   _apiMapChangeCB );
     eventsRegister( SISSM_EV_TRAVEL,      _apiTravelCB );
     eventsRegister( SISSM_EV_SESSIONLOG,  _apiSessionLogCB );
+    eventsRegister( SISSM_EV_ROUND_START,  _apiRoundStartCB );
 
     // These callbacks are used for detecting players entering
     // and leaving territorial capture zone (piantirush)
@@ -1239,7 +1215,7 @@ char *apiGameModePropertyGet( char *gameModeProperty )
             // map change when rcon response is not honored, so check for this!
             w = getWord( rconResp, 1, "\"" );    
             if ( w != NULL ) 
-                strncpy( value, w, sizeof( value ));   
+                strlcpy( value, w, sizeof( value ));   
         }
     }
 
@@ -1266,7 +1242,8 @@ int apiSay( const char * format, ... )
 
     apiRemoveCodes( buffer );                         // remove color codes if mod is not installed
 
-    snprintf( rconCmd, API_T_BUFSIZE, "say %s%s%s", sayPrefix, buffer, sayPostfix );
+    if ( snprintf( rconCmd, API_T_BUFSIZE, "say %s%s%s", sayPrefix, buffer, sayPostfix ) < 0) 
+        logPrintf( LOG_LEVEL_WARN, "api", "Overflow warning at apiSay" );
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
         if ( buffer[0] == '*' ) triplePrint = 1;
         if ( 0 == (int) p2pGetF("api.p2p.sayDisable", 0.0 ) ) {
@@ -1278,37 +1255,6 @@ int apiSay( const char * format, ... )
     va_end (args);
     return errCode;
 }
-
-#if 0
-//  ==============================================================================================
-//  apiSayMute
-//
-//  Copy of apiSay except the first parameter is a mtue flag
-//
-int apiSayMute( int muteFlag, const char * format, ... )
-{
-    static char buffer[API_T_BUFSIZE];
-    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
-    int bytesRead, errCode;
-    int triplePrint = 0;
-
-    va_list args;
-    va_start( args, format );
-    vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
-
-    snprintf( rconCmd, API_T_BUFSIZE, "say %s", buffer );
-    if ( 0 != strlen( buffer ) )  {  // say only when something to be said
-        if ( buffer[0] == '*' ) triplePrint = 1;
-        if ( 0 != (int) muteFlag ) {
-            errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
-            if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
-            if ( triplePrint ) errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
-        }
-    }
-    va_end (args);
-    return errCode;
-}
-#endif
 
 //  ==============================================================================================
 //  apiSaySys
@@ -1329,7 +1275,9 @@ int apiSaySys( const char * format, ... )
 
     apiRemoveCodes( buffer );                         // remove color codes if mod is not installed
 
-    snprintf( rconCmd, API_T_BUFSIZE, "say %s%s%s", sayPrefix, buffer, sayPostfix );
+    if ( snprintf( rconCmd, API_T_BUFSIZE, "say %s%s%s", sayPrefix, buffer, sayPostfix ) < 0 )
+        logPrintf( LOG_LEVEL_WARN, "api", "Overflow warning at apiSaySys" );
+
     if ( 0 != strlen( buffer ) )  {  // say only when something to be said
         if ( buffer[0] == '*' ) triplePrint = 1;
         errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
@@ -1445,28 +1393,6 @@ char *apiGetSessionID( void )
     return ( rosterGetSessionID() );
 }
 
-#if 0
-//  ==============================================================================================
-//  (internal) _apiAuthCheck
-//
-//  
-//  
-//
-static int _apiAuthCheck( char *playerGUID, char *item, char *itemList, idList_t listOfGUID )
-{
-    int isAuthorized = 0;
-
-    // check first if 'item' is in 'itemList'
-    //
-    if ( NULL !=  strstr( itemList, item ) ) {
-        // check if 'playerGUID' is in 'listOfGUID' 
-        //
-        isAuthorized = apiIdListCheck( playerGUID, listOfGUID );
-    }
-    return isAuthorized;
-}
-#endif
-
 //  ==============================================================================================
 //  apiAuthIsAllowedCommand
 //
@@ -1480,6 +1406,12 @@ int apiAuthIsAllowedCommand( char *playerGUID, char *command )
     // check if playerGUID is 'root'
     //
     if ( NULL != strstr( rootguids, playerGUID )) {
+        isAuthorized = 1;
+    }
+    
+    // check if command is from 'RCON' if so grant 'root' priv
+    //
+    else if ( 0 == strcmp( "00000000000000000", playerGUID ) ) {
         isAuthorized = 1;
     }
 
@@ -1528,6 +1460,12 @@ int apiAuthIsAllowedMacro( char *playerGUID, char *command )
     // check if playerGUID is 'root'
     //
     if ( NULL != strstr( rootguids, playerGUID )) {
+        isAuthorized = 1;
+    }
+
+    // check if command is for 'RCON'
+    //
+    else if ( 0 == strcmp( "00000000000000000", playerGUID ) ) {
         isAuthorized = 1;
     }
 
@@ -1637,6 +1575,36 @@ char *apiAuthGetRank( char *playerGUID )
 int apiIsAdmin( char *connectID )
 {
     return ( apiAuthIsAttribute( connectID, "admin" ));
+}
+
+
+//  ==============================================================================================
+//  apiGetServerMode
+//
+//  Returns current game mode 
+//  
+//  Example content of gameStatePrevious:
+//  "ObjectiveCapturable'/Game/Maps/Tell/Tell_Checkpoint_Security.Tell_Checkpoint_Security:PersistentLevel.OCCheckpoint_A'" 
+//
+char *apiGetServerMode( void )
+{
+    static char gameMode[256];
+    int i;
+    static char recognizedModes[16][64] = { 
+        "hardcore",   "checkpoint", "frenzy",    "outpost",    "frontline", 
+        "domination", "push",       "firefight", "deathmatch", "*" 
+    };
+
+    strlcpy( gameMode, "unknown", 256 );
+
+    for ( i=0 ; ; i++ ) {
+        if ( recognizedModes[i][0] == '*' ) break;
+        if ( NULL != strcasestr( gameStatePrevious, recognizedModes[i] ) ) {
+            strlcpy( gameMode, recognizedModes[i], 256 );
+            break;
+        }
+    }
+    return( gameMode );
 }
 
 
@@ -1834,8 +1802,8 @@ char *apiMapList( void )
     strclr( mapList );
     for ( j = 0; j<API_MAXMAPS; j++ ) {
         if ( 0 == strlen( mapNameMerged[j] ) ) break;
-        strncat( mapList, mapNameMerged[j], 4096 );
-        strncat( mapList, " ",              4096 );
+        strncat( mapList, mapNameMerged[j], 4095 );
+        strncat( mapList, " ",              4095 );
     }
     return( mapList );
 }

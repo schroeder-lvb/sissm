@@ -80,7 +80,8 @@ struct {
     { SISSM_EV_BP_CHARNAME,         23, SS_SUBSTR_BP_CHARNAME       },
     { SISSM_EV_BP_TOUCHED_OBJ,      24, SS_SUBSTR_BP_TOUCHED_OBJ    },
     { SISSM_EV_BP_UNTOUCHED_OBJ,    25, SS_SUBSTR_BP_UNTOUCHED_OBJ  },
-    { SISSM_EV_MAP_OBJECTIVE,       25, SS_SUBSTR_MAP_OBJECTIVE     },
+    { SISSM_EV_MAP_OBJECTIVE,       26, SS_SUBSTR_MAP_OBJECTIVE     },
+    { SISSM_EV_RCON,                27, SS_SUBSTR_RCON              },
 
     { -1,                           -1, "*"                   },
 
@@ -143,6 +144,45 @@ int eventsRegister( int eventID, int (*callBack)( char * ))
     }
     return errCode;
 }
+
+//  ==============================================================================================
+//  eventsUnRegister
+//
+//  Called from a Plugin, this method dis-associates and un-registers the plugin-specific callback routine 
+//  with the specific event.
+//
+int eventsUnRegister( int eventID, int (*callBack)( char * ))
+{
+    int i, j, callBackIndex = -1, errCode = 1;
+
+    // Translate the eventID to callBackTable index
+    // 
+    for ( i=0; i<SISSM_MAXEVENTS; i++ ) {
+        if ( 0 == strcmp( eventTable[ i ].eventString, "*" ))  {
+            break;
+        }
+        if ( eventTable[ i ].eventID == eventID ) {
+            callBackIndex = eventTable[ i ].callBacktableIndex;
+            break;          
+        }
+    }
+
+    // Remove active callBack vecotors from the events callback table. 
+    // While this should not occur, this loop remove duplicate registration, 
+    // if any, as a code safety. 
+    //
+    if ( callBackIndex != -1 ) {
+        for ( j=0; j<SISSM_MAXPLUGINS ; j++ ) {
+            if ( eventsCallbackFunctions[callBackIndex][j] == callBack) {
+                eventsCallbackFunctions[callBackIndex][j] = NULL;
+                errCode = 0;
+            }
+        }
+    }
+
+    return errCode;
+}
+
 
 
 

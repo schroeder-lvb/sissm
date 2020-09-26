@@ -90,6 +90,19 @@ Examples:  !bi 76561123123123123, !banid 76561123123123123,
 
 ========================
 
+bant (bt) [partial-name] {reason | reason-code}
+Temp-ban a player by partial name
+Examples:  !bt rob, !bant ert, !bant robert team kills not allowed, !bant rob tk
+
+========================
+
+banidt (bit) [SteamID64] {reason | reason-code}
+Temp-ban a player by SteamID64 - this can be done after a player has signed off.
+Examples:  !bit 76561123123123123, !banidt 76561123123123123, 
+           !bit 76561123123123123 arguing with the admin
+
+========================
+
 unbanid (ub) [SteamID64]
 Unban a player by SteamID64
 Examples:  !ub 76561123123123123, !unbanid 76561123123123123

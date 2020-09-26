@@ -1,68 +1,92 @@
+
 #SISSM.mapname=Oilfield
-(Scenario="Scenario_Refinery_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Refinery_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Refinery_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Refinery_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Town
-(Scenario="Scenario_Hideout_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Hideout_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Hideout_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Hideout_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Hideout_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Hideout_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Hideout_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Hideout_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Farmhouse
-(Scenario="Scenario_Farmhouse_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Farmhouse_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Farmhouse_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Farmhouse_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Farmhouse_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Farmhouse_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Farmhouse_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Farmhouse_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Canyon
-(Scenario="Scenario_Crossing_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Crossing_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Crossing_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Crossing_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Crossing_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Crossing_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Crossing_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Crossing_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Crossing_Outpost",Mode="Outpost",Lighting="Day")
+(Scenario="Scenario_Crossing_Outpost",Mode="Outpost",Lighting="Night")
 
 #SISSM.mapname=Mountain
-(Scenario="Scenario_Summit_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Summit_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Summit_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Summit_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Summit_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Summit_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Summit_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Summit_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Compound
-(Scenario="Scenario_Outskirts_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Outskirts_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Outskirts_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Outskirts_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Outskirts_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Outskirts_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Outskirts_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Outskirts_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Outskirts_Outpost",Mode="Outpost",Lighting="Day")
+(Scenario="Scenario_Outskirts_Outpost",Mode="Outpost",Lighting="Night")
 
 #SISSM.mapname=Ministry
-(Scenario="Scenario_Ministry_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Ministry_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Ministry_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Ministry_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Ministry_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Ministry_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Ministry_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Ministry_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Ministry_Outpost",Mode="Outpost",Lighting="Day")
+(Scenario="Scenario_Ministry_Outpost",Mode="Outpost",Lighting="Night")
 
 #SISSM.mapname=Sinjar
-(Scenario="Scenario_Hillside_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Hillside_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Hillside_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Hillside_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Hillside_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Hillside_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Hillside_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Hillside_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Hillside_Outpost",Mode="Outpost",Lighting="Day")
+(Scenario="Scenario_Hillside_Outpost",Mode="Outpost",Lighting="Night")
 
 #SISSM.mapname=Powerplant
-(Scenario="Scenario_PowerPlant_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_PowerPlant_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_PowerPlant_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_PowerPlant_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_PowerPlant_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_PowerPlant_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_PowerPlant_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_PowerPlant_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_PowerPlant_Outpost",Mode="Outpost",Lighting="Day")
+(Scenario="Scenario_PowerPlant_Outpost",Mode="Outpost",Lighting="Night")
 
 #SISSM.mapname=Buhriz
-(Scenario="Scenario_Tideway_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Tideway_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Tideway_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Tideway_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Tideway_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Tideway_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Tideway_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Tideway_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Precinct
-(Scenario="Scenario_Precinct_Checkpoint_Security",Lighting="Day")
-(Scenario="Scenario_Precinct_Checkpoint_Insurgents",Lighting="Day")
-(Scenario="Scenario_Precinct_Checkpoint_Security",Lighting="Night")
-(Scenario="Scenario_Precinct_Checkpoint_Insurgents",Lighting="Night")
+(Scenario="Scenario_Precinct_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Precinct_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Precinct_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Precinct_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+
+#SISSM.mapname=Tell
+(Scenario="Scenario_Tell_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Tell_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Tell_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Tell_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Tell_Outpost",Mode="Outpost",Lighting="Day")
+(Scenario="Scenario_Tell_Outpost",Mode="Outpost",Lighting="Night")
+
+
+////////////////////////////////////////////////////////////
+//////////////////// Third Party Mod Maps
+////////////////////////////////////////////////////////////
 
 #SISSM.mapname=TORO
 (Scenario="Scenario_TORO_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
@@ -74,13 +98,13 @@
 (Scenario="Scenario_CompoundCity_Checkpoint_Security",Mode="Checkpoint")
 (Scenario="Scenario_CompoundCity_Checkpoint_Insurgents",Mode="Checkpoint")
 
-#SISSM.mapname=TheFarm_Main
-(Scenario="TheFarm_Main_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
-(Scenario="TheFarm_Main_Checkpoint_Security_Night",Mode="Checkpoint",Lighting="Night")
+// #SISSM.mapname=TheFarm_Main
+// (Scenario="TheFarm_Main_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+// (Scenario="TheFarm_Main_Checkpoint_Security_Night",Mode="Checkpoint",Lighting="Night")
 
-#SISSM.mapname=junkyard_landscape
-(Scenario="Scenario_JunkYard_Checkpoint_Security_Day",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_JunkYard_Checkpoint_Security_Night",Mode="Checkpoint",Lighting="Night")
+#SISSM.mapname=Junkyard
+(Scenario="Scenario_JunkYard_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_JunkYard_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Operation_Metro
 (Scenario="Scenario_Operation_Metro_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
@@ -90,17 +114,17 @@
 (Scenario="Scenario_Macedonia_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
 (Scenario="Scenario_Macedonia_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
 
-#SISSM.mapname=Banane_Landscape
-(Scenario="Scenario_Banane_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_Banane_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
-(Scenario="Scenario_Banane_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_Banane_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+// #SISSM.mapname=Banane_Landscape
+// (Scenario="Scenario_Banane_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+// (Scenario="Scenario_Banane_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+// (Scenario="Scenario_Banane_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+// (Scenario="Scenario_Banane_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Highlands
-(Scenario="Scenario_Highlands_CheckpointSecurity",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_Highlands_CheckpointSecurity",Mode="Checkpoint",Lighting="Night")
-(Scenario="Scenario_Highlands_CheckpointInsurgents",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_Highlands_CheckpointInsurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Highlands_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Highlands_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Highlands_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Highlands_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
 #SISSM.mapname=Pruefstand_7 Pru1
 (Scenario="Scenario_P7_CP_M_Sec",Mode="Checkpoint",Lighting="Day")
@@ -137,4 +161,22 @@
 #SISSM.mapname=MountainPass mpass7ins
 (Scenario="Scenario_MountainPass_INS_2",Mode="Checkpoint",Lighting="Day")
 
+#SISSM.mapname=Glassdome
+(Scenario="Scenario_Glassdome_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Glassdome_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Glassdome_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Glassdome_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+
+#SISSM.mapname=Der_Riese
+(Scenario="Scenario_der_Riese_CP_Sec",Mode="Checkpoint",Lighting="Day")
+
+#SISSM.mapname=Noshahr_Canals
+(Scenario="Scenario_Noshahr_Canals_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Noshahr_Canals_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+
+#SISSM.mapname=Irca
+(Scenario="Irca_CK_SEC",Mode="Checkpoint",Lighting="Day")
+(Scenario="Irca_CK_SEC",Mode="Checkpoint",Lighting="Night")
+(Scenario="Irca_CK_INS",Mode="Checkpoint",Lighting="Day")
+(Scenario="Irca_CK_INS",Mode="Checkpoint",Lighting="Night")
 

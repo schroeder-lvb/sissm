@@ -1,11 +1,11 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PIREBOOTER Plugin
-JS Schroeder -- last updated:  2020.02.07
+JS Schroeder -- last updated:  2020.09.26
 
 The PIREBOOTER plugin 
 
 ================
-IMPORTANT:  Read the white paper WP_REBOOTING before proceeding.
+IMPORTANT:  Read the white paper adv_rebooting.txt  before proceeding.
 ================
 
 Sadly, Sandstorm Dedicated Server has a history of instability.  Sometimes it enters a state where

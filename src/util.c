@@ -69,7 +69,7 @@ char *getWord( char *strIn, int wordIndex, char *delim )
     int   i = 0;
 
     retStr[BUFSIZE-1] = 0;
-    strncpy( retStr, strIn, BUFSIZE-2);
+    strlcpy( retStr, strIn, BUFSIZE-2);
     pch = strtok( retStr, delim );
     while (pch != NULL) {
         if ( i++ == wordIndex ) {
@@ -93,7 +93,7 @@ int foundMatch( char *line, char *table[], int caseConvert )
     int p;
     static char lineCopy[4096];
 
-    strncpy( lineCopy, line, 4096 );
+    strlcpy( lineCopy, line, 4096 );
 
     if ( caseConvert ) {
         for (p=0; p<4096; p++) {
