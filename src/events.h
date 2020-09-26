@@ -17,7 +17,7 @@
 #define SISSM_MAXEVENTS                     (32)
 #define SISSM_MAXPLUGINS                    (32)
 
-#define SISSM_EV_CHAT                       ( 0)
+#define SISSM_EV_CHAT                       ( 0)    // this must be first for security reasons!!
 #define SISSM_EV_INIT                       ( 1)    // order of the indeces must match
 #define SISSM_EV_RESTART                    ( 2)    // the sequence of eventsTable[]
 #define SISSM_EV_CLIENT_ADD                 ( 3)
@@ -46,6 +46,7 @@
 #define SISSM_EV_BP_UNTOUCHED_OBJ           (25)
 
 #define SISSM_EV_MAP_OBJECTIVE              (26)
+#define SISSM_EV_RCON                       (27)
 
 
 // Following substring in log file triggers an event
@@ -65,6 +66,7 @@
 #define SS_SUBSTR_TRAVEL       "LogGameMode: ProcessServerTravel:"
 #define SS_SUBSTR_SESSIONLOG   "HttpStartUploadingFinished. SessionName:"
 #define SS_SUBSTR_DESTROY      "was destroyed for team"
+#define SS_SUBSTR_RCON         "LogRcon:"
 
 #define SS_SUBSTR_BP_PLAYER_CONN        " RestartPlayerAtPlayerStart "
 #define SS_SUBSTR_BP_PLAYER_DISCONN     " Unpossessed"
@@ -79,6 +81,7 @@
 
 extern int eventsInit( void );
 extern int eventsRegister( int eventID, int (*callBack)( char * ));
+extern int eventsUnRegister( int eventID, int (*callBack)( char * ));
 extern int eventsDispatch( char *strBuffer );
 
 

@@ -191,7 +191,7 @@ static int _computeBotParams( int refresh )
     unsigned int currHuman, currBots, minHuman, maxHuman;
     double aiDifficulty;
     char *objName, *mapName, objLetter;
-    char strBuf[256], *w;
+    char strBuf[256], *w, *v;
     int adjust = 0, errCode = 0, botBias, offsetIndex;
 
     // default parameters
@@ -202,6 +202,10 @@ static int _computeBotParams( int refresh )
     maxHuman     = pidynbotsConfig.MaxPlayersToScaleEnemyCount;
     currHuman    = rosterCount();
 
+    // a wedge code to disable this plugin if non-Checkpoint mode is running
+    //
+    v = apiGetServerMode();
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return 0;
 
 #if 0 
     // DEBUG tap for simulating humans joining and leaving - take out this block later
@@ -550,37 +554,6 @@ int pidynbotsSigtermCB( char *strIn )
     return 0;
 }
 
-//  ==============================================================================================
-//  pidynbots
-//
-//
-int pidynbotsWinLose( char *strIn )
-{
-#if 0
-    int isTeam0, humanSide;
-    char outStr[256];
-
-    humanSide = rosterGetCoopSide();
-    isTeam0   = (NULL != strstr( strIn, "Team 0" ));
-
-    switch ( humanSide ) {
-    case 0:
-        if ( !isTeam0 ) strlcpy( outStr, "Co-op Humans Win", 256 );
-        break;
-    case 1:
-        if (  isTeam0 ) strlcpy( outStr, "Co-opHumans Lose", 256 );
-        break;
-    default:
-        strlcpy( outStr, "PvP WinLose", 256 );
-        break;
-    }
-
-    apiSay( "pidynbots: %s", outStr );
-    logPrintf( LOG_LEVEL_INFO, "pidynbots", outStr );
-#endif
-
-    return 0;
-}
 
 //  ==============================================================================================
 //  pidynbots
@@ -666,7 +639,6 @@ int pidynbotsInstallPlugin( void )
     eventsRegister( SISSM_EV_CLIENT_DEL_SYNTH,     pidynbotsClientSynthDelCB );
     eventsRegister( SISSM_EV_CHAT,                 pidynbotsChatCB     );
     eventsRegister( SISSM_EV_SIGTERM,              pidynbotsSigtermCB  );
-    eventsRegister( SISSM_EV_WINLOSE,              pidynbotsWinLose );
     eventsRegister( SISSM_EV_TRAVEL,               pidynbotsTravel );
     eventsRegister( SISSM_EV_SESSIONLOG,           pidynbotsSessionLog );
     eventsRegister( SISSM_EV_OBJECT_SYNTH,         pidynbotsObjectSynth );

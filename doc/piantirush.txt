@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PIANTIRUSH - Checkpoint/Hardcore Antirush Algorithm
-JS Scheorder - last revised:  2020.05.07
+JS Scheorder - last revised:  2020.09.26
 
 ==========================================================================
                  Quick Start – PIANTIRUSH Plugin Configuration
@@ -192,8 +192,8 @@ PITACNOMIC is provided for majority players that does not use in-game microphone
 
 PIANTIRUSH plugin recognizes the two letter commands listed here:
 
-piantirush.earlyDestroyPlayerRequest                       "aa ff pp 00 11 22 33 44 ask req"
-piantirush.earlyBreachPlayerRequest                        "aa ff pp 00 11 22 33 44 ask req"
+piantirush.earlyDestroyPlayerRequest                       "aa ff 00 11 ask req"
+piantirush.earlyBreachPlayerRequest                        "aa ff 00 11 ask req"
 
 This does two things.  First, SISSM checks if you are “safe to blow” or “safe to enter” objective by returning “authorized” or “denied” prompt.  Secondly it can be optionally programmed to ‘speed up’ the protection window time by the number of seconds you specify.
 
@@ -330,6 +330,9 @@ piantirush.earlyBreachMaxTaps         0              // Max# taps on obj for kic
 piantirush.earlyBreachPlayerRequest                        "aa ff pp 00 11 22 33 44 ask req"
 piantirush.earlyBreachTapsKickMessage   "Auto-kicked for excessive number of nuisance objective taps"
 piantirush.earlyBreachTimeKickedMessage "Auto-kicked for early territorial zone breach"
+piantirush.earlyBreachTimeKickedMessage "Uncoordinated breach on MIL-TAC server - try again"
+piantirush.earlyBreachWarn              "premature breach warning"
+piantirush.earlyBreachExit              "is off the objective"
 
 
 

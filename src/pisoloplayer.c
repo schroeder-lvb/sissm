@@ -97,16 +97,22 @@ int pisoloplayerInitConfig( void )
 //
 static int _singlePlayerNoCounter( void )
 {
-    if ( pisoloplayerConfig.soloPlayerThreshold >= apiPlayersGetCount() ) {
-        apiGameModePropertySet( "DefendTimer", "1");
-	apiSay( pisoloplayerConfig.soloWarning );
-        logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack disabled for a single player" );
+    char *w;
+
+    w = apiGetServerMode();
+    if ((0==strcmp( w, "checkpoint" )) || (0==strcmp( w, "hardcore")) )  {
+        if ( pisoloplayerConfig.soloPlayerThreshold >= apiPlayersGetCount() ) {
+            apiGameModePropertySet( "DefendTimer", "1");
+	    apiSay( pisoloplayerConfig.soloWarning );
+            logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack disabled for a single player" );
+        }
+        else {
+            apiGameModePropertySet( "DefendTimer", pisoloplayerConfig.defendTimer);  // default "90"
+	    apiSay( pisoloplayerConfig.multiWarning );
+            logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack enabled for multi-players" );
+        }
     }
-    else {
-        apiGameModePropertySet( "DefendTimer", pisoloplayerConfig.defendTimer);  // default "90"
-	apiSay( pisoloplayerConfig.multiWarning );
-        logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack enabled for multi-players" );
-    }
+
     return 0;
 }
 

@@ -1,3 +1,56 @@
+Beta 02.7 (0.2.7) 20200926 
+
+    Changes:
+
+    Added macros privilege for 'soloadmin' and 'everyone' auth class
+    Mixed-mode compatibility for SS 1.8, namely checkpoint, checkpointhardcore, outpost
+    Added bant and banidt "temp ban" commands (recommended for moderator use)
+    Expanded commands:  !reboot eor, !reboot eog, !reboot cancel
+    SISSM commands can now be executed externally via RCON, don't forget the prefix (default "!")
+    SISSM commands can now be executed from Macro definition table entry, don't forget the prefix (default "!")
+
+    ------------------------------------
+    Bug fixes:
+    (REDO) Fixed antirush plugin messages appearing - corrected the fix in 0.2.6.
+    Fixed a typo in eventhandler callback index for objective-list entries
+
+    ------------------------------------
+    sissm.cfg changes:
+
+    Add the 'soloadminmcrs' to picladmin section for 'soloadmin'
+        sissm.soloadminmcrs  ""
+        sissm.soloadminattr  ""
+        sissm.soloadmincmds  "map maplist"
+
+    Add 'bant' and 'banidt' commands to sissm.groupcmds[0], sissm.groupcmds[1] and sissm.groupcmds[2]
+
+    Add temp ban duration 
+        picladmin.tempBanMinutes  1440
+
+    Add antirush-autokick messages (these were missing from the example_sissm.cfg  on the last release)
+        piantirush.earlyBreachTapsKickMessage   "Auto-kicked for excessive number of nuisance objective taps"
+        piantirush.earlyBreachTimeKickedMessage "Uncoordinated breach on tactical server - try again"
+        piantirush.earlyBreachWarn              "premature breach warning"
+        piantirush.earlyBreachExit              "is off the objective"
+
+
+    ------------------------------------
+    Documentation
+  
+    *  SISSM_Quickstart was updated to include Engine.ini entries required to run advanced plugins
+    *  picladmin.txt adds the new bant and banidt commands
+    *  Minor cleanups, typos, links
+
+    ------------------------------------
+    Under-the-hood:
+
+    *  Moved development platform to Debian 10 (formerly Ubuntu 18) 
+    *  Compatibility with GCC compiler version 8.3.0
+    *  pisoloplayer will suspend for non-checkpoint modes: _singlePlayerNoCounter()
+    *  pidynbots will suspend for non-checkpoint modes: _computeBotParams() _inRespawnMode()
+    *  piantirush will suspend for non-checkpoint modes:  localSay/localsayThrottled/_captureSpeed/_rulesAlarmCB
+    *  General cleanups - Dead/debug code removal
+
 
 Beta 02.6 (0.2.6) 20200716 (hotfix to 0.2.5)
 

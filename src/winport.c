@@ -86,8 +86,8 @@ char *strcasestr(const char *haystack, const char *needle)
 
     memset( haystackCopy, 0, STRSTRMAX );
     memset( needleCopy,   0, STRSTRMAX );
-    strncpy( haystackCopy, haystack, STRSTRMAX-1 );
-    strncpy( needleCopy,   needle,   STRSTRMAX-1 );
+    strlcpy( haystackCopy, haystack, STRSTRMAX-1 );
+    strlcpy( needleCopy,   needle,   STRSTRMAX-1 );
 
     for (i=0; i<strlen( haystackCopy); i++) haystackCopy[i] = (char) tolower( haystackCopy[i] );
     for (i=0; i<strlen( needleCopy); i++)   needleCopy[i]   = (char) tolower( needleCopy[i] );

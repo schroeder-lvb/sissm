@@ -1,13 +1,13 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Quick Start Guide for SISSM
-JS Schroeder -- last updated:  2019.09.05
+JS Schroeder -- last updated:  2020.09.26
 ===============================
 
 For source, description and documentation of SISSM, visit:
 https://github.com/schroeder-lvb/sissm
 
 This is a quick-start install instruction site for SISSM, if --
-*  You are using pre-compiled executable package (Windows/Debian9/Ubuntu18)
+*  You are using pre-compiled executable package (Windows/Debian10/Ubuntu20)
 *  You already have a working Co-op mode Insurgency Sandstorm Server, and
 *  You have full control of your server (shell access) for installing 3rd party software, 
    e.g., home server or cloud-based VPS (but not a commercial game hosting service)
@@ -79,8 +79,25 @@ sissm.RconPassword       "mysecretpassword"
 sissm.rootguids          "76560000000000001"      // your SteamID ("root user")
 sissm.GameLogFile        "C:\Program Files (x86)\Steam\steamapps\common\sandstorm_server\Insurgency\Saved\Logs\Insurgency.log"
 
+
 ---------------------------------
-Step 4:  Run it
+Step 4:  Edit your Engine.ini file
+---------------------------------
+
+This is not needed to run SISSM core, but required for some of the advanced plugins.
+Add the following block of text to your Engine.ini file.
+
+[Core.Log]
+LogGameplayEvents=Verbose
+LogDemo=Verbose
+LogObjectives=Verbose
+LogGameMode=Verbose
+LogNet=Verbose
+LogINSGameInstance=Verbose
+LogUObjectGlobals=Verbose
+
+---------------------------------
+Step 5:  Run it
 ---------------------------------
 
 a)  Start your Insurgency Server
@@ -104,7 +121,7 @@ Windows for keybaord-challenged people:
 c)  Control-C to stop SISSM.
 
 ---------------------------------
-Step 5:  Customize Your SISSM.CFG file
+Step 6:  Customize Your SISSM.CFG file
 ---------------------------------
 
 SISSM comes with many powerful plugins.  Walk through your sissm.cfg file and 

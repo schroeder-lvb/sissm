@@ -56,6 +56,12 @@
 #define NUM_REASONS    (9)
 #define NUM_RULES      (5)
 
+#define REBOOT_CANCEL  (0)
+#define REBOOT_EOR     (1)
+#define REBOOT_EOG     (2)
+
+static int _queueReboot = REBOOT_CANCEL;
+
 static struct {
 
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
@@ -80,7 +86,10 @@ static struct {
     char rulesInfo[NUM_RULES][CFS_FETCH_MAX];
     int  rulesIntervalSec;
 
+    int  tempBanMinutes;
+
 } picladminConfig;
+
 
 
 static int _rulesIndex = -1;
@@ -95,8 +104,8 @@ int _cmdHelp(), _cmdVersion(), _cmdMacros(), _cmdMacrosList();
 int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
 int _cmdKillFeed(), _cmdFriendlyFire();
 int _cmdRestart(), _cmdEnd(), _cmdReboot();
-int _cmdBan(), _cmdKick();
-int _cmdBanId(), _cmdUnBanId(),_cmdKickId();
+int _cmdBan(), _cmdBant(), _cmdKick();
+int _cmdBanId(), _cmdBanIdt(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
 int _cmdRules(), _cmdContact();
@@ -111,36 +120,38 @@ struct {
 
 }  cmdTable[] =  {
 
-    { "help",   "help",          "help [command], help list",   _cmdHelp  },
-    { "v",      "version",       "version [sissm]",         _cmdVersion },   
+    { "help",   "help",          "help [command], help list",     _cmdHelp  },
+    { "v",      "version",       "version [sissm]",               _cmdVersion },   
 
-    { "bf",     "botfixed",      "botfixed [2-60]",         _cmdBotFixed },
-    { "bs",     "botscaled",     "botscaled [2-60]",        _cmdBotScaled },
-    { "bd",     "botdifficulty", "botdifficulty [0-10]",    _cmdBotDifficulty },
-    { "x",      "execute",       "execute [alias]",         _cmdMacros },
-    { "ml",     "macroslist",    "macroslist",              _cmdMacrosList },
+    { "bf",     "botfixed",      "botfixed [2-60]",               _cmdBotFixed },
+    { "bs",     "botscaled",     "botscaled [2-60]",              _cmdBotScaled },
+    { "bd",     "botdifficulty", "botdifficulty [0-10]",          _cmdBotDifficulty },
+    { "x",      "execute",       "execute [alias]",               _cmdMacros },
+    { "ml",     "macroslist",    "macroslist",                    _cmdMacrosList },
 
-    { "kf",     "killfeed",      "killfeed on|off",         _cmdKillFeed },
-    { "ff",     "friendlyfire",  "friendlyfire on|off",     _cmdFriendlyFire },
+    { "kf",     "killfeed",      "killfeed on|off",               _cmdKillFeed },
+    { "ff",     "friendlyfire",  "friendlyfire on|off",           _cmdFriendlyFire },
 
-    { "gmp",    "gamemodeproperty",  "gmp [cvar] {value}",  _cmdGameModeProperty },
-    { "rcon",   "rcon",          "rcon [passthru]",        _cmdRcon },
+    { "gmp",    "gamemodeproperty",  "gmp [cvar] {value}",        _cmdGameModeProperty },
+    { "rcon",   "rcon",          "rcon [passthru]",               _cmdRcon },
 
-    { "rr",     "roundrestart",  "roundrestart [now]",      _cmdRestart },
-//  { "re",     "roundend",      "roundend [now]",          _cmdEnd },
-    { "reboot", "reboot",        "reboot [now]",            _cmdReboot },
+    { "rr",     "roundrestart",  "roundrestart [now]",            _cmdRestart },
+//  { "re",     "roundend",      "roundend [now]",                _cmdEnd },
+    { "reboot", "reboot",        "reboot now|eor|eog|cancel",     _cmdReboot },
 
-    { "b",      "ban",           "ban [partial name] {reason}",  _cmdBan },
-    { "k",      "kick",          "kick [partial name] {reason}", _cmdKick },
+    { "b",      "ban",           "ban  [partial name] {reason}",  _cmdBan },
+    { "bt",     "bant",          "bant [partial name] {reason}",  _cmdBant },
+    { "k",      "kick",          "kick [partial name] {reason}",  _cmdKick },
 
-    { "bi",     "banid",         "banid [steamid64] {reason}", _cmdBanId },
-    { "ub",     "unbanid",       "unbanid [steamid64]",     _cmdUnBanId },
-    { "ki",     "kickid",        "kickid [steamid64] {reason}", _cmdKickId },
+    { "bi",     "banid",         "banid [steamid64] {reason}",    _cmdBanId },
+    { "bit",    "banidt",        "banidt [steamid64] {reason}",   _cmdBanIdt },
+    { "ub",     "unbanid",       "unbanid [steamid64]",           _cmdUnBanId },
+    { "ki",     "kickid",        "kickid [steamid64] {reason}",   _cmdKickId },
 
-    { "info",   "info",          "info",                    _cmdInfo },
-    { "al",     "allowin",       "allowin [partial name]",  _cmdAllowIn },
-    { "sp",     "spam",          "spam on|off",             _cmdSpam },
-    { "fast",   "fast",          "fast on|off",             _cmdFast },
+    { "info",   "info",          "info",                          _cmdInfo },
+    { "al",     "allowin",       "allowin [partial name]",        _cmdAllowIn },
+    { "sp",     "spam",          "spam on|off",                   _cmdSpam },
+    { "fast",   "fast",          "fast on|off",                   _cmdFast },
 
     { "a",      "ask",           "ask",                     _cmdAsk  },
     { "p",      "prep",          "prep",                    _cmdPrep },
@@ -510,8 +521,22 @@ int _cmdReboot( char *arg, char *arg2, char *passThru  )
 { 
     int errCode = 0;
 
-    if (0 == strcmp( "now", arg ))  
+    if (0 == strcmp( "now", arg ))   {
+        apiSaySys( "*Server is REBOOTING - please reocnnect" );
         apiServerRestart( "Admin Command" );
+    }
+    else if (0 == strcmp( "eog", arg ))  {
+        _queueReboot = REBOOT_EOG;
+        apiSaySys( "This server will reboot at end of this game" );
+    }
+    else if (0 == strcmp( "eor", arg ))  {
+        _queueReboot = REBOOT_EOR;
+        apiSaySys( "This server will reboot at end of this round" );
+    }
+    else if (0 == strcmp( "cancel", arg ))   {
+        if (_queueReboot != REBOOT_CANCEL) apiSaySys( "Commanded server reboot is cancelled." );
+        _queueReboot = REBOOT_CANCEL;
+    }
     else 
         errCode = 1;
 
@@ -531,6 +556,28 @@ int _cmdBanId( char *arg, char *arg2, char *passThru  )
     if ( 17==strlen( arg ) ) {
         if (NULL != strstr( arg, "765611" )) {
             snprintf( cmdOut, 256, "banid %s 0 \"%s\"", arg, _reason( passThru ) );
+            apiRcon( cmdOut, statusIn );
+            apiSay( statusIn );
+            errCode = 0;
+        }
+    }
+
+    if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
+
+    return errCode; 
+}
+
+// ===== "banidt [steamid]"
+// target may be offline (ISS ver 1.4+ banid rcon command)
+//
+int _cmdBanIdt( char *arg, char *arg2, char *passThru  ) 
+{ 
+    int errCode = 1;
+    char cmdOut[256], statusIn[256];
+
+    if ( 17==strlen( arg ) ) {
+        if (NULL != strstr( arg, "765611" )) {
+            snprintf( cmdOut, 256, "banid %s %d \"[Tempban] %s\"", arg, picladminConfig.tempBanMinutes, _reason( passThru ) );
             apiRcon( cmdOut, statusIn );
             apiSay( statusIn );
             errCode = 0;
@@ -586,7 +633,7 @@ int _cmdKickId( char *arg, char *arg2, char *passThru  )
 }
 
 // ===== "ban [partial-name]"
-// target must be online
+// target must be online - perm ban by partial name
 //
 int _cmdBan( char *arg, char *arg2, char *passThru  ) 
 { 
@@ -594,7 +641,29 @@ int _cmdBan( char *arg, char *arg2, char *passThru  )
     char cmdOut[256], statusIn[256], steamID[256];
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
-        snprintf( cmdOut, 256, "ban %s 0 \"%s\"", steamID, _reason( passThru) );
+        if ( (snprintf( cmdOut, 255, "ban %s 0 \"%s\"", steamID, _reason( passThru) )) < 0 )
+            logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdBan" );
+        apiRcon( cmdOut, statusIn );
+        apiSay( statusIn );
+        errCode = 0;
+    }
+
+    if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
+
+    return errCode; 
+}
+
+// ===== "bant [partial-name]"
+// target must be online - temp ban by partial name 
+//
+int _cmdBant( char *arg, char *arg2, char *passThru  ) 
+{ 
+    int errCode = 1;
+    char cmdOut[256], statusIn[256], steamID[256];
+    strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
+    if ( 0 != strlen( steamID ) ) {
+        if ( (snprintf( cmdOut, 255, "ban %s %d \"[Tempban] %s\"", steamID, picladminConfig.tempBanMinutes, _reason( passThru) )) < 0 )
+            logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdBan" );
         apiRcon( cmdOut, statusIn );
         apiSay( statusIn );
         errCode = 0;
@@ -614,7 +683,8 @@ int _cmdKick( char *arg, char *arg2, char *passThru )
     char cmdOut[256], statusIn[256], steamID[256];
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
-        snprintf( cmdOut, 256, "kick %s \"%s\"", steamID, _reason( passThru ) );
+        if ( snprintf( cmdOut, 255, "kick %s \"%s\"", steamID, _reason( passThru ) ) < 0)
+            logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdKick" );
         apiRcon( cmdOut, statusIn );
         apiSay( statusIn );
         errCode = 0;
@@ -644,7 +714,8 @@ int _cmdGameModeProperty( char *arg, char *arg2, char *passThru )
         if ( 0 == strlen( statusIn ) ) 
            apiSaySys( "GMP Readback Error");
         else {
-           snprintf( cmdOut, 256, "'%s' is set to '%s'", arg, statusIn );
+           if ( snprintf( cmdOut, 255, "'%s' is set to '%s'", arg, statusIn ) < 0 )
+               logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdGameModeProperty" );
            apiSaySys( cmdOut );
            errCode = 0;
         }
@@ -877,33 +948,38 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
     char *w, gameMode[80];
     int j;
 
+    if ( 0 == strlen( arg ) ) {
+        apiSaySys( "You must specify a map.  Type !maplist");
+        errCode = 1;
+    }
+    else {
+        // Look for "ins" (Insurgent) and "night" (Night lighting) modes.
+        //
+        if (NULL != strcasestr( passThru, " night" )) isNight = 1;
+        if (NULL != strcasestr( passThru, " ins"   )) isIns   = 1;
 
-    // Look for "ins" (Insurgent) and "night" (Night lighting) modes.
-    //
-    if (NULL != strcasestr( passThru, " night" )) isNight = 1;
-    if (NULL != strcasestr( passThru, " ins"   )) isIns   = 1;
+        // Look for optional gamemode:  checkpoint, checkpointhardcore, etc.
+        // Because new game mode may be added as a mod, this table must be 
+        // maintained in the config file.
+        //
+        j = 2;
+        strclr( gameMode );
+        while ( 1 == 1 ) {
+            w = getWord( passThru, j++, " " );
+            if ( w == NULL )       break;
+            if ( 0 == strlen( w )) break;
+            if ( apiIsSupportedGameMode( w ) ) {
+                strlcpy( gameMode, w, 80 );
+                break;
+            }
+        } 
 
-    // Look for optional gamemode:  checkpoint, checkpointhardcore, etc.
-    // Because new game mode may be added as a mod, this table must be 
-    // maintained in the config file.
-    //
-    j = 2;
-    strclr( gameMode );
-    while ( 1 == 1 ) {
-        w = getWord( passThru, j++, " " );
-        if ( w == NULL )       break;
-        if ( 0 == strlen( w )) break;
-        if ( apiIsSupportedGameMode( w ) ) {
-            strlcpy( gameMode, w, 80 );
-            break;
+        // change map
+        errCode = apiMapChange( arg, gameMode, isIns, isNight );
+
+        if ( errCode ) {
+            apiSaySys( "Map/mode/side not found" );
         }
-    } 
-
-    // change map
-    errCode = apiMapChange( arg, gameMode, isIns, isNight );
-
-    if ( errCode ) {
-        apiSaySys( "Map/mode/side not found" );
     }
     return errCode;
 }
@@ -933,8 +1009,8 @@ int _cmdMapList( char *arg, char *arg2, char *passThru )
                     exitF = 1;
                     break;
                 }
-                strncat( outBuf, v, 256 );
-                strncat( outBuf, " ", 256 );
+                strncat( outBuf, v, 255 );
+                strncat( outBuf, " ", 255 );
             }
             apiSaySys( "%s", outBuf );
         }
@@ -978,6 +1054,8 @@ int picladminInitConfig( void )
     cfsPtr cP;
     int i;
     char varArray[256];
+
+    _queueReboot = REBOOT_CANCEL;
 
     cP = cfsCreate( sissmGetConfigPath() );
 
@@ -1069,6 +1147,10 @@ int picladminInitConfig( void )
         replaceDoubleColonWithBell( picladminConfig.reason[i] );
     }
 
+    // Read the temp ban duration in minutes
+    //
+    picladminConfig.tempBanMinutes = (int) cfsFetchNum( cP, "picladmin.tempBanMinutes", 1440.0 );
+
     cfsDestroy( cP );
     return 0;
 }
@@ -1099,9 +1181,40 @@ static void _resetP2PVars( void )
     return ;
 }
 
-int picladminGameStartCB( char *strIn ) { _resetP2PVars(); return 0; }
-int picladminMapChangeCB( char *strIn ) { _resetP2PVars(); return 0; }
-int picladminGameEndCB( char *strIn )   { _resetP2PVars(); return 0; }
+
+
+//  ==============================================================================================
+//  picladminRoundEndCB
+//
+//  End of Game event processing
+// 
+int picladminRoundEndCB( char *strIn )  
+{
+    if ( _queueReboot == REBOOT_EOR ) {
+        _queueReboot = REBOOT_CANCEL;
+        apiSaySys( "*Server is REBOOTING - please reocnnect" );
+        apiServerRestart( "Admin Command" );
+    }
+    return 0; 
+}
+
+//  ==============================================================================================
+//  picladminGameEndCB
+//
+//  End of Game event processing
+// 
+int picladminGameEndCB( char *strIn )  
+{
+    _resetP2PVars(); 
+    if ( _queueReboot == REBOOT_EOG ) {
+        _queueReboot = REBOOT_CANCEL;
+        apiSaySys( "*Server is REBOOTING - please reocnnect" );
+        apiServerRestart( "Admin Command" );
+    }
+    return 0; 
+}
+
+
 int picladminRoundStartCB( char *strIn ) { _resetP2PVars(); return 0; }
 
 
@@ -1132,11 +1245,14 @@ int picladminClientAddCB( char *strIn ) { return 0; }
 int picladminClientDelCB( char *strIn ) { return 0; }
 int picladminInitCB( char *strIn ) { return 0; }
 int picladminRestartCB( char *strIn ) { return 0; }
-int picladminRoundEndCB( char *strIn ) { return 0; }
+
 int picladminCapturedCB( char *strIn ) { return 0; }
 int picladminShutdownCB( char *strIn ) { return 0; }
 int picladminClientSynthDelCB( char *strIn ) { return 0; }
 int picladminClientSynthAddCB( char *strIn ) { return 0; }
+
+int picladminGameStartCB( char *strIn ) { _resetP2PVars(); return 0; }
+int picladminMapChangeCB( char *strIn ) { _resetP2PVars(); return 0; }
 
 
 //  ==============================================================================================
@@ -1266,6 +1382,39 @@ int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdSt
     return parseError;
 }
 
+//  ==============================================================================================
+//  _commandParseRCON
+//
+//  Parse the log line 'LogRcon' 
+//  [2020.09.18-19.01.18:450][779]LogRcon: 127.0.0.1:44960 << !testcommand
+//
+int _commandParseFromRCON( char *strIn, int maxStringSize, char *clientGUID, char *cmdString  )
+{
+    int parseError = 1;
+    char *u, *v, *w;
+
+    strclr( clientGUID );
+    strclr( cmdString );
+
+    w = strstr( strIn, "<< " );
+    if ( w != NULL ) {
+        v = w + 3;
+        if ( v[0] != 0 ) {
+            if ( NULL != (u = strstr( v, picladminConfig.cmdPrefix ))) {
+                if ( u == v ) {       // cmdPrefix is the first character of say string...
+                    strlcpy( cmdString, u+strlen( picladminConfig.cmdPrefix ), maxStringSize );
+                    strTrimInPlace( cmdString );
+                    strlcpy( clientGUID, "00000000000000000", 1+LOGSTEAMIDSIZE );   // "root" ID
+                    parseError = 0;
+                    logPrintf( LOG_LEVEL_INFO, "picladmin", "RCON initiated command ::%s::[%s]::", strIn, cmdString );
+                }
+            }
+        }
+    }
+
+    return parseError;
+}
+
 
 //  ==============================================================================================
 //  picladminChatCB
@@ -1299,6 +1448,24 @@ int picladminChatCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  picladminRconCB
+//
+//  The main entry point callback routine to parse the log string and execute 
+//  admin command coming from RCON.
+//
+//
+int picladminRconCB( char *strIn )
+{
+    char clientGUID[1024], cmdString[1024];
+
+    if ( 0 == _commandParseFromRCON( strIn, 1024, clientGUID, cmdString )) {    // parse for valid format
+        _commandExecute( cmdString, clientGUID ) ;                     // execute the command
+    }
+
+    return 0;
+
+}
 
 //  ==============================================================================================
 //  picladminInstallPlugin
@@ -1335,6 +1502,7 @@ int picladminInstallPlugin( void )
     eventsRegister( SISSM_EV_CLIENT_ADD_SYNTH,     picladminClientSynthAddCB );
     eventsRegister( SISSM_EV_CLIENT_DEL_SYNTH,     picladminClientSynthDelCB );
     eventsRegister( SISSM_EV_CHAT,                 picladminChatCB );
+    eventsRegister( SISSM_EV_RCON,                 picladminRconCB );
 
     return 0;
 }

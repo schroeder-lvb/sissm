@@ -152,6 +152,12 @@ static int _localSay( const char * format, ... )
 {
     static char buffer[API_T_BUFSIZE];
     int errCode = 0;
+    char *v;
+
+    // a wedge code to disable this plugin if non-Checkpoint mode is running
+    //
+    v = apiGetServerMode();
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return 0;
 
     if ( 0 == _localMute ) {
         va_list args;
@@ -161,6 +167,27 @@ static int _localSay( const char * format, ... )
         va_end (args);
     }
     return errCode;
+}
+
+//  ==============================================================================================
+//  _localKickOrBan
+//
+//  Wedge for apiKicOrBan - with local disable capability.
+//
+static int _localKickOrBan( int isBan, char *playerGUID, char *reason )
+{
+    int errCode = 0;
+    char *v;
+
+    // a wedge code to disable this plugin if non-Checkpoint mode is running
+    //
+    v = apiGetServerMode();
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return 0;
+
+    // this will kick a player "for reals"
+    //
+    errCode = apiKickOrBan( isBan, playerGUID, reason );
+    return( errCode );
 }
 
 //  ==============================================================================================
@@ -197,7 +224,12 @@ static int _localSayThrottled( const char * format, ... )
     static char buffer[API_T_BUFSIZE];
     int errCode = 0, i, suppressPrint;
     unsigned long checksum, timeNow;
-   
+    char *v;
+
+    // a wedge code to disable this plugin if non-Checkpoint mode is running 
+    //
+    v = apiGetServerMode();
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return 0;
 
     if ( throttleIndex == -1 )  {
          memset( &throttle[0][0], 0, sizeof(long)*THROTTLE_HISTO*2 );
@@ -355,7 +387,7 @@ static void _capRusherPeriodicCheck( void )
                             _localSay( "'%s' auto-kicked for early breach",  territorialRushers[i].playerName );
                             logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for early breach", territorialRushers[i].playerName, playerGUID );
 #if (SISSM_TEST == 0)
-                            apiKickOrBan( 0, playerGUID, piantirushConfig.earlyBreachTimeKickMessage );
+                            _localKickOrBan( 0, playerGUID, piantirushConfig.earlyBreachTimeKickMessage );
 #endif
 
                             // remove the player from cached table in case another player connects and the
@@ -380,7 +412,7 @@ static void _capRusherPeriodicCheck( void )
                         _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
                         logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for excess objective tapping", territorialRushers[i].playerName, playerGUID );
 #if (SISSM_TEST == 0)
-                        apiKickOrBan( 0, playerGUID, piantirushConfig.earlyBreachTapsKickMessage );
+                        _localKickOrBan( 0, playerGUID, piantirushConfig.earlyBreachTapsKickMessage );
 #endif
                         // remove the player from cached table in case another player connects and the
                         // system re-uses the same character ID
@@ -410,8 +442,14 @@ static void _captureSpeed( int isSlow )
 {
     int isSlowCopy;
     isSlowCopy = isSlow;
+    char *v;
 
+    // a wedge code to disable this plugin if non-Checkpoint mode is running
+    //
+    v = apiGetServerMode();
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return;
 
+    
     if ( apiPlayersGetCount() <=  piantirushConfig.nPlayerExemption )
         isSlowCopy = 0;
 
@@ -1152,7 +1190,7 @@ int piantirushInitConfig( void )
     piantirushConfig.lockIntervalSec = (int)            
         cfsFetchNum( cP, "piantirush.lockIntervalSec", 210 ); 
     strlcpy( piantirushConfig.lockPrompt,               
-        cfsFetchStr( cP, "piantirush.lockPrompt", "Capture locked until 11:30 on ountdown " ), CFS_FETCH_MAX);
+        cfsFetchStr( cP, "piantirush.lockPrompt", "Capture is locked until notified" ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.lockObjectiveCaptureTime, 
         cfsFetchStr( cP, "piantirush.lockObjectiveCaptureTime", "210" ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.lockObjectiveSpeedup,     
@@ -1179,7 +1217,7 @@ int piantirushInitConfig( void )
     strlcpy( piantirushConfig.earlyDestroyKickMessage,     // 'reason' displayed to kicked player 
         cfsFetchStr( cP, "piantirush.earlyDestroyKickMessage", "Auto-kicked for Unauthorized early cache destruction" ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.earlyDestroyPlayerRequest,     // command typed by players to request early destroy
-        cfsFetchStr( cP, "piantirush.earlyDestroyPlayerRequest", "aa ff pp 00 11 22 33 44 ask req" ), CFS_FETCH_MAX);
+        cfsFetchStr( cP, "piantirush.earlyDestroyPlayerRequest", "aa ff 00 11 ask req" ), CFS_FETCH_MAX);
 
     piantirushConfig.earlyDestroyTolerance = (int)          // do not kick players if # seconds prior to timer expiry
         cfsFetchNum( cP, "piantirush.earlyDestroyTolerance", 10 );
@@ -1189,15 +1227,13 @@ int piantirushInitConfig( void )
     piantirushConfig.earlyBreachSpeedup  = (int) cfsFetchNum( cP, "piantirush.earlyBreachSpeedup", 90 );
     piantirushConfig.earlyBreachMaxTime  = (int) cfsFetchNum( cP, "piantirush.earlyBreachMaxTime", 12 );
     piantirushConfig.earlyBreachMaxTaps  = (int) cfsFetchNum( cP, "piantirush.earlyBreachMaxTaps", 7 );
+
     strlcpy( piantirushConfig.earlyBreachPlayerRequest,
-        cfsFetchStr( cP, "piantirush.earlyBreachPlayerRequest", 
-        "aa ff pp 00 11 22 33 44 ask req"), CFS_FETCH_MAX);     
+        cfsFetchStr( cP, "piantirush.earlyBreachPlayerRequest", "aa ff 00 11 ask req"), CFS_FETCH_MAX);     
     strlcpy( piantirushConfig.earlyBreachTapsKickMessage,
-        cfsFetchStr( cP, "piantirush.earlyBreachTapsKickMessage", 
-        "Auto-kicked for excessive number of nuisance objective taps"), CFS_FETCH_MAX);   
+        cfsFetchStr( cP, "piantirush.earlyBreachTapsKickMessage", "Auto-kicked for excessive number of nuisance objective taps"), CFS_FETCH_MAX);   
     strlcpy( piantirushConfig.earlyBreachTimeKickMessage,
-        cfsFetchStr( cP, "piantirush.earlyBreachTimeKickedMessage", 
-        "Auto-kicked for early territorial zone breach"), CFS_FETCH_MAX);   
+        cfsFetchStr( cP, "piantirush.earlyBreachTimeKickedMessage", "Auto-kicked for early territorial zone breach"), CFS_FETCH_MAX);   
 
     strlcpy( piantirushConfig.breachOkPrompt,     // prompt authorizing players ok to breach
         cfsFetchStr( cP, "piantirush.breachOkPrompt", "Breach is AUTHORIZED if team concurs" ), CFS_FETCH_MAX);
@@ -1227,6 +1263,9 @@ int piantirushInstallPlugin( void )
     // 
     piantirushInitConfig();
 
+    // if plugin is disabled in the .cfg file then do not activate
+    //
+    if ( piantirushConfig.pluginState == 0 ) return 0;
 
     // Setup alarms
     //
@@ -1244,10 +1283,6 @@ int piantirushInstallPlugin( void )
 
     kickArmed = 0;
 
-
-    // if plugin is disabled in the .cfg file then do not activate
-    //
-    if ( piantirushConfig.pluginState == 0 ) return 0;
 
     // Install Event-driven CallBack hooks so the plugin gets
     // notified for various happenings.  A complete list is here,
