@@ -117,7 +117,7 @@ int rdrvSend( rdrvObj *rPtr, int msgtype, char *rconcmd )
     strlcpy( &buf[12], rconcmd, BUFSIZE_T-12 );
     buf[ strlen( rconcmd ) + 13 ] = 0 ;
     buf[ strlen( rconcmd ) + 14 ] = 0 ;
-    outlen = strlen( rconcmd ) + 14;
+    outlen = (int) strlen( rconcmd ) + 14;
     buf[0] = outlen - 4;
     buf[4] = 1; buf[5] = 2; buf[6] = 3; buf[7] = 4;
 
@@ -199,7 +199,7 @@ int rdrvConnect( rdrvObj *rPtr )
     // Create a socket
     //
 #ifdef _WIN32
-    rPtr->sockfd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+    rPtr->sockfd = (int) socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
 #else 
     rPtr->sockfd = socket( AF_INET, SOCK_STREAM, 0 );
 #endif

@@ -62,6 +62,7 @@ void logPrintf( int logLevel, char *ident, const char * format, ... )
     struct tm* tm_info;
     static char buffer[LOG_MAXSTRINGSIZE];
     static FILE *fpw = NULL;
+    int i, testEOL, bufLen;
 
     time( &timer );
     tm_info = localtime( &timer );
@@ -78,6 +79,18 @@ void logPrintf( int logLevel, char *ident, const char * format, ... )
     va_list args;
     va_start( args, format );
     vsnprintf( buffer, LOG_MAXSTRINGSIZE, format, args );
+
+    // If a there is a embedded \n or \r in the input string then 
+    // replace it with <space> 
+    // 
+    if ( 0 != (bufLen = ( int ) strlen( buffer )) ) {
+        for ( i = 0; i<bufLen; i++ ) {
+            testEOL = buffer[i];
+            if ( ( testEOL == 0x0d ) || ( testEOL == 0x0c ) ) {
+                buffer[i] = 0x20;    
+            }
+        }
+    }
 
     if ( fpw != NULL ) {
         if ( logLevel <= _logLevel ) { 

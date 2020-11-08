@@ -136,7 +136,7 @@ static char *_cfsStrWash( char *w )
     }
 
     // process the exception "empty string" case
-    if (0 != ( i = strlen( retStr )))
+    if (0 != ( i = (int) strlen( retStr )))
         if ( retStr[i-1] == 34 ) retStr[i-1] = 0;
 
     return (retStr);

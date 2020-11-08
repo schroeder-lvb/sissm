@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 // #include <unistd.h>
 // #include <time.h>
 // #include <stdarg.h>
@@ -49,6 +50,8 @@ static struct {
 
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
 
+    int utf8Encoding;                      // if true, generate utf-8 encoding
+
     char webFileName[CFS_FETCH_MAX];       // name of HTML output
     unsigned int  updateIntervalSec;       // forced periodic update rate (even if same data)
     int  updateOnChange;                   // update only when changed
@@ -81,6 +84,8 @@ int piwebgenInitConfig( void )
 
     // read "piwebgen.pluginstate" variable from the .cfg file
     piwebgenConfig.pluginState = (int) cfsFetchNum( cP, "piwebgen.pluginState", 0.0 );  // disabled by default
+
+    piwebgenConfig.utf8Encoding = (int) cfsFetchNum( cP, "piwebgen.utf8Encoding", 1.0 );  // enabled by default
 
     // read "piwebgen.StringParameterExample" variable from the .cfg file
     strlcpy( piwebgenConfig.webFileName,  cfsFetchStr( cP, "piwebgen.webFileName",  "sissm.html" ), CFS_FETCH_MAX );
@@ -138,10 +143,29 @@ static char *_htmlSafeFilter( char *strIn )
     static char strOut[ PIWEBGEN_MAXROSTER ];
 
     strlcpy( strOut, strIn, PIWEBGEN_MAXROSTER );
-    for (i=0; i<strlen( strOut ); i++) {
-        if ( strOut[ i ] == '<' ) strOut[ i ] = '[';
-        else if ( strOut[ i ] == '>' ) strOut[ i ] = ']';
+
+    // replace metatag or escape-sequence characters
+    // with something benign (antihack)
+    //
+    for (i=0; i< (int) strlen( strOut ); i++) {
+        switch (strOut[i]) {
+            case '<':   strOut[i] = '[';  break;
+            case '>':   strOut[i] = ']';  break;
+            case '/':   case '\\':  strOut[i] = '|';  break;
+        }
     }
+
+    // If utf-8 encoding is NOT declared, then assume ascii.
+    // replace any non-printable encodings wtih asterisks.
+    // 
+    if ( 0 == piwebgenConfig.utf8Encoding ) {
+        for (i=0; i< (int) strlen( strOut ); i++) {
+            if ( strOut[i] != '\011' )  {
+                if (!isprint( (int) strOut[i] )) strOut[i] = '*';
+            }
+        }
+    }
+
     return( strOut );
 }
 
@@ -179,6 +203,12 @@ static int _genWebFile( void )
         //
 	if ( 0 != piwebgenConfig.autoRefreshHeader ) {
             fprintf( fpw, "<meta http-equiv=\"refresh\" content=\"14\" /> \n" );
+        }
+
+        // Option for UTF-8 encoding extended character sets
+        //
+	if ( 0 != piwebgenConfig.utf8Encoding ) {
+            fprintf( fpw, "<meta charset=\"utf-8\"> \n" );
         }
 
         // Displaying the server name - from sissm.cfg file, or RCON

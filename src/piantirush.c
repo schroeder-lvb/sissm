@@ -174,7 +174,7 @@ static int _localSay( const char * format, ... )
 //
 //  Wedge for apiKicOrBan - with local disable capability.
 //
-static int _localKickOrBan( int isBan, char *playerGUID, char *reason )
+static int _localKickOrBan( int isBan, char *optionalPlayerName, char *playerGUID, char *reason )
 {
     int errCode = 0;
     char *v;
@@ -186,7 +186,14 @@ static int _localKickOrBan( int isBan, char *playerGUID, char *reason )
 
     // this will kick a player "for reals"
     //
-    errCode = apiKickOrBan( isBan, playerGUID, reason );
+    if (0 != strlen( playerGUID )) 
+        errCode |= apiKickOrBan( isBan, playerGUID, reason );
+
+    // redundancy
+    //
+    if ( 0 != strlen( optionalPlayerName )) 
+        errCode |= apiKick( optionalPlayerName, reason );
+
     return( errCode );
 }
 
@@ -200,7 +207,7 @@ static unsigned long _fastChecksum( char *strIn )
     int i;
     register unsigned int checksum = 0L;
     register unsigned char *p;
-    int len = strlen( strIn );
+    int len = (int) strlen( strIn );
 
     p = (unsigned char *) strIn;
     if ( len > 255 ) len = 255;
@@ -216,7 +223,7 @@ static unsigned long _fastChecksum( char *strIn )
 //
 
 #define THROTTLE_HISTO  (128) 
-static long throttle[THROTTLE_HISTO][2];
+static unsigned long throttle[THROTTLE_HISTO][2];
 static int  throttleIndex = -1;
 
 static int _localSayThrottled( const char * format, ... )
@@ -324,6 +331,8 @@ static void _capRusherEnterZone( char *playerCharID, char *playerName )
 
         // territorialRushers[i].playerEarlyBreachCumulativeTime - don't update!
         // territorialRushers[i].playerIsInZone  - don't update!
+
+        logPrintf( LOG_LEVEL_DEBUG, "piantirush", "'%s' [%s] early breach detected.", playerName, playerCharID ); 
     }
     else {
         logPrintf(LOG_LEVEL_CRITICAL, "piantirush", "**Internal error - territorialRusher table full" );
@@ -352,6 +361,7 @@ static void _capRusherExitZone( char *playerCharID )
     if ( foundIndex != -1 ) {
         i = foundIndex;
         territorialRushers[i].playerIsInZone = 0;
+        logPrintf( LOG_LEVEL_DEBUG, "piantirush", "[%s] early breach area exited.", playerCharID );  
     }
     else {
         logPrintf(LOG_LEVEL_CRITICAL, "piantirush", "**Internal Error -trying to remove nonexistent player from territorialRusher" );
@@ -387,7 +397,7 @@ static void _capRusherPeriodicCheck( void )
                             _localSay( "'%s' auto-kicked for early breach",  territorialRushers[i].playerName );
                             logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for early breach", territorialRushers[i].playerName, playerGUID );
 #if (SISSM_TEST == 0)
-                            _localKickOrBan( 0, playerGUID, piantirushConfig.earlyBreachTimeKickMessage );
+                            _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTimeKickMessage );
 #endif
 
                             // remove the player from cached table in case another player connects and the
@@ -412,7 +422,7 @@ static void _capRusherPeriodicCheck( void )
                         _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
                         logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for excess objective tapping", territorialRushers[i].playerName, playerGUID );
 #if (SISSM_TEST == 0)
-                        _localKickOrBan( 0, playerGUID, piantirushConfig.earlyBreachTapsKickMessage );
+                        _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTapsKickMessage );
 #endif
                         // remove the player from cached table in case another player connects and the
                         // system re-uses the same character ID
@@ -1051,8 +1061,9 @@ int piantirushChatCB( char *strIn )
         if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" ))  {
             if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatLine ))) {
                 if ( NULL != strstr( piantirushConfig.earlyDestroyPlayerRequest, chatLine )) {
-                    alarmReset( rPtr, 2 );        // give answer 2 seconds later for cosmetics 
-
+                    // check if this player is alive
+                    if ( apiIsPlayerAliveByGUID( clientID ) )
+                        alarmReset( rPtr, 2 );        // give answer 2 seconds later for cosmetics 
                 }
             }
         }
@@ -1062,7 +1073,9 @@ int piantirushChatCB( char *strIn )
         if ( NULL != strstr( rosterGetObjectiveType(), "Captur" ))  {
             if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatLine ))) {
                 if ( NULL != strstr( piantirushConfig.earlyBreachPlayerRequest, chatLine )) {
-                    alarmReset( bPtr, 2 );        // give answer 2 seconds later for cosmetics  
+                    // check if this player is alive
+                    if ( apiIsPlayerAliveByGUID( clientID ) )
+                        alarmReset( bPtr, 2 );        // give answer 2 seconds later for cosmetics  
                 }
             }
         }

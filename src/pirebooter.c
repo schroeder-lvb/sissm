@@ -59,6 +59,7 @@ static struct {
     unsigned long int  rebootDeadSec;
     unsigned long int  rebootHungSec;
     char rebootDailyHM[ CFS_FETCH_MAX ];      // mandatory and forced daily reboot in 00:00 format
+    unsigned long int  rebootOnEOR;         // for "busy" reboot, 1=reboot on EOR, 0=reboot on EOG
 
     unsigned long int  timeLastReboot;                                       // when last rebooted
     unsigned long int  timeFirstIdle;                                 // when first saw '0' player
@@ -89,6 +90,8 @@ int pirebooterInitConfig( void )
     pirebooterConfig.rebootDeadSec = (long int) cfsFetchNum( cP, "pirebooter.rebootdeadsec", (double)    5*60 );
     pirebooterConfig.rebootHungSec = (long int) cfsFetchNum( cP, "pirebooter.reboothungsec", (double)   20*60 );
 
+    pirebooterConfig.rebootOnEOR   = (long int) cfsFetchNum( cP, "pirebooter.rebootoneor",   (double)       0 );
+
     // read the daily reboot time, e.g., "19:03".  Add colon "19:03:" so that it can be pattern
     // checked quickly against HH:MM:SS system clockstring and not get mistaken for MM:SS check.
     //
@@ -101,7 +104,7 @@ int pirebooterInitConfig( void )
     pirebooterConfig.logUpdateSec  = (int)      cfsFetchNum( cP, "pirebooter.logUpdateSec",  (double)      60 );
 
     strlcpy( pirebooterConfig.rebootWarning, 
-        cfsFetchStr( cP, "pirebooter.rebootWarning", "Server restart at end of game - up in 60sec" ), CFS_FETCH_MAX);
+        cfsFetchStr( cP, "pirebooter.rebootWarning", "Server restart at end of round - up in 60sec" ), CFS_FETCH_MAX);
     strlcpy( pirebooterConfig.rebootDaily, 
         cfsFetchStr( cP, "pirebooter.rebootDaily", "** Server will reboot shortly - up in 60sec" ), CFS_FETCH_MAX);
 
@@ -197,7 +200,7 @@ int pirebooterGameStartCB( char *strIn )
         pirebooterConfig.timeFirstIdle    = 0L;
         pirebooterConfig.timeLastProgress = apiTimeGet();
         logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
-        apiServerRestart( "Uptime>Limit" );     // since the server is empty, reboot right away
+        apiServerRestart( "Uptime Limit Reboot" );     // since the server is empty, reboot right away
     }
     return 0;
 }
@@ -216,13 +219,16 @@ int pirebooterGameEndCB( char *strIn )
     // Check if the server has been running long, and reboot only at
     // end-of-game to be least intrusive.
     // 
-    if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
-        pirebooterConfig.timeLastReboot = apiTimeGet();
-        pirebooterConfig.timeFirstIdle  = 0L;
-        pirebooterConfig.timeLastProgress = apiTimeGet();
-        logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
-        apiServerRestart( "Uptime>Limit" );     // since the server is empty, reboot right away
+    if (( !pirebooterConfig.rebootOnEOR )) {   // check if reboot is at end of round or end of game
+        if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
+            pirebooterConfig.timeLastReboot = apiTimeGet();
+            pirebooterConfig.timeFirstIdle  = 0L;
+            pirebooterConfig.timeLastProgress = apiTimeGet();
+            logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to BUSY timer" );
+            apiServerRestart( "Uptime Limit Reboot" );     // since the server is empty, reboot right away
+        }
     }
+
     return 0;
 }
 
@@ -254,6 +260,19 @@ int pirebooterRoundEndCB( char *strIn )
 {
     pirebooterConfig.timeLastProgress = apiTimeGet();
     pirebooterConfig.timeFirstIdle  = 0L;
+
+    // If the option is enabled to reboot at end-of-round instead of end-of-game,
+    // this block of code will execute.
+    //
+    if (( pirebooterConfig.rebootOnEOR )) {
+        if (( pirebooterConfig.timeLastReboot + pirebooterConfig.rebootBusySec ) < apiTimeGet() ) {
+            pirebooterConfig.timeLastReboot   = apiTimeGet();
+            pirebooterConfig.timeFirstIdle    = 0L;
+            pirebooterConfig.timeLastProgress = apiTimeGet();
+            logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot EOR due to BUSY timer" );
+            apiServerRestart( "Uptime Limit Reboot" );     // since the server is empty, reboot right away
+        }
+    }
     return 0;
 }
 
@@ -326,7 +345,7 @@ int pirebooterPeriodicCB( char *strIn )
                 pirebooterConfig.timeFirstIdle  = 0L;
                 pirebooterConfig.timeLastProgress = apiTimeGet();
                 logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to IDLE timer" );
-                apiServerRestart( "Idle>Limit" );     // since the server is empty, reboot right away
+                apiServerRestart( "Idle>Limit Reboot" );     // since the server is empty, reboot right away
 	    }
 	}
     }
@@ -346,7 +365,7 @@ int pirebooterPeriodicCB( char *strIn )
             pirebooterConfig.timeFirstIdle    = 0L;
             pirebooterConfig.timeLastProgress = apiTimeGet();
             logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to DEAD timer" );
-	    apiServerRestart( "Dead Detect" );
+	    apiServerRestart( "Dead Detect Reboot" );
         }
     }
 
@@ -357,7 +376,7 @@ int pirebooterPeriodicCB( char *strIn )
         pirebooterConfig.timeFirstIdle    = 0L;
         pirebooterConfig.timeLastProgress = apiTimeGet();
         logPrintf( LOG_LEVEL_INFO, "pirebooter", "Reboot due to HUNG timer" );
-        apiServerRestart( "Hung Detect" );
+        apiServerRestart( "Hung Detect Reboot" );
     }
 
     // Log some status for debug and monitoring 

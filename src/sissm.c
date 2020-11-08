@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.7 20200926-0700 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.8 20201107-1330 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.7 20200926-0700"
+#define VERSION    "SISSM v0.2.8 20201107-1330"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -615,7 +615,7 @@ int sissmMainLoop( void )
         // 3. periodic callbacks and alarms processing
 	// currently at 1.0Hz polling rate
         //   
-        if ( timePrev != time( NULL ) ) {
+        if ( timePrev != (unsigned long int) time( NULL ) ) {
 	    alarmDispatch();
             eventsDispatch( "~PERIODIC~" );
             timePrev = (unsigned int) time( NULL );

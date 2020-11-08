@@ -127,7 +127,7 @@ static unsigned int _botScale( unsigned int currHuman,
     unsigned int maxHuman, unsigned int minHuman )
 {
     int errCode = 0;
-    int _currHuman = currHuman;
+    unsigned int _currHuman = currHuman;
     double slope;
     unsigned int currBots = 1;
 
@@ -149,7 +149,7 @@ static unsigned int _botScale( unsigned int currHuman,
         // y = f(x) = ((y1-y0) / (x1-x0)) * (x-x0) + y1;
         //
         slope = (( (double) maxBots - (double) minBots ) / ( (double) maxHuman - (double) minHuman ));
-        currBots = slope * ( _currHuman - minHuman ) + minBots;
+        currBots = (unsigned int ) (slope * ( _currHuman - minHuman ) + minBots);
     }
 
     // on error, this routine returns 'safe' bot value of '1'

@@ -22,6 +22,8 @@ extern char *apiGameModePropertyGet( char *gameModeProperty );
 extern int   apiSay( const char * format, ... );
 extern int   apiSaySys( const char * format, ... );
 extern int   apiKickOrBan( int isBan, char *playerGUID, char *reason );
+extern int   apiKick( char *playerNameOrGUID, char *reason );
+extern int   apiKickAll( char *reason );
 extern int   apiRcon( char *commandOut, char *statusIn );
 extern int   apiPlayersGetCount( void );
 extern char *apiPlayersRoster( int infoDepth, char *delimeter );
@@ -34,6 +36,7 @@ extern unsigned long apiTimeGet( void );
 extern char *apiTimeGetHuman( unsigned long timeMark );
 extern unsigned long apiGetLastRosterTime( void );
 extern int   apiBadNameCheck( char *nameIn );
+
 
 extern int   apiMapcycleRead( char *mapcycleFilePath );
 extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight );
@@ -78,9 +81,12 @@ extern char *apiGetLastRebootReason( void );
 
 // for translating CharacterID to/from Player Name
 //
+extern int   apiBPIsActive( void );
 extern char *apiNameToCharacter( char *playerName );
 extern char *apiCharacterToName( char *characterID );
-extern int apiBPPlayerCount( void );
+extern int   apiBPPlayerCount( void );
+extern int   apiIsPlayerAliveByName( char *playerName );
+extern int   apiIsPlayerAliveByGUID( char *playerGUID );
 
 // for looking up objective letter 'A' 'B' 'C'... from cached objective
 // name instead of parsing the names of the objective  (3rd party maps)
