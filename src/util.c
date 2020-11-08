@@ -57,6 +57,7 @@ char *computeElapsedTime( unsigned long timeMark, unsigned long timeNow )
 //  getWord
 //
 //  Returns n-th word from a string using specified delimiter(s).  First word is wordIndex=0.
+//  NULL is returned for empty input, or when index exceeds number of words (end of string).
 //  
 //
 #define BUFSIZE ( 16*1024 )
@@ -123,7 +124,7 @@ int foundMatch( char *line, char *table[], int caseConvert )
 void strTrimInPlace(char * s)
 {
     char * p = s;
-    int l = strlen( p );
+    int l = (int) strlen( p );
 
     while ( isspace(p[l - 1]) )  p[--l] = 0;
     while ( * p && isspace(*p) ) ++p, --l;
@@ -139,7 +140,7 @@ void strTrimInPlace(char * s)
 //
 void strClean( char *strIn )
 {
-    int w = strlen( strIn );
+    int w = (int) strlen( strIn );
     
     if ( w > 0 ) {
         if ( strIn[ w-1 ] == 0x0d ) strIn[ w-1 ] = 0;
@@ -153,7 +154,7 @@ void strClean( char *strIn )
 //
 //  In-line remove a substring, if found
 //
-void strRemoveInPlace(char * s, const char *toremove )
+void strRemoveInPlace(char * s, char *toremove )
 {
     while ( NULL != ( s = strcasestr( s, toremove ) ))
         memmove( s, s+strlen( toremove ), 1+strlen( s+strlen( toremove ) ));
@@ -182,7 +183,7 @@ void strToLowerInPlace(char * s)
 {
     register int i;
     int j;
-    j = strlen( s );
+    j = (int) strlen( s );
     for (i=0; i<j; i++) s[i] = tolower(s[i]);
     return;
 }
@@ -241,7 +242,7 @@ void  replaceDoubleColonWithBell( char *strInOut )
     int i;
 
     if ( strlen( strInOut ) > 1  ) {
-        for (i=0; i<strlen( strInOut )-1; i++) {
+        for (i=0; i< (int)strlen( strInOut )-1 ; i++) {
             if (( strInOut[i] == ':' ) && ( strInOut[i+1] == ':'))  {
                 strInOut[i] = '\007';
                 strInOut[i+1] = '\007';

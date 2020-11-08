@@ -226,7 +226,7 @@ static char *_reason( char *rawLine )
     // admin at console.  
     //
     p3 = & rawLine[ strlen( rawLine ) ];
-    for (i=0; i<strlen( rawLine ); i++) {
+    for (i=0; i< (int) strlen( rawLine ); i++) {
         if ( rawLine[i] == ' ' ) spaceCount++;
         if ( spaceCount == 2 ) {
             p3 = & rawLine[ i+1 ];
@@ -251,7 +251,7 @@ static char *_reason( char *rawLine )
 
     // replace double quotes with a single quote
     //
-    for ( i=0; i<strlen(outReason); i++ ) {
+    for ( i=0; i< (int) strlen(outReason); i++ ) {
         if ( outReason[i] == 0x22 ) outReason[i] = 0x27;
     }
 
@@ -522,8 +522,8 @@ int _cmdReboot( char *arg, char *arg2, char *passThru  )
     int errCode = 0;
 
     if (0 == strcmp( "now", arg ))   {
-        apiSaySys( "*Server is REBOOTING - please reocnnect" );
-        apiServerRestart( "Admin Command" );
+        apiSaySys( "*Server is REBOOTING - please reconnect" );
+        apiServerRestart( "Server Admin Reboot" );
     }
     else if (0 == strcmp( "eog", arg ))  {
         _queueReboot = REBOOT_EOG;
@@ -1123,8 +1123,8 @@ int picladminInitConfig( void )
     //
     picladminConfig.botMaxAllowed = (int) cfsFetchNum( cP, "picladmin.botMaxAllowed", 60.0 );
     picladminConfig.botMinDefault = (int) cfsFetchNum( cP, "picladmin.botMinDefault",  6.0 );
-    if ( picladminConfig.botMaxAllowed < 2.0 ) picladminConfig.botMaxAllowed = 4.0;
-    if ( picladminConfig.botMinDefault < 2.0 ) picladminConfig.botMinDefault = 2.0;
+    if ( picladminConfig.botMaxAllowed < 2 ) picladminConfig.botMaxAllowed = 4;
+    if ( picladminConfig.botMinDefault < 2 ) picladminConfig.botMinDefault = 2;
 
     // text to show in-game for !ask, !prep, and !warn
     //
@@ -1192,8 +1192,8 @@ int picladminRoundEndCB( char *strIn )
 {
     if ( _queueReboot == REBOOT_EOR ) {
         _queueReboot = REBOOT_CANCEL;
-        apiSaySys( "*Server is REBOOTING - please reocnnect" );
-        apiServerRestart( "Admin Command" );
+        apiSaySys( "*Server is REBOOTING - please reconnect" );
+        apiServerRestart( "Server Admin Reboot" );
     }
     return 0; 
 }
@@ -1208,8 +1208,8 @@ int picladminGameEndCB( char *strIn )
     _resetP2PVars(); 
     if ( _queueReboot == REBOOT_EOG ) {
         _queueReboot = REBOOT_CANCEL;
-        apiSaySys( "*Server is REBOOTING - please reocnnect" );
-        apiServerRestart( "Admin Command" );
+        apiSaySys( "*Server is REBOOTING - please reconnect" );
+        apiServerRestart( "Server Admin Reboot" );
     }
     return 0; 
 }

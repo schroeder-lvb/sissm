@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Compiling SISSM from Source:  Windows
-JS Scheorder - last revised:  2019.10.08 
+JS Scheorder - last revised:  2020.10.06
 =====================
 
 1) Download and install Visual Studio
@@ -39,3 +39,8 @@ JS Scheorder - last revised:  2019.10.08
 
 
 
+---------------- 
+Addendum
+----------------
+
+For making Static library of Windows DLLs, replace /MD flag with /MT.

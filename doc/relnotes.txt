@@ -1,3 +1,33 @@
+Beta 02.8 (0.2.8) 20201107
+
+    (** see sissm.cfg changes)
+
+    Fixed a bug where !map failed to change to insurgency-side or night by "!map mapname ins"
+    Added option to disable list of two-letter-commands issued by dead-players (e.g., breach/blow) **
+    Added redundant code to antirush that fails to autokick some players 
+    Added utf-8 encoding directive for piwebgen, allowing International chars to be displayed **
+    Added two entries '77' and '88' to pitacnomic  **
+    Added list of two-letter-codes that cannot be issued by dead players in spec **
+    Added the option to reboot on end-of-round instead of end-of-game for server reboot exceeding max time. **
+
+    sissm.cfg additions:
+
+        piwebgen.utf8Encoding   1                     // enable utf-8 encoding (international chars)
+
+        pitacnomic.shorts[7] "77::Resupplying/Reloading - Cover me!!"
+        pitacnomic.shorts[8] "88::Going back for Resupply - Standby one"
+
+        pitacnomic.livePlayersOnly "00 11 22 33 44 55 66 77 88 99 aa pp rr ll mm"
+
+        pirebooter.rebootOnEOR  0                 // for rebootBusy reboot at end of 0=game, 1=round
+
+    Minor/Internal:
+
+        pirebooter.c: Corrected typo "reconnect"
+        Log.c: Added filter to sissm.log so CR and LF will be replaced by <Space>
+        Broad code cleanup to address strict type checking warnings under both gcc and msvc compilers
+        Added "apiKickAll" method to be called prior to server reboot/restart.
+
 Beta 02.7 (0.2.7) 20200926 
 
     Changes:

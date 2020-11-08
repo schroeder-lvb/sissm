@@ -62,6 +62,8 @@
 static rdrvObj *_rPtr = NULL;                    // RCON driver handle - interface to game server
 static alarmObj *_apiPollAlarmPtr  = NULL;      // used to periodically poll roster (listplayers)
 
+static int _charTrackingActive = 0;       // is character tracking is enalbed for Insurgency.log?
+
 //  Store string concatenated roster for two consecutive iterations - previous & current.
 //  The difference produces player connection and disconnection status
 //  
@@ -611,6 +613,18 @@ int _apiBPCharInitCB( char *strIn )
 }
 
 //  ==============================================================================================
+//  apiBPIsActive
+// 
+//  True if server operator has enabled the character tracking in Insurgency.log file
+// 
+//
+int apiBPIsActive( void )
+{  
+    return ( _charTrackingActive );
+}
+
+
+//  ==============================================================================================
 //  apiBPPlayerCount
 //
 //  Count how many human player BPChars are active in the table.
@@ -630,9 +644,6 @@ int apiBPPlayerCount( void )
 
     return countPlayers;
 }
-
-//  ==============================================================================================
-//  _apiBPCharNameCB (internal)
 
 //  ==============================================================================================
 //  _apiBPCharNameCB (internal)
@@ -673,6 +684,7 @@ int _apiBPCharPlayerCB( char *strIn )
     int i;
 
     if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_CHARNAME ) )) {
+        _charTrackingActive = 1;      // indicate character tracking is enalbed for Insurgency.log
         w = strstr( strIn, "BP_Character_Player" );
         if ( w != NULL ) {
             if ( NULL != (n = getWord( w, 0, " .'" )) ) {
@@ -745,7 +757,7 @@ int _apiBPCharDisconnectCB( char *strIn )
         //
         for ( i = 0; i<API_MAXENTITIES; i++ )  {
             if ( 0 == strcmp( n, soldierTranslate[ i ].charID )) {
-                logPrintf( LOG_LEVEL_INFO, "api", "BPChar '%s' unbound", n );
+                logPrintf( LOG_LEVEL_INFO, "api", "BPChar '%s' unbound from '%s'", n, soldierTranslate[ i ].playerName );
                 strclr( soldierTranslate[ i ].charID     );
                 strclr( soldierTranslate[ i ].playerName );
             }
@@ -861,6 +873,50 @@ char *apiCharacterToName( char *characterID )
     }
     return( w );
 }
+
+
+//  ==============================================================================================
+//  apiIsPlayerAliveByName
+//
+//  Returns 0 if player is dead, otherwise alive.
+//  If the server operators has not configured character tracking in Insurgency.log then
+//  always return "true."
+//
+int apiIsPlayerAliveByName( char *playerName )
+{
+    int isAlive = 1;
+
+    if  ( apiBPIsActive() ) {
+        if ( 0 == strlen( apiNameToCharacter( playerName ) ) )  {
+            isAlive = 0;
+        }
+    }
+    return( isAlive );
+}
+
+//  ==============================================================================================
+//  apiIsPlayerAliveByGUID
+//
+//  Returns 0 if player is dead, otherwise alive.
+//  If the server operators has not configured character tracking in Insurgency.log then
+//  always return "true."
+//
+int apiIsPlayerAliveByGUID( char *playerGUID )
+{
+    int isAlive = 1;
+    char *playerName;
+
+    if  ( apiBPIsActive() ) {
+        playerName = rosterLookupNameFromGUID( playerGUID );       // returns empty if not found
+        if ( 0 != strlen( playerName ) )  {
+            if ( 0 == strlen( apiNameToCharacter( playerName )) )  {
+                isAlive = 0;
+            }
+        }
+    }
+    return( isAlive );
+}
+
 
 //  ==============================================================================================
 //  _apiMapObjectiveCB
@@ -1135,6 +1191,11 @@ char *apiGetLastRebootReason( void )
 //
 int apiServerRestart( char *rebootReason )
 {
+    // Notify and force disconnect on all active players on roster
+    //
+    apiKickAll( rebootReason );
+    sleep( 2 );    // wait for handshake
+   
     // Save the reason & time for analytics and web 
     //
     strlcpy( lastRebootReason, rebootReason, 256 );
@@ -1210,7 +1271,7 @@ char *apiGameModePropertyGet( char *gameModeProperty )
 
     snprintf( rconCmd, API_T_BUFSIZE, "gamemodeproperty %s", gameModeProperty );
     if ( 0 == (errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ))) {
-        if ( bytesRead > strlen( gameModeProperty )) {
+        if ( ((size_t) bytesRead) > strlen( gameModeProperty )) {
             // extract the value field.  This command will fail esp during
             // map change when rcon response is not honored, so check for this!
             w = getWord( rconResp, 1, "\"" );    
@@ -1308,7 +1369,59 @@ int apiKickOrBan( int isBan, char *playerGUID, char *reason )
     }
     errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
 
+    logPrintf( LOG_LEVEL_WARN, "api", "apiKickOrBan ::%s::", rconCmd );
+ 
     return errCode;
+}
+
+//  ==============================================================================================
+//  apiKick
+//
+//  Called from a Plugin, this method is used to kick player by SteamGUID64 or player name.
+//  Optional *reason string may be attached, or call with empty string if not needed ("").
+//  The player must be actively in game or else the command will fail.
+//
+int apiKick( char *playerNameOrGUID, char *reason )
+{
+    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
+    int bytesRead, errCode;
+
+    snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerNameOrGUID, reason );
+    errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+    logPrintf( LOG_LEVEL_WARN, "api", "apiKick ::%s::", rconCmd );
+ 
+    return errCode;
+}
+
+
+//  ==============================================================================================
+//  apiKickAll
+//
+//  Called from a Plugin, this method is used to kick all players from the server.
+//  Optional *reason string may be attached, or call with empty string if not needed ("").
+//  This function is useful before the server is rebooted by plugin automation or via the
+//  admin command.
+//
+int apiKickAll( char *reason )
+{
+    static char playerList[4096]; 
+    char playerGUID[256], *p;
+    int playerIndex = 0;
+
+    strlcpy( playerList, rosterPlayerList( 5, ":" ), 4096 );
+
+    // HAL9000 loop, kill all live humans
+    //
+    while ( 1 == 1 ) {
+
+        if ( NULL == ( p = getWord( playerList, playerIndex++, ":" ) )) 
+            break;
+
+        strlcpy( playerGUID, p, 256 );
+        apiKickOrBan(0, playerGUID, reason );
+    }
+
+    return 0;
 }
 
 
@@ -1652,7 +1765,7 @@ int apiMapcycleRead( char *mapcycleFile )
     FILE *fpr;
     int   i, j;
     char  tmpLine[256], lastMapName[256], lastReqName[256];
-    char  *w, *w2, *v, *u, *scenarioName;
+    char  *w, *w2, *v, *u, scenarioName[256];
 
     strclr( lastMapName );
     for (i = 0; i<API_MAXMAPS; i++) {
@@ -1704,9 +1817,11 @@ int apiMapcycleRead( char *mapcycleFile )
 
                 // part 2:  parse the scenario name and the game mode (checkpoint, hardcorecheckpoint, etc.)
                 //
-                else if ( tmpLine == strcasestr( tmpLine, "\(Scenario=\"" )) {
-                    scenarioName = getWord( tmpLine, 1, "=\"" );
-                    if (( scenarioName != NULL ) && ( 0 != strlen( lastMapName )) )  {
+                else if ( tmpLine == strcasestr( tmpLine, "(Scenario=\"" )) {
+
+                    strlcpy( scenarioName,  getWord( tmpLine, 1, "=\"" ), 255 );
+
+                    if ( (0 != strlen( scenarioName )) && (0 != strlen( lastMapName )) )  {
                         strlcpy( mapCycleList[i].scenario, scenarioName, 256 );
                         strlcpy( mapCycleList[i].mapName,  lastMapName,  256 );
                         strlcpy( mapCycleList[i].reqName,  lastReqName,  256 );
@@ -1733,6 +1848,7 @@ int apiMapcycleRead( char *mapcycleFile )
                         else {
                             strncat( mapCycleList[i].traveler, "?Lighting=Day", 256 );
                         }
+
                         mapCycleList[i].secIns = -1;
                         if ( NULL != strcasestr( scenarioName, "insurgent"  )) 
                             mapCycleList[i].secIns = 1;

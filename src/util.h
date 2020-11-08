@@ -17,7 +17,7 @@ extern char *getWord( char *strIn, int wordIndex, char *delim );
 extern int foundMatch( char *line, char *table[], int caseConvert );
 extern char *reformatIP( char *originalIP );
 extern void strclr(char * s);
-extern void strRemoveInPlace(char * s, const char *toremove );
+extern void strRemoveInPlace(char * s, char *toremove );
 extern void strTrimInPlace(char * s);
 extern void strToLowerInPlace(char * s);
 extern int isReadable( char *fileName );

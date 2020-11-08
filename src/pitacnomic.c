@@ -56,6 +56,7 @@ static struct {
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
 
     char shorts[PITACNOMIC_MAXSHORTS][CFS_FETCH_MAX];
+    char livePlayersOnly[CFS_FETCH_MAX];
 
 } pitacnomicConfig;
 
@@ -83,6 +84,10 @@ int pitacnomicInitConfig( void )
         strlcpy( pitacnomicConfig.shorts[i],     cfsFetchStr( cP, varArray,  "" ),   CFS_FETCH_MAX);
         replaceDoubleColonWithBell( pitacnomicConfig.shorts[i] );
     }
+
+    // Read the list string of two-letter-codes that only 'live' players can issue
+    //
+    strlcpy( pitacnomicConfig.livePlayersOnly, cfsFetchStr( cP, "pitacnomic.livePlayersOnly",  "" ),   CFS_FETCH_MAX);
 
     cfsDestroy( cP );
     return 0;
@@ -270,6 +275,24 @@ int pitacnomicChatCB( char *strIn )
     if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatText ))) {
         if (( 2 == strlen( chatText ))) {
             chatText[2] = 0;
+
+            // check if the command issuer is 'dead' -- if so, consult list of prohibited 
+            // codes that can only be issued by players that are alive.
+            //
+            if (0 == apiIsPlayerAliveByGUID( clientID )) {  // if the issuer is "dead"
+
+                 // check if this 2-letter-code is in the "live player only" list
+                 // 
+                 if ( NULL != strcasestr( pitacnomicConfig.livePlayersOnly, chatText ) ) {
+                     // if so, invalidate the entered text (ignored by this plugin
+                     //
+                     chatText[0] = ' ';  chatText[1] = ' ';
+                 }
+            }
+
+            // Resume regular processing of two-letter-code.  Do a table lookup
+            // and send translated string to the player chat
+            //
             for (i = 0; i<PITACNOMIC_MAXSHORTS; i++) {
                 if ( 0 == strncmp( pitacnomicConfig.shorts[i], chatText, 2 )) {
                     // match is found on the table.  Parse for phrase to be

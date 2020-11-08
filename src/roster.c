@@ -533,7 +533,7 @@ char *rosterLookupSteamIDFromPartialName( char *partialName, int minChars  )
     static char steamID[256];
     int i, matchCount = 0;
 
-    if ( strlen( partialName ) >= minChars ) {
+    if ( (int) strlen( partialName ) >= minChars ) {
         strclr( steamID );
         for (i=0; i<ROSTER_MAX; i++) {
             if ( NULL != strcasestr( masterRoster[i].playerName, partialName )) {
@@ -603,6 +603,9 @@ char *rosterPlayerList( int infoDepth, char *delimiter )
 		case 4:   // used for synthetic event handler, for reliable but less responsive player conect/disconnect
                     snprintf( single, 256, "%s %s %s%s", 
                         masterRoster[i].steamID, reformatIP( masterRoster[i].IPaddress ), masterRoster[i].playerName, delimiter );
+		    break;
+		case 5:   // SteamID list only
+                    snprintf( single, 256, "%s%s", masterRoster[i].steamID, delimiter );
 		    break;
 	        default:  // (case 0) default miniamlist public dispaly, player name only
                     snprintf( single, 256, "%s%s", masterRoster[i].playerName, delimiter );
@@ -797,7 +800,7 @@ int rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chat
         // make a copy and get rid of last carriage return
         //
         strlcpy( strIn2, strIn, 256 );
-        for (i = 0; i<strlen( strIn2 ); i++ )
+        for (i = 0; i< (int) strlen( strIn2 ); i++ )
             if ( strIn2[i] == '\015') strIn2[i] = 0;
 
         // Go find the first character of typed text.  Check 3 cases for a match.
@@ -815,7 +818,7 @@ int rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chat
         // Find the steam ID of the originator
         //
         strclr( clientID );
-        if ( NULL != (steamID = strstr( strIn2, "\(76" ) )) {
+        if ( NULL != (steamID = strstr( strIn2, "(76" ) )) {
             strlcpy( clientID, &steamID[1], 18 );
         }
 
@@ -839,7 +842,7 @@ void rosterParseSessionID( char *sessionLogString, int maxChars, char *sessionID
     w = strstr( sessionLogString, "SessionName:" );
     if ( w != NULL ) {
         strlcpy( sessionID, &w[13], maxChars );
-        i = strlen( sessionID );
+        i = (int) strlen( sessionID );
         if ( i >= 1 )  {
             for (j = 0; j<i; j++)  {
                 if ( sessionID[j] == 0x0d ) {
