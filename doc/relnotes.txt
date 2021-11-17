@@ -1,3 +1,20 @@
+Beta 02.9 (0.2.9) 20211117
+
+    Experimental: Modified antirush #taps auto-kick compliant to work with buggy maps
+    Sandstorm v1.11 parsing compatibility for Rcon:listplayers output
+    Added alternate objective parsing for 3rd party maps (needed for pidynbots)
+    Player-name profanity filter may now also contain SteamID, in addition to offensive terms
+    Changes to example_sissm.cfg:
+        Changed default to "*" for servername (reads name from the server at startup)
+        Added more two-letter-codes (pitacnomic)
+        Added new maps to example_sissm.cfg for dynamic bot count adjustments (pidynbots)
+        Adjust some piantirush parameters to be more strict (default: disabled)
+        Adjust pidynbot bot count table for higher bot count (default: disabled)
+        Added to pidynbot table, new official maps for bot count adjustments (default: disabled)
+        Added new parameters  
+            picladmin.botsUpperMin  10        // maximum allowed "minimumenemies" for !botscaled command
+
+
 Beta 02.8 (0.2.8) 20201107
 
     (** see sissm.cfg changes)

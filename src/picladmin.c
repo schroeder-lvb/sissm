@@ -75,6 +75,7 @@ static struct {
     char macros[NUM_MACROS][CFS_FETCH_MAX];
 
     int botMaxAllowed, botMinDefault;
+    int botUpperMin;
 
     char prepBlow[CFS_FETCH_MAX], prepCapture[CFS_FETCH_MAX];
     char askBlow[CFS_FETCH_MAX], askCapture[CFS_FETCH_MAX];
@@ -402,6 +403,10 @@ int _cmdBotScaled( char *arg, char *arg2, char *passThru )
             if ( 1 == sscanf( arg2, "%d", &botCount )) {  // check for 2nd param
                 botCountMin = botCountMax;
                 botCountMax = botCount;
+                if ( picladminConfig.botUpperMin != 0 ) {
+                    if ( botCountMin > picladminConfig.botUpperMin )
+                        botCountMin = picladminConfig.botUpperMin;   // limit min
+                }
                 if ( botCountMin > botCountMax )                   errCode = 1;
                 if ( botCountMax > picladminConfig.botMaxAllowed ) errCode = 1;
                 if ( botCountMax <  2 )                            errCode = 1;
@@ -946,8 +951,10 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
     int errCode = 0;
     int isNight = 0, isIns = 0;
     char *w, gameMode[80];
-    int j;
+    char mutatorsList[256];
+    int i, j;
 
+    strclr( mutatorsList );
     if ( 0 == strlen( arg ) ) {
         apiSaySys( "You must specify a map.  Type !maplist");
         errCode = 1;
@@ -968,14 +975,28 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
             w = getWord( passThru, j++, " " );
             if ( w == NULL )       break;
             if ( 0 == strlen( w )) break;
+ 
+            if ( w[0] == '%' ) {
+                strlcat( mutatorsList, &w[1], 256 );
+                strlcat( mutatorsList, ",",  256 );
+            };
+
             if ( apiIsSupportedGameMode( w ) ) {
                 strlcpy( gameMode, w, 80 );
-                break;
             }
         } 
 
+        // clean up the mutatorsList (remove trailing comma)
+        //
+        if ( 0 != ( i = strlen( mutatorsList ) )) {
+            mutatorsList[ i-1 ] = 0;
+        }
+
+// asdf
+
+
         // change map
-        errCode = apiMapChange( arg, gameMode, isIns, isNight );
+        errCode = apiMapChange( arg, gameMode, isIns, isNight, mutatorsList );
 
         if ( errCode ) {
             apiSaySys( "Map/mode/side not found" );
@@ -1125,6 +1146,11 @@ int picladminInitConfig( void )
     picladminConfig.botMinDefault = (int) cfsFetchNum( cP, "picladmin.botMinDefault",  6.0 );
     if ( picladminConfig.botMaxAllowed < 2 ) picladminConfig.botMaxAllowed = 4;
     if ( picladminConfig.botMinDefault < 2 ) picladminConfig.botMinDefault = 2;
+
+    // BotUpperMin limits the maximum number admin can specify in !botscaled !bs command.
+    // Recommended value:  10.  If "0" is set (default) the limiter is disabled.
+    //
+    picladminConfig.botUpperMin = (int) cfsFetchNum( cP, "picladmin.botUpperMin", 0.0 );
 
     // text to show in-game for !ask, !prep, and !warn
     //

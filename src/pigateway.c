@@ -97,13 +97,18 @@ static int _isPriority( char *connectID )
 //  ==============================================================================================
 //  _isBadName
 //
-//  Check if a player name is a 'bad' profanity name
+//  Check if a player name contains a 'bad' profanity word:  returns 1.
+//  Check if a player GUID is under suspention:  return 2.
 //
-static int _isBadName( char *playerName )
+static int _isBadName( char *playerName, char *playerGUID )
 {
     int isBad = 0;
 
-    isBad = apiBadNameCheck( playerName );
+    if ( apiBadNameCheck( playerName, 0 ) )          // check if substr contains offensive words
+        isBad = 1;
+    else if ( apiBadNameCheck( playerGUID, 1 ) )      // check if exact GUID is under access suspention 
+        isBad = 2; 
+    
     return( isBad );
 }
 
@@ -195,6 +200,7 @@ int pigatewayClientSynthAddCB( char *strIn )
 {
     static char playerName[256], playerGUID[256], playerIP[256];
     int alreadyKicked = 0;
+    int kickReason;
 
     rosterParsePlayerSynthConn( strIn, 256, playerName, playerGUID, playerIP );
     logPrintf( LOG_LEVEL_INFO, "pigateway", "Synthetic ADD Callback Name ::%s:: IP ::%s:: GUID ::%s::", 
@@ -225,11 +231,17 @@ int pigatewayClientSynthAddCB( char *strIn )
     // process badname auto-kicking
     //
     if ( (0 == alreadyKicked) && (pigatewayConfig.enableBadNameFilter) ) {
-        if ( _isBadName( playerName ) ) {
+        if ( 0 != (kickReason = _isBadName( playerName, playerGUID )) ) {
             apiKickOrBan( 0, playerGUID, "" );
-            apiSay ( "Player %s auto-kicked by server", playerName );
-            logPrintf( LOG_LEVEL_INFO, "pigateway", "Bad Name Auto-kick ::%s::%s::%s::", 
-                playerName, playerGUID, playerIP );
+            if ( kickReason == 1 ) {
+                apiSay ( "Player %s auto-kicked by server", playerName );
+                logPrintf( LOG_LEVEL_INFO, "pigateway", "Bad Name Auto-kick ::%s::%s::%s::", 
+                    playerName, playerGUID, playerIP );
+            }
+            else {
+                logPrintf( LOG_LEVEL_INFO, "pigateway", "Suspended User Auto-kick ::%s::%s::%s::", 
+                    playerName, playerGUID, playerIP );
+            }
             alreadyKicked = 1;
         }
     }

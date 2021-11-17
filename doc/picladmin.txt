@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PICLADMIN - User's Manual for the Assistant Administrators
-JS Schroeder -- last updated:  2019.10.26
+JS Schroeder -- last updated:  2020.11.08
 
 PICLADMIN (Plugin Command-Line Admin) plugin allows admin commands to be
 executed through the in-game chat interface.  The server operator set up
@@ -71,8 +71,9 @@ Examples:  !rr now, !roundrestart now
 
 ========================
 
-reboot (reboot) [now]
-Reboot the server (everyone will be disconnected!)
+reboot (reboot) [now|eog|eor|cancel]
+Reboot the server (everyone will be disconnected!) now, end of game, end of round
+If a reboot is schedule it can be cancelled.
 Example:  !reboot now
 
 ========================

@@ -360,6 +360,7 @@ int rosterParse( char *buf, int n )
 {
     int i, j, validFlag;
     char *headStr, *recdStr, *atLeastOne;
+    char tmpStr[64], *w;
 
     validFlag = 1;  i = 0;  j = -1;
     
@@ -386,6 +387,13 @@ int rosterParse( char *buf, int n )
                 // getWord returning a NULL indicates end of buffer, resulting in validFlag being cleared.. Exit the loop.
                 //
                 if (!validFlag) break;
+
+                // Process Sandstorm 1.11 format change 
+                // 
+                if ( NULL != ( w = strstr( masterRoster[j].steamID, "7656" )) ) {
+                    strlcpy( tmpStr, w,  32 );
+                    strlcpy( masterRoster[j].steamID, tmpStr, 32 );
+                }
 
                 // This block was added as safety in case the data is corrupted.  
                 // It has strict checking for valid Steam GUID before the data is saved.
@@ -963,10 +971,11 @@ int roster_test_main()
     rosterReset();
     n = _rosterReadTest( "dump.bin", buf );
     tabDumpDebug( buf, n );
-    printf("\n----------------\n");
+    printf("\n---Parsing -----\n");
     rosterParse( buf, n );
+    printf("\n---Dumping -----\n");
     rosterDump( 0, 0 );
-    printf("\n----------------\n");
+    printf("\n---Counting-----\n");
     printf("\nCount %d\n", rosterCount());
     printf( "%s::%s::%s\n", 
         rosterLookupNameFromIP( "100.36.84.54" ),

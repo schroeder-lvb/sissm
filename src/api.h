@@ -14,6 +14,9 @@
 //  ==============================================================================================
 //
 
+#define FINALCOUNTER_REDUCE  (0)     // experimental code, do not enable
+#define MUTATOR_SELECT       (0)     // experimetnal code, do not enable
+
 extern int   apiInit( void );
 extern int   apiDestroy( void );
 extern int   apiServerRestart( char *reasonForRestart );
@@ -35,11 +38,11 @@ extern char *apiGetSessionID( void );
 extern unsigned long apiTimeGet( void );
 extern char *apiTimeGetHuman( unsigned long timeMark );
 extern unsigned long apiGetLastRosterTime( void );
-extern int   apiBadNameCheck( char *nameIn );
+extern int   apiBadNameCheck( char *nameIn, int exactMatch );
 
 
 extern int   apiMapcycleRead( char *mapcycleFilePath );
-extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight );
+extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList );
 extern char *apiMapList(void );
 extern int   apiIsSupportedGameMode( char *candidateMode  );
 
@@ -56,7 +59,8 @@ extern int   apiIsSupportedGameMode( char *candidateMode  );
 #define API_T_BUFSIZE                (4*1024)
 #define API_MAXSAY                       (80)       // Maximum string that can be printed by "say"
 
-
+#define API_MUT_MAXLIST                  (64)
+#define API_MUT_MAXCHAR                  (80)
 
 typedef char idList_t[IDLISTMAXELEM][IDLISTMAXSTRSZ];
 extern int   apiIdListRead( char *listFile, idList_t idList );

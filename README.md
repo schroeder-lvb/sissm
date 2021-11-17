@@ -23,6 +23,9 @@ SISSM must execute on the same machine hosting your Sandstorm server.  This is b
 *  Generates a player connection log to help facilitate after-the-fact ban
 *  Configured through a single .cfg file, per server.  All plugins can be enabled/disabled individually.
 
+Precompiled Binaries:
+   https://github.com/schroeder-lvb/sissm_releases
+
 Miscellaneous Features:
 
 *  All functional features are implemented through plugins.  You can write your own, or modify an existing one!

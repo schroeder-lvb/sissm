@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v0.2.8 20201107-1330 [Restricted Edition]"
+#define VERSION    "SISSM v0.2.9 20211117-0530 [Restricted Edition]"
 #else
-#define VERSION    "SISSM v0.2.8 20201107-1330"
+#define VERSION    "SISSM v0.2.9 20211117-0530"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -117,6 +117,7 @@ static struct {
     int  restartDelay;                          // number of seconds required for server to reboot
 
     int  gracefulExit;           // 1=install sig handler and generate SIGTERM event to the plugins
+
     
 } sissmConfig;
 
@@ -726,6 +727,11 @@ int main( int argc, char *argv[] )
 {
     int errCode;
     int terminalMode = 0;
+
+    // Sandstorm 1.11 compatilbility, parsing listplayers
+    // printf("\nRoster Test Main in main\n");
+    // roster_test_main();
+    // exit( 0 );
 
     if ( argc > 1 )  {
         if ( 0 == strncmp( argv[1], "-t", 2 ) )  {
