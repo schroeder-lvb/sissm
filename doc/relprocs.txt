@@ -1,12 +1,12 @@
 SISSM Release Procedure 
 (Post-Testing Release Checklist)
 
-___ Turn off SISSM_TEST in sissm.h
-___ Make adjustments for github sync, such as new files, removed files
+___ Turn off SISSM_TEST in sissm.h, clean recompile with maximum warn level
+___ 'github status' audit for missed new files, removed files, changed files
 ___ Remove all debug code, debug-markers from src/*
 ___ Audit any embedded PIIs such as passwords
 ___ Tag update with Version#/Date 
-___ Update Release Notes
+___ Update Release Notes, audit with 'git status' and 'git diff master [src/filename.ext]'
 ___ Update Announcement.txt
 ___ Example .CFG file update
 ___ Example .CFG file update header w/ rev#

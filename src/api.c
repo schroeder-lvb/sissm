@@ -123,6 +123,7 @@ struct {
 char mapNameMerged[ API_MAXMAPS ][40];
 
 char mutAllowed[ 16000 ];                             // allowed mutators list, space separated
+char mutAllowedList[ API_MUT_MAXLIST ][ API_MUT_MAXCHAR ];             // list version of the above
 char mutDefault[   256 ];          // default mutator(s) - should match what is on the launcher
 
 // Reboot reason & time, for analytics and web display
@@ -144,6 +145,14 @@ static char _cachedName[256];
 #define API_OBJECTIVES_MAX    (64)
 
 static char _objectiveListCache[API_OBJECTIVES_MAX][ API_LINE_STRING_MAX ];
+
+#if FINALCOUNTER_REDUCE
+// Crash protection GameModeProperties for limiting botcounts on Checkpoint/HardcoreCheckpoint 
+// Final Counterattack
+// 
+int maxBotsCounterAttack = 30;                         // max bots per wave on final counterattack
+double finalCacheBotQuotaMultiplier = 0;                     // 0=disable, typical value 1.2 - 1.5
+#endif
 
 
 //  ==============================================================================================
@@ -226,6 +235,29 @@ int apiWordListCheck( char *stringTested, wordList_t wordList )
     return( isMatch );
 }
 
+//  ==============================================================================================
+//  apiWordListCheckExact
+//
+//  Checks if a a word is exact match of the string.  This function returns a 1 if found,
+//  0 if not found.
+//
+int apiWordListCheckExact( char *stringTested, wordList_t wordList )
+{
+    int i;
+    int isMatch = 0;
+
+    for (i=0; i<WORDLISTMAXELEM; i++) {
+
+        if ( wordList[i][0] == 0 ) break;
+        if ( 0 == strncmp( stringTested, wordList[i], WORDLISTMAXSTRSZ ) ) {
+            isMatch = 1;
+            break;
+        }
+    }
+    return( isMatch );
+}
+
+
 
 //  ==============================================================================================
 //  apiIdListRead
@@ -242,6 +274,8 @@ int apiIdListRead( char *listFile, idList_t idList )
     FILE *fpr;
 
     for (i=0; i<IDLISTMAXELEM; i++) strclr( idList[i] );
+
+// asdf
 
     i = -1;
     if (NULL != (fpr = fopen( listFile, "rt" ))) {
@@ -268,9 +302,12 @@ int apiIdListRead( char *listFile, idList_t idList )
 //
 //  Checks if bad name.  This function returns a 1 if bad, 0 if ok
 //
-int apiBadNameCheck( char *nameIn )
+int apiBadNameCheck( char *nameIn, int exactMatch )
 {
-    return (apiWordListCheck( nameIn, badWordsList )); 
+    if ( exactMatch ) 
+        return (apiWordListCheckExact( nameIn, badWordsList )); 
+    else
+        return (apiWordListCheck( nameIn, badWordsList )); 
 }
 
 
@@ -1065,6 +1102,13 @@ int apiInit( void )
     strlcpy( sayPrefix,   cfsFetchStr( cP, "sissm.sayPrefix",  ""),  API_LINE_STRING_MAX );
     strlcpy( sayPostfix,  cfsFetchStr( cP, "sissm.sayPostfix", ""),  API_LINE_STRING_MAX );
 
+#if FINALCOUNTER_REDUCE
+    // Checkpoint/Hardcorecheckpoint Crash Protection Limiter // asdf
+    //
+    maxBotsCounterAttack = (int) cfsFetchNum( cP, "sissm.MaxBotsCounterAttack", 30.0 ); 
+    finalCacheBotQuotaMultiplier = (double) cfsFetchNum( cP, "sissm.FinalCacheBotQuotaMultiplier", 1.2 );
+#endif
+
     //  Close the configuration file reader
     //
     cfsDestroy( cP );
@@ -1084,7 +1128,7 @@ int apiInit( void )
     eventsRegister( SISSM_EV_MAPCHANGE,   _apiMapChangeCB );
     eventsRegister( SISSM_EV_TRAVEL,      _apiTravelCB );
     eventsRegister( SISSM_EV_SESSIONLOG,  _apiSessionLogCB );
-    eventsRegister( SISSM_EV_ROUND_START,  _apiRoundStartCB );
+    eventsRegister( SISSM_EV_ROUND_START, _apiRoundStartCB );
 
     // These callbacks are used for detecting players entering
     // and leaving territorial capture zone (piantirush)
@@ -1241,11 +1285,11 @@ char *apiTimeGetHuman( unsigned long timeMark )
 }
 
 //  ==============================================================================================
-//  apiGameModePropertySet
+//  _apiGameModePropertySet
 //
 //  Called from a Plugin, this method sets gamemodeproperty (cvar) on game server.
 //
-int apiGameModePropertySet( char *gameModeProperty, char *value )
+int _apiGameModePropertySet( char *gameModeProperty, char *value )
 {
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
     int bytesRead, errCode;
@@ -1255,6 +1299,57 @@ int apiGameModePropertySet( char *gameModeProperty, char *value )
 
     return( errCode );
 }
+
+
+//  ==============================================================================================
+//  apiGameModePropertySet
+//
+//  Crash Protection wrapper for _apiGameModePropertySet.
+//
+//  Interim(?) routine that reduces FinalCacheBotQuotaMultiplier so that NWI server will not
+//  crash on final objective when MaximumEnemies is set too high.  This routine should be called
+//  just prior to each apiGameModePropertySet( "MaximumEnemies" ...) calls.
+//  
+int apiGameModePropertySet( char *gameModeProperty, char *value )
+{
+    int errCode = 0;
+
+#if FINALCOUNTER_REDUCE
+    double reducedMultiplier;
+    char multiplierStr[80];
+    int newMaximumEnemy = 0;
+
+    if ( 0 == strncasecmp( gameModeProperty , "maximumenemies", 20 )) {
+
+        if ( 1 != sscanf( value, "%d", &newMaximumEnemy ) ) {
+            logPrintf( LOG_LEVEL_CRITICAL, "api", "Internal error parsing args for apiGameModePropertySetCP"  );
+            newMaximumEnemy = 4;
+        }
+
+        if ( finalCacheBotQuotaMultiplier != 0.0 ) {  // check if disabled
+
+            if (( finalCacheBotQuotaMultiplier * newMaximumEnemy ) > maxBotsCounterAttack ) {
+                reducedMultiplier = (double) maxBotsCounterAttack / (double) newMaximumEnemy;
+                if ( reducedMultiplier > 2.0 ) reducedMultiplier = 2.0;
+                if ( reducedMultiplier < 0.1 ) reducedMultiplier = 0.1;
+                snprintf( multiplierStr, 80, "%3.1lf", reducedMultiplier );
+                _apiGameModePropertySet( "FinalCacheBotQuotaMultiplier", multiplierStr ) ;
+            }
+            else {   // if disabled, poke the default value 
+                snprintf( multiplierStr, 80, "%3.1lf", finalCacheBotQuotaMultiplier );
+                _apiGameModePropertySet( "FinalCacheBotQuotaMultiplier", multiplierStr );
+            }
+
+        }
+        logPrintf( LOG_LEVEL_INFO, "api", "FinalCacheBotQuotaMultipler changed to %s", multiplierStr  );
+    }
+#endif
+
+    errCode = _apiGameModePropertySet( gameModeProperty, value );
+    return errCode;
+
+}
+
 
 //  ==============================================================================================
 //  apiGameModePropertyGet
@@ -1887,6 +1982,20 @@ int apiMapcycleRead( char *mapcycleFile )
             }
         }
     }
+ 
+// asdf
+    // Expand the space-separated single string mutAllowed to list mutAllowedList
+    //
+    strclr( mutAllowedList[0] );
+    for (j = 0; j<API_MUT_MAXLIST; i++ ) { 
+        w = getWord( mutAllowed, j, " ," );
+        if ( w != NULL ) 
+            strlcpy( mutAllowedList[j], w, API_MUT_MAXCHAR );
+        else {
+            strclr( mutAllowedList[j] );
+            break;
+        }              
+    }
 
 #if 0
     if ( i != 0 ) {
@@ -1945,11 +2054,34 @@ int apiIsSupportedGameMode( char *candidateMode  )
 }
 
 //  ==============================================================================================
+//  _apiIsSupportedMutator
+//
+//  Look up if mutator is supported, and if so, return the full valid name from 
+//  a partial match.  This function always returns a pointer to a valid string.
+//  No-match will simply return empty (zero length) string.
+//
+#if MUTATOR_SELECT
+static char *_apiIsSupportedMutator( char *candidateMutator )
+{
+// asdf
+    static char fullMutatorName[API_MUT_MAXCHAR];
+
+// mutAllowed
+
+
+    strclr( fullMutatorName );
+
+    return fullMutatorName;
+}
+#endif
+
+
+//  ==============================================================================================
 //  apiMapChange
 //
 //  Look up valid traveler and change map
 //
-int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight )
+int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList )
 {
     int i, errCode = 1;
     char strOut[300], strResp[300];
@@ -1967,6 +2099,20 @@ int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight )
                 if (( mapCycleList[i].secIns == -1 ) || ( mapCycleList[i].secIns == secIns )) {
                     if ( ( 0 == strlen( gameMode )) || ( 0 == strcasecmp( mapCycleList[i].gameMode, gameMode )) ) {
                         snprintf( strOut, 300, "travel %s", mapCycleList[i].traveler );
+
+  // asdf
+  // remove options=
+
+                        if ( 0 != strlen( mutatorsList )) {
+ 
+
+// asdf loop through allowed mutators for 
+// correct and complete name substitution
+
+
+                            strlcat( strOut, "?mutators=", 300 );
+                            strlcat( strOut, mutatorsList, 300 );
+                        }
                         logPrintf( LOG_LEVEL_INFO, "api", "*** Admin command map change ::%s::", strOut );
                         apiRcon( strOut, strResp );
                         errCode = 0;

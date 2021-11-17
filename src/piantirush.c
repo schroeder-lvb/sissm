@@ -326,7 +326,6 @@ static void _capRusherEnterZone( char *playerCharID, char *playerName )
         i = foundIndex;
         strlcpy( territorialRushers[i].playerCharID, playerCharID, 64 );        
         strlcpy( territorialRushers[i].playerName, playerName, 64 );
-        territorialRushers[i].playerEarlyBreachCount++;
         territorialRushers[i].playerIsInZone = 1;
 
         // territorialRushers[i].playerEarlyBreachCumulativeTime - don't update!
@@ -413,10 +412,12 @@ static void _capRusherPeriodicCheck( void )
                     }
                 }
 
+
                 // check for player exceeding number of nuisance "taps" 
                 //
                 if (( 0 != piantirushConfig.earlyBreachMaxTaps ) &&  
-                    ( territorialRushers[i].playerEarlyBreachCount > piantirushConfig.earlyBreachMaxTaps ) ) {
+// asdf2
+                    ( territorialRushers[i].playerEarlyBreachCount++ > piantirushConfig.earlyBreachMaxTaps ) ) {  // 20211006tap
                     if ( NULL != ( g = rosterLookupSteamIDFromName( territorialRushers[i].playerName )) ) {
                         strlcpy( playerGUID, g, 64 );
                         _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
@@ -457,9 +458,11 @@ static void _captureSpeed( int isSlow )
     // a wedge code to disable this plugin if non-Checkpoint mode is running
     //
     v = apiGetServerMode();
-    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return;
-
-    
+    // if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return;
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) ) _fastMode = 1;
+   
+// asdf
+ 
     if ( apiPlayersGetCount() <=  piantirushConfig.nPlayerExemption )
         isSlowCopy = 0;
 
@@ -1114,6 +1117,9 @@ int piantirushObjTouchCB( char *strIn )
 
                         if ( (piantirushConfig.earlyBreachShow) && ( kickArmed2 && kickArmed )) {
                             _localSayThrottled( "'%s' %s", playerName, piantirushConfig.earlyBreachWarn );
+
+
+// asdf2
                         }
 
                         // call the cap-rush algo submodule here
