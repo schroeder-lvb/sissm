@@ -97,7 +97,7 @@ int pidynbotsInitConfig( void )
     pidynbotsConfig.enableObjAdj         = (int) cfsFetchNum( cP, "pidynbots.enableObjAdj", 0.0 );  
     pidynbotsConfig.enableDisconnAdj     = (int) cfsFetchNum( cP, "pidynbots.enableDisconnAdj", 0.0 );  
     pidynbotsConfig.enableConnAdj        = (int) cfsFetchNum( cP, "pidynbots.enableConnAdj", 0.0 );  
-    pidynbotsConfig.MaxBotsCrashProtect  = (int) cfsFetchNum( cP, "pidynbots.MaxBotsCrashProtect", 100.0 ); 
+    pidynbotsConfig.MaxBotsCrashProtect  = (int) cfsFetchNum( cP, "pidynbots.MaxBotsCrashProtect", 200.0 ); 
 
     strlcpy( pidynbotsConfig.showInGame, cfsFetchStr( cP, "pidynbots.showInGame", "" ), CFS_FETCH_MAX );  
 

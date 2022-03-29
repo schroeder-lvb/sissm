@@ -47,11 +47,12 @@ extern char *apiMapList(void );
 extern int   apiIsSupportedGameMode( char *candidateMode  );
 
 #define IDLISTMAXELEM        (256)
-#define IDLISTMAXSTRSZ        (40)
+#define IDLISTMAXSTRSZ       (256)   // EPIC
 #define IDSTEAMID64LEN        (17)
+#define IDEPICIDLEN           (65)   // EPIC 
 
 #define WORDLISTMAXELEM     (1024)
-#define WORDLISTMAXSTRSZ      (32)
+#define WORDLISTMAXSTRSZ     ( 32)  
 
 #define API_MAXENTITIES       (64)
 
@@ -96,3 +97,5 @@ extern int   apiIsPlayerAliveByGUID( char *playerGUID );
 // name instead of parsing the names of the objective  (3rd party maps)
 //
 extern char apiLookupObjectiveLetterFromCache( char *objectiveName );
+
+

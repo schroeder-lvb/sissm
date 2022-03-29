@@ -1,8 +1,3 @@
-
-# Toro 
-# https://insurgencysandstorm.mod.io/toro
-94277
-
 # Pruefstand 7
 # https://insurgencysandstorm.mod.io/pruefstand-72
 120200

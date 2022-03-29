@@ -82,6 +82,7 @@ struct {
     { SISSM_EV_BP_UNTOUCHED_OBJ,    25, SS_SUBSTR_BP_UNTOUCHED_OBJ  },
     { SISSM_EV_MAP_OBJECTIVE,       26, SS_SUBSTR_MAP_OBJECTIVE     },
     { SISSM_EV_RCON,                27, SS_SUBSTR_RCON              },
+    { SISSM_EV_MESHERR,             28, SS_SUBSTR_MESHERR           },
 
     { -1,                           -1, "*"                   },
 

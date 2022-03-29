@@ -380,7 +380,7 @@ static void _capRusherExitZone( char *playerCharID )
 static void _capRusherPeriodicCheck( void )
 {
     int i;
-    char *g, playerGUID[64];
+    char *g, playerGUID[256];   // EPIC
 
     if ( kickArmed2 && kickArmed && piantirushConfig.autoKickEarlyBreach)  {    // check for master 'armed' status (safety interlock)
         
@@ -392,7 +392,7 @@ static void _capRusherPeriodicCheck( void )
                 if ( territorialRushers[i].playerIsInZone ) {
                     if ( territorialRushers[i].playerEarlyBreachCumulativeTime++ > piantirushConfig.earlyBreachMaxTime ) {
                         if ( NULL != ( g = rosterLookupSteamIDFromName( territorialRushers[i].playerName )) ) {
-                            strlcpy( playerGUID, g, 64 );
+                            strlcpy( playerGUID, g, 256 );  // EPIC
                             _localSay( "'%s' auto-kicked for early breach",  territorialRushers[i].playerName );
                             logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for early breach", territorialRushers[i].playerName, playerGUID );
 #if (SISSM_TEST == 0)
@@ -419,7 +419,7 @@ static void _capRusherPeriodicCheck( void )
 // asdf2
                     ( territorialRushers[i].playerEarlyBreachCount++ > piantirushConfig.earlyBreachMaxTaps ) ) {  // 20211006tap
                     if ( NULL != ( g = rosterLookupSteamIDFromName( territorialRushers[i].playerName )) ) {
-                        strlcpy( playerGUID, g, 64 );
+                        strlcpy( playerGUID, g, 256 );  // EPIC
                         _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
                         logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for excess objective tapping", territorialRushers[i].playerName, playerGUID );
 #if (SISSM_TEST == 0)

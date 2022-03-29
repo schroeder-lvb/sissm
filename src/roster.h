@@ -27,24 +27,25 @@ typedef struct {
 
 } rconRoster_t;
 
-extern int  rosterIsValidGUID( char *testGUID );
-extern void rosterSetMapName( char *mapName );
+extern int   rosterIsValidGUID( char *testGUID );
+extern int   rosterFindFirstID(  char *lineIn, char symOpen, char symClose, char *foundID, int maxString  );
+extern void  rosterSetMapName( char *mapName );
 extern char *rosterGetMapName( void );
 extern void rosterSetObjective( char *objectiveName, char *objectiveType );
 extern char *rosterGetObjective( void );
 extern char *rosterGetObjectiveType( void );
-extern char rosterGetCoopObjectiveLetter( void );
-extern int  rosterGetCoopSide( void );
+extern char  rosterGetCoopObjectiveLetter( void );
+extern int   rosterGetCoopSide( void );
 
-extern void rosterSetSessionID( char *SessionInfo );
+extern void  rosterSetSessionID( char *SessionInfo );
 extern char *rosterGetSessionID( void );
 
-extern void rosterSetTravel( char *travelName );
-extern int  rosterGetCoopSide( void );
+extern void  rosterSetTravel( char *travelName );
+extern int   rosterGetCoopSide( void );
 extern char *rosterGetScenario( void );
 extern char *rosterGetMutator( void );
 
-extern void rosterSetServerName( char *serverName );
+extern void  rosterSetServerName( char *serverName );
 extern char *rosterGetServerName( void );
 
 extern void rosterReset( void );
@@ -60,7 +61,7 @@ extern char *rosterLookupSteamIDFromName( char *playerName );
 extern char *rosterLookupSteamIDFromPartialName( char *partialName, int minChars );
 extern char *rosterLookupIPFromName( char *playerName );
 extern char *rosterPlayerList( int infoDepth, char *delimeter );
-extern void rosterDump( int humanFlag, int npcFlag );
+extern void  rosterDump( int humanFlag, int npcFlag );
 
 extern void rosterParsePlayerConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
 extern void rosterParsePlayerDisConn( char *connectString, int maxChars, char *playerName, char *playerGUID, char *playerIP );
