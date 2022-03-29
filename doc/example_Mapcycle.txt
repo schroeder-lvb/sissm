@@ -124,12 +124,6 @@
 //////////////////// Third Party Mod Maps Examples
 ////////////////////////////////////////////////////////////
 
-#SISSM.mapname=TORO
-(Scenario="Scenario_TORO_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_TORO_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
-(Scenario="Scenario_TORO_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
-(Scenario="Scenario_TORO_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
-
 #SISSM.mapname=Pruefstand_7 Pru1
 (Scenario="Scenario_P7_CP_M_Sec",Mode="Checkpoint",Lighting="Day")
 (Scenario="Scenario_P7_CP_M_Sec",Mode="Checkpoint",Lighting="Night")

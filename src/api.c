@@ -49,7 +49,7 @@
 #define API_LOG2RCON_DELAY_MICROSEC  (250000)          // system delay between log to rcon (tuned) 
 #define API_LISTPLAYERS_PERIOD           (10)     // #seconds periodic for listserver roster fetch
 
-#define API_ROSTER_STRING_MAX         (80*64)            // max size of contatenated roster string 
+#define API_ROSTER_STRING_MAX        (256*64)      // max size of contatenated roster string +EPIC
 #define API_LINE_STRING_MAX             (256)   
 
 #define API_MAXMAPS                     (512)    // max maps listed in mapcycle.txt
@@ -269,13 +269,13 @@ int apiWordListCheckExact( char *stringTested, wordList_t wordList )
 //
 int apiIdListRead( char *listFile, idList_t idList )
 {
-    int  i;
+    int  i, idType;
     char tmpLine[1024], testGUID[256]; //  *w;
     FILE *fpr;
 
     for (i=0; i<IDLISTMAXELEM; i++) strclr( idList[i] );
 
-// asdf
+    // EPIC
 
     i = -1;
     if (NULL != (fpr = fopen( listFile, "rt" ))) {
@@ -283,12 +283,18 @@ int apiIdListRead( char *listFile, idList_t idList )
         while (!feof( fpr )) {
             if (NULL != fgets( tmpLine, 1024, fpr )) {
                 tmpLine[ strlen( tmpLine ) - 1] = 0;
-                strlcpy( testGUID, tmpLine, 18 );   // 17-char steamid + terminator
-                if ( rosterIsValidGUID( testGUID )) {
-                    strlcpy( idList[i], testGUID, IDSTEAMID64LEN+1 );
-                    i++;
-                    if ( i >= (IDLISTMAXELEM-1) ) break;
+
+                strlcpy( testGUID, tmpLine, IDEPICIDLEN+1 );           // 65-char EPIC ID + terminator
+                if ( 2 == ( idType = rosterIsValidGUID( testGUID ) )) {
+                    strlcpy( idList[i++], testGUID, IDEPICIDLEN+1 );
                 }
+                else {
+                    strlcpy( testGUID, tmpLine, IDSTEAMID64LEN+1 );   // 17-char Steam ID + terminator
+                    if ( 1 == ( idType = rosterIsValidGUID ( testGUID ))) { 
+                        strlcpy( idList[i++], testGUID, IDSTEAMID64LEN+1 );
+                    }
+                } 
+                if ( i >= (IDLISTMAXELEM-1) ) break;    // check for overflow
             }
         }
         fclose( fpr );
@@ -1453,16 +1459,25 @@ int apiSaySys( const char * format, ... )
 //
 int apiKickOrBan( int isBan, char *playerGUID, char *reason )
 {
-    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
+    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE], playerName[256];
     int bytesRead, errCode;
 
     if ( isBan ) {
-        snprintf( rconCmd, API_T_BUFSIZE, "ban %s -1 \"%s\"", playerGUID, reason );
+        snprintf( rconCmd, API_T_BUFSIZE, "banid \"%s\" -1 \"%s\"", playerGUID, reason );
+        errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
     }
     else {
-        snprintf( rconCmd, API_T_BUFSIZE, "kick %s \"%s\"", playerGUID, reason );
+        snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerGUID, reason );
+        errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+
+        // redundant 'name' kicked after 'guid' kick -- for EPIC
+        //
+        strlcpy( playerName, rosterLookupNameFromGUID( playerGUID ), 256 ); 
+        if ( 0 != strlen( playerName ) ) {
+            snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerName, reason );
+            errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+        }
     }
-    errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
 
     logPrintf( LOG_LEVEL_WARN, "api", "apiKickOrBan ::%s::", rconCmd );
  
@@ -1499,11 +1514,11 @@ int apiKick( char *playerNameOrGUID, char *reason )
 //
 int apiKickAll( char *reason )
 {
-    static char playerList[4096]; 
+    static char playerList[8192]; 
     char playerGUID[256], *p;
     int playerIndex = 0;
 
-    strlcpy( playerList, rosterPlayerList( 5, ":" ), 4096 );
+    strlcpy( playerList, rosterPlayerList( 5, ":" ), 8192 );
 
     // HAL9000 loop, kill all live humans
     //

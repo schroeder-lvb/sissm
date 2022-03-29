@@ -47,6 +47,7 @@
 
 #define SISSM_EV_MAP_OBJECTIVE              (26)
 #define SISSM_EV_RCON                       (27)
+#define SISSM_EV_MESHERR                    (28)
 
 
 // Following substring in log file triggers an event
@@ -77,6 +78,7 @@
 #define SS_SUBSTR_BP_UNTOUCHED_OBJ      " exited."
 
 #define SS_SUBSTR_MAP_OBJECTIVE "LogObjectives: Verbose: Authority: Adding objective '"
+#define SS_SUBSTR_MESHERR       "LogGameMode: Verbose: RestartPlayerAt"
 
 
 extern int eventsInit( void );

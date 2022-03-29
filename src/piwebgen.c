@@ -110,21 +110,49 @@ int piwebgenInitConfig( void )
 //  ==============================================================================================
 //  _convertNameToHyperlink
 //
-//  This routine converrts: "76560000000000001 111.001.034.025 Random Person "
-//  To: <a href="http://steamcommunity.com/profiles/76560000000000001/">Random Person</a>
-//  To: <a href="http://steamcommunity.com/profiles/76560000000000001/" target="_blank">Random Person</a>
-// <a href="xyz.html" target="_blank"> Link </a>
+//  This routine converrts: 
+//      "76560000000000001 111.001.034.025 Random Person "
+//  To: 
+//      <a href="http://steamcommunity.com/profiles/76560000000000001/" target="_blank">Random Person</a>
+//  And this:
+//      "12312312312312312312312312312312|12312312312312312312312312312312 111.001.034.025 Random Person"
+//  To:
+//      <a href="javascript:alert('12312312312312312312312312312312|12312312312312312312312312312312');" style="color: #8ebf42">Random Person</a> 
 //
-#define STEAM_PROFILE  "<a href=\"http://steamcommunity.com/profiles/76560000000000001/\" target=\"_blank\">"
+#define STEAM_PROFILE "<a href=\"http://steamcommunity.com/profiles/76560000000000001/\" target=\"_blank\">"
+#define EPIC_PROFILE  "<a href=\"javascript:alert(\'01234567890123456789012345678901|01234567890123456789012345678901\');\" style=\"color: #8ebf42\">"
 
-static char *_convertNameToHyperlink( char *identString )
+char *_convertNameToHyperlink( char *identString )
 {
     static char retStr[256];
+    char testGUID[256], *q;
+    int formatOfID = 0;
 
-    strlcpy( retStr, STEAM_PROFILE, 256 );                                    // copy the template
-    strncpy( &retStr[44], identString, 17 );                        // insert/substitute SteamID64
-    strlcat( retStr, &identString[34 ], 256 );                          // append name (text part)
-    strlcat( retStr, "</a>", 256 );                                             // close with </a>
+    // Get the first word of identString and check if Steam or EPIC
+    //
+    if ( NULL != (q = getWord( identString, 0, " " ))) {
+        strlcpy( testGUID, q, 256 );
+        formatOfID = rosterIsValidGUID( testGUID );
+    }
+
+    switch( formatOfID ) {
+    case 1: // Steam
+        strlcpy( retStr, STEAM_PROFILE, 256 );                                    // copy the template
+        strncpy( &retStr[44], identString, 17 );                        // insert/substitute SteamID64
+        strlcat( retStr, &identString[34], 256 );                           // append name (text part)
+        strlcat( retStr, "</a>", 256 );                                             // close with </a>
+        break;
+    case 2: // EPIC
+        strlcpy( retStr, EPIC_PROFILE, 256 );                                    // copy the template
+        strncpy( &retStr[27], identString, 65 );                         // insert/substitute EPIC ID
+        strlcat( retStr, &identString[82], 256 );                           // append name (text part)
+        strlcat( retStr, "</a>", 256 );                                             // close with </a>
+        break;
+    default:
+        strlcpy( retStr, "*InternalError*", 256 );
+        break;
+    }
+
     return( retStr );
 }
 
@@ -137,7 +165,7 @@ static char *_convertNameToHyperlink( char *identString )
 //
 //  Replaces < and > from input string, with [ and ], respectively
 //
-static char *_htmlSafeFilter( char *strIn )
+char *_htmlSafeFilter( char *strIn )
 {
     int i;
     static char strOut[ PIWEBGEN_MAXROSTER ];
@@ -182,7 +210,7 @@ static int _genWebFile( void )
     char *w;
     int   errCode = 1;
     int   i;
-    char  *printWordOut, *rosterElem;
+    char  *printWordOut, *rosterElem, rosterElem2[1024];
     char  rosterWork[PIWEBGEN_MAXROSTER];
     char  hyperLinkCode[256];
     char  timeoutStatus[256];
@@ -267,7 +295,7 @@ static int _genWebFile( void )
         }
 
 
-        // Dissplay list of players
+        // Display list of players
         //
         fprintf( fpw, "<br>Names: &nbsp;&nbsp; ");
 	if ( 0 == piwebgenConfig.hyperlinkFormat ) {
@@ -281,13 +309,16 @@ static int _genWebFile( void )
 
 		    // walk through each player
 		    //
+                    strclr( rosterElem2 );
 		    rosterElem = getWord( rosterWork, i, "\011" );  
 		    if (NULL == rosterElem)        break;    // end of list?
 		    if (strlen( rosterElem) < 35 ) break;    // element is invalid if <35 chars
 
+                    strlcpy( rosterElem2, rosterElem, 1024 );
+
 		    // convert each player record to hyperlink html format
 		    //
-                    printWordOut = _convertNameToHyperlink( rosterElem );
+                    printWordOut = _convertNameToHyperlink( rosterElem2 );
 
 		    // write out this player info  to the html file
 		    //
@@ -500,5 +531,6 @@ int piwebgenInstallPlugin( void )
 
     return 0;
 }
+
 
 

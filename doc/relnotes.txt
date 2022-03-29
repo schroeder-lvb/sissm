@@ -1,3 +1,14 @@
+Release 1.0.0 20220327   
+
+    Added Steam and EPIC player-ID compatability (a major internal change)
+        No changes to the sissm.cfg file for this issue.
+    Typo on my previous releate note for 0.2.9:  botsUpperMin -> botUpperMin 
+    Changed default max bots to 200 (formerly 60)
+    Corrected missing maps in example sisssm.cfg
+    Corrected missing maps in example mapcycle
+    Corrected missing maps in pidynbots profile in sissm.cfg
+    Added more 'two letter codes' in sissm.cfg
+
 Beta 02.9 (0.2.9) 20211117
 
     Experimental: Modified antirush #taps auto-kick compliant to work with buggy maps

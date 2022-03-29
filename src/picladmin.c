@@ -124,8 +124,8 @@ struct {
     { "help",   "help",          "help [command], help list",     _cmdHelp  },
     { "v",      "version",       "version [sissm]",               _cmdVersion },   
 
-    { "bf",     "botfixed",      "botfixed [2-60]",               _cmdBotFixed },
-    { "bs",     "botscaled",     "botscaled [2-60]",              _cmdBotScaled },
+    { "bf",     "botfixed",      "botfixed [nBots]",               _cmdBotFixed },
+    { "bs",     "botscaled",     "botscaled [nBots]",              _cmdBotScaled },
     { "bd",     "botdifficulty", "botdifficulty [0-10]",          _cmdBotDifficulty },
     { "x",      "execute",       "execute [alias]",               _cmdMacros },
     { "ml",     "macroslist",    "macroslist",                    _cmdMacrosList },
@@ -369,7 +369,7 @@ int _cmdVersion( char *arg, char *arg2, char *passThru )
     return 0; 
 }
 
-// ===== "botfixed [2-60]"
+// ===== "botfixed [nBots]"
 //
 int _cmdBotFixed( char *arg, char *arg2, char *passThru ) 
 {  
@@ -389,7 +389,7 @@ int _cmdBotFixed( char *arg, char *arg2, char *passThru )
     return errCode; 
 }
 
-// ===== "botscaled [2-60]"
+// ===== "botscaled [nBots]"
 // polymorphic: !botscaled [max], or !botscaled [min max]
 //
 int _cmdBotScaled( char *arg, char *arg2, char *passThru ) 
@@ -558,13 +558,11 @@ int _cmdBanId( char *arg, char *arg2, char *passThru  )
     int errCode = 1;
     char cmdOut[256], statusIn[256];
 
-    if ( 17==strlen( arg ) ) {
-        if (NULL != strstr( arg, "765611" )) {
-            snprintf( cmdOut, 256, "banid %s 0 \"%s\"", arg, _reason( passThru ) );
-            apiRcon( cmdOut, statusIn );
-            apiSay( statusIn );
-            errCode = 0;
-        }
+    if ( rosterIsValidGUID( arg ) ) {
+        snprintf( cmdOut, 256, "banid \"%s\" 0 \"%s\"", arg, _reason( passThru ) );
+        apiRcon( cmdOut, statusIn );
+        apiSay( statusIn );
+        errCode = 0;
     }
 
     if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
@@ -580,13 +578,11 @@ int _cmdBanIdt( char *arg, char *arg2, char *passThru  )
     int errCode = 1;
     char cmdOut[256], statusIn[256];
 
-    if ( 17==strlen( arg ) ) {
-        if (NULL != strstr( arg, "765611" )) {
-            snprintf( cmdOut, 256, "banid %s %d \"[Tempban] %s\"", arg, picladminConfig.tempBanMinutes, _reason( passThru ) );
-            apiRcon( cmdOut, statusIn );
-            apiSay( statusIn );
-            errCode = 0;
-        }
+    if ( rosterIsValidGUID( arg ) ) {
+        snprintf( cmdOut, 256, "banid \"%s\" %d \"[Tempban] %s\"", arg, picladminConfig.tempBanMinutes, _reason( passThru ) );
+        apiRcon( cmdOut, statusIn );
+        apiSay( statusIn );
+        errCode = 0;
     }
 
     if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
@@ -602,13 +598,11 @@ int _cmdUnBanId( char *arg, char *arg2, char *passThru  )
     int errCode = 1;
     char cmdOut[256], statusIn[256];
 
-    if ( 17==strlen( arg ) ) {
-        if (NULL != strstr( arg, "765611" )) {
-            snprintf( cmdOut, 256, "unban %s", arg );
-            apiRcon( cmdOut, statusIn );
-            apiSay( statusIn );
-            errCode = 0;
-        }
+    if ( rosterIsValidGUID( arg ) ) {
+        snprintf( cmdOut, 256, "unban \"%s\"", arg );
+        apiRcon( cmdOut, statusIn );
+        apiSay( statusIn );
+        errCode = 0;
     }
 
     if ( errCode != 0 ) _stddResp( errCode );   // ok or error message to game
@@ -624,12 +618,10 @@ int _cmdKickId( char *arg, char *arg2, char *passThru  )
     int errCode = 1;
     char cmdOut[256], statusIn[256];
 
-    if ( IDSTEAMID64LEN == strlen( arg ) ) {
-        if (NULL != strstr( arg, "765611" )) {
-            snprintf( cmdOut, 256, "kick %s \"%s\"", arg, _reason( passThru) );
-            apiRcon( cmdOut, statusIn );
-            errCode = 0;
-        }
+    if ( rosterIsValidGUID( arg )) {  // EPIC
+        snprintf( cmdOut, 256, "kick \"%s\" \"%s\"", arg, _reason( passThru) );
+        apiRcon( cmdOut, statusIn );
+        errCode = 0;
     }
 
     _stddResp( errCode );   // ok or error message to game
@@ -646,7 +638,7 @@ int _cmdBan( char *arg, char *arg2, char *passThru  )
     char cmdOut[256], statusIn[256], steamID[256];
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
     if ( 0 != strlen( steamID ) ) {
-        if ( (snprintf( cmdOut, 255, "ban %s 0 \"%s\"", steamID, _reason( passThru) )) < 0 )
+        if ( (snprintf( cmdOut, 255, "banid \"%s\" 0 \"%s\"", steamID, _reason( passThru) )) < 0 )
             logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdBan" );
         apiRcon( cmdOut, statusIn );
         apiSay( statusIn );
@@ -992,9 +984,6 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
             mutatorsList[ i-1 ] = 0;
         }
 
-// asdf
-
-
         // change map
         errCode = apiMapChange( arg, gameMode, isIns, isNight, mutatorsList );
 
@@ -1142,7 +1131,7 @@ int picladminInitConfig( void )
     // Set bot count max and default min values 
     // if Max value is set too high and admin issues a !bf or !bs, servers & clients may crash
     //
-    picladminConfig.botMaxAllowed = (int) cfsFetchNum( cP, "picladmin.botMaxAllowed", 60.0 );
+    picladminConfig.botMaxAllowed = (int) cfsFetchNum( cP, "picladmin.botMaxAllowed", 200.0 );
     picladminConfig.botMinDefault = (int) cfsFetchNum( cP, "picladmin.botMinDefault",  6.0 );
     if ( picladminConfig.botMaxAllowed < 2 ) picladminConfig.botMaxAllowed = 4;
     if ( picladminConfig.botMinDefault < 2 ) picladminConfig.botMinDefault = 2;
@@ -1368,45 +1357,35 @@ int _commandExecute( char *cmdString, char *originID )
 //  Parse the log line 'say' chat log into originator GUID and the said text string
 //  [2019.08.30-23.39.33:262][176]LogChat: Display: name(76561198000000001) Global Chat: !ver sissm
 //  [2019.09.15-03.44.03:500][993]LogChat: Display: name(76561190000000002) Team 0 Chat: !v
+//  [2022.03.23-14.49.24:208][545]LogChat: Display: name(00000000000000000000000000000000|00000000000000000000000000000000) Global Chat: !v
 //
-#define LOGCHATPREFIX  "LogChat: Display: "
-#define LOGCHATMIDDLE  "Chat: "
-#define LOGSTEAMPREFIX "76561"
-#define LOGSTEAMIDSIZE  (17)
 
-int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdString  )
-{
-    int parseError = 1;
-    char *t, *u, *v, *w, *s, *r;
-  
-    t = u = v = w = s = r = NULL;
+int _commandParse( char *strIn, int maxStringSize, char *clientGUID, char *cmdString  ) {
+    char *w, *v;
+    int guidType, parseError = 1;
+    char prefixMatch[256];
+
     strclr( clientGUID );
     strclr( cmdString );
 
-    // Parse the string to produce clientGUID and cmdString
-    // If not properly formatted then set parseError=1
-    //   
-    t = strstr( strIn, LOGCHATPREFIX );                         // T points to "LogChat: Display:"
-    if ( t != NULL ) u = &t[ strlen( LOGCHATPREFIX ) ];          // U point to start of admin name
-    if ( u != NULL ) v = strstr( u, LOGCHATMIDDLE );             // V now points start of "Chat: "
-    if ( v != NULL ) w = &v[ strlen( LOGCHATMIDDLE ) ];            // W points to start of command
-    if ( u != NULL ) s = strstr( u, LOGSTEAMPREFIX );              // S points to start of 7656...
+    // Look for start of chat text content 
+    //
+    strlcpy( prefixMatch, " Chat: ", 256 );       // build search pattern for start of msg
+    strlcat( prefixMatch, picladminConfig.cmdPrefix, 256 );         // with command prefix
+    w = strstr( strIn, prefixMatch );
 
-    if ( w != NULL ) r = strstr( w, picladminConfig.cmdPrefix );                      
-    if ( r != NULL ) r = &r[ strlen( picladminConfig.cmdPrefix ) ];   // R to command minus prefix
-
-    if ( s != NULL ) strlcpy( clientGUID, s, 1+LOGSTEAMIDSIZE );            // extract Client GUID
-    if ( r != NULL ) strlcpy( cmdString, r, maxStringSize );         // extract Cmd without prefix  
-
-    if (( s != NULL ) && ( r != NULL )) { 
-        if ( (w + strlen( picladminConfig.cmdPrefix)) ==  r ) {     // verify prefix is first char
-            parseError = 0; 
+    if ( w != NULL ) {
+        if (0 != ( guidType = rosterFindFirstID( strIn, '(', ')', clientGUID, maxStringSize ))) {
+            v = w + strlen( prefixMatch );
+            strlcpy ( cmdString, v, maxStringSize );
             strTrimInPlace( cmdString );
+            if (0 != strlen( cmdString )) parseError = 0;
         }
     }
-
     return parseError;
 }
+
+#define RCONSTEAMIDSIZE  (17)
 
 //  ==============================================================================================
 //  _commandParseRCON
@@ -1430,7 +1409,7 @@ int _commandParseFromRCON( char *strIn, int maxStringSize, char *clientGUID, cha
                 if ( u == v ) {       // cmdPrefix is the first character of say string...
                     strlcpy( cmdString, u+strlen( picladminConfig.cmdPrefix ), maxStringSize );
                     strTrimInPlace( cmdString );
-                    strlcpy( clientGUID, "00000000000000000", 1+LOGSTEAMIDSIZE );   // "root" ID
+                    strlcpy( clientGUID, "00000000000000000", 1+RCONSTEAMIDSIZE );   // "root" ID
                     parseError = 0;
                     logPrintf( LOG_LEVEL_INFO, "picladmin", "RCON initiated command ::%s::[%s]::", strIn, cmdString );
                 }
@@ -1454,6 +1433,8 @@ int picladminChatCB( char *strIn )
     char clientGUID[1024], cmdString[1024];
 
     if ( 0 == _commandParse( strIn, 1024, clientGUID, cmdString )) {    // parse for valid format
+        logPrintf( LOG_LEVEL_DEBUG, "picladmin-chatCB", "strin  ::%s::\n", strIn );
+        logPrintf( LOG_LEVEL_DEBUG, "picladmin-chatCB", "parsed ::%s::%s::\n", clientGUID, cmdString );
         _commandExecute( cmdString, clientGUID ) ;                     // execute the command
     }
 
@@ -1532,5 +1513,6 @@ int picladminInstallPlugin( void )
 
     return 0;
 }
+
 
 

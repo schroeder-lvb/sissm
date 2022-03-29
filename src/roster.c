@@ -36,25 +36,84 @@ static char rosterObjective[256], rosterObjectiveType[256];
 //  ==============================================================================================
 //  rosterIsValidGUID
 //
-//  Returns non-zero if string is a valid 17-character SteamGUID
+//  Returns 1 for SteamID, 2 for EPIC ID, 0 for invalid ID
 //
 int rosterIsValidGUID( char *testGUID )
 {
-    int i, isValid = 1;
-
-    if (17 != strlen( testGUID )) {
-        isValid = 0;
-    }
-    else {
+    int i, isValid = 0;
+    int len = strlen( testGUID ); 
+  
+    switch ( len )  { 
+    case 17:                   // Steam
+        isValid = 1;
         for (i=0; i<17; i++) {
             if ( !isdigit( testGUID[i] )) {
                 isValid = 0;
                 break;
             }
         }
+        break;
+    case 65:                   // EPIC
+        isValid = 2;
+        for (i=0; i<65; i++) {
+            if ( ( !isxdigit( testGUID[i] )) && ( testGUID[i] != '|' ) ) {
+                isValid = 0;
+                break;
+            }
+        }
+        break;
+    default:
+        isValid = 0;
     }
+
     return( isValid );
 }
+
+
+//  ==============================================================================================
+//  rosterFindFirstID
+//
+//  This routine extracts the first match for either SteamID or EPIC-ID in the string.  The IDs
+//  must be wrapped in open/close delimiters such as [ and ] or ( and ).  They CANNOT be the 
+//  same symbol.
+//  
+//  Returned foundCode of 0 =  no match, 1 = steamID and 2 = EPIC ID was found.
+//
+int rosterFindFirstID(  char *lineIn, char symOpen, char symClose, char *foundID, int maxString  )
+{
+    int lastOpen = -1, i, j, k, foundCode = 0;
+    char testString[256];
+
+    strclr( foundID );
+
+    for ( i = 0; i < (int) strlen( lineIn ); i++ ) {
+
+        if ( lineIn[i] == symOpen ) {
+            lastOpen = i;
+        }
+        else if ( lineIn[i] == symClose ) {
+            if ( lastOpen == -1 ) continue;
+
+            // extract string between 'lastOpen' and 'i' and check
+            //
+            for ( j = lastOpen+1, k = 0; j<i; j++ ) {
+                testString[ k++ ] = lineIn[ j ];
+            }
+            testString[ k ] = 0;
+
+            // test the 'test string' -- if valid then exit as found
+            //
+            if ( 0 != ( foundCode = rosterIsValidGUID( testString )) ) {
+                strlcpy( foundID, testString, maxString );
+                break;
+            }
+        }
+    }
+    return( foundCode );
+}
+
+
+
 
 //  ==============================================================================================
 //  rosterSetSessionID
@@ -261,7 +320,7 @@ void rosterSetServerName( char *serverName )
 //
 char *rosterGetServerName( void )
 {
-    return( rosterServerName );;
+    return( rosterServerName );
 }
 
 //  ==============================================================================================
@@ -360,14 +419,19 @@ int rosterParse( char *buf, int n )
 {
     int i, j, validFlag;
     char *headStr, *recdStr, *atLeastOne;
-    char tmpStr[64], *w;
+    char tmpStr[256], *w;    // EPIC
 
     validFlag = 1;  i = 0;  j = -1;
     
     headStr = strstr( &buf[32], "========================" );    // look for start of separator == valid input
     if ( headStr != NULL ) {
         recdStr = &headStr[80];                                  // look for start of first record
-        atLeastOne = strstr( recdStr, "7656" );                  // must have at least one person
+      
+        // Quick check to make sure at least one player connected.
+        //
+        if ( NULL == ( atLeastOne = strstr( recdStr, "7656" )))                   // legacy support
+            if ( NULL == ( atLeastOne = strstr( recdStr, "SteamNWI:" )))          // new format
+                atLeastOne = strstr( recdStr, "EOS:" );                           // new format
 
         j = 0;
         rosterReset();
@@ -389,8 +453,17 @@ int rosterParse( char *buf, int n )
                 if (!validFlag) break;
 
                 // Process Sandstorm 1.11 format change 
+                // Remove SteamNWI: and EOS: prefix headers and re-write to masterRoster database
                 // 
-                if ( NULL != ( w = strstr( masterRoster[j].steamID, "7656" )) ) {
+                if ( NULL != ( w = strstr( masterRoster[j].steamID, "SteamNWI:" )) ) {
+                    strlcpy( tmpStr, &w[9],  32 );
+                    strlcpy( masterRoster[j].steamID, tmpStr, 32 );
+                }
+                else if ( NULL != ( w = strstr( masterRoster[j].steamID, "EOS:" )) ) {   // EPIC
+                    strlcpy( tmpStr, &w[4], 66 );
+                    strlcpy( masterRoster[j].steamID, tmpStr, 66 );
+                } 
+                else if ( NULL != ( w = strstr( masterRoster[j].steamID, "7656" )) ) {  // pre-v1.11 backword compat
                     strlcpy( tmpStr, w,  32 );
                     strlcpy( masterRoster[j].steamID, tmpStr, 32 );
                 }
@@ -591,7 +664,7 @@ char *rosterLookupIPFromName( char *playerName )
 //
 char *rosterPlayerList( int infoDepth, char *delimiter )
 {
-    static char playerList[4096], single[256];
+    static char playerList[8192], single[256];    // EPIC - doubled to 8K
     int i;
     strclr( playerList );
     for (i=0; i<ROSTER_MAX; i++) {
@@ -618,7 +691,7 @@ char *rosterPlayerList( int infoDepth, char *delimiter )
 	        default:  // (case 0) default miniamlist public dispaly, player name only
                     snprintf( single, 256, "%s%s", masterRoster[i].playerName, delimiter );
 		}
-                strlcat( playerList, single, 4096 );
+                strlcat( playerList, single, 8191 );   // EPIC
             }
         }
     }
@@ -670,27 +743,35 @@ void rosterDump( int humanFlag, int npcFlag )
 //
 #define DESTROY1_STRING "owned by team 1 was destroyed for team 0 by "
 #define DESTROY2_STRING "owned by team 0 was destroyed for team 1 by "
-#define DESTROY_PREFIX  "[76"
 
 void rosterParseCacheDestroyed( char *destroyString, int maxChars, char *playerName, char *playerGUID, char *playerIP )
 {
-    char localBuffer[ 4096 ];
-    char *p, *q;
+    char localBuffer[ 8092 ];         // EPIC size incresae
+    char *p;
 
-    strlcpy( localBuffer, destroyString, 4096 );
+    strlcpy( localBuffer, destroyString, 8092 );  
 
+    strclr( playerName );
+    strclr( playerGUID );
+    strclr( playerIP );
+
+    // set p to point to start of destruct search string
     p = strstr( localBuffer, DESTROY1_STRING );
-    if ( p == NULL ) p = strstr( localBuffer, DESTROY2_STRING );
+    if ( p == NULL ) 
+        p = strstr( localBuffer, DESTROY2_STRING );
 
-    if ( p != NULL ) {
+    if ( p != NULL ) { 
+        // set p to point to start of player info
         p += strlen( DESTROY1_STRING );
-        q = strstr( p, DESTROY_PREFIX );
-        if ( q != NULL ) if ( strlen( q ) >= 18 ) {
-            strlcpy( playerGUID, q+1, 18 );
+    }
+
+    if ( p != NULL ) { 
+        if ( 0 != rosterFindFirstID(  p, '[', ']', playerGUID, maxChars )) { 
             strlcpy( playerIP,   rosterLookupIPFromGUID( playerGUID ), maxChars );
             strlcpy( playerName, rosterLookupNameFromGUID( playerGUID ), maxChars );
         }
     }
+
     return;
 }
 
@@ -703,11 +784,30 @@ void rosterParseCacheDestroyed( char *destroyString, int maxChars, char *playerN
 //
 //  "~SYNTHADD~ 76561000000000000 001.002.003.004 NameOfPlayer"
 //
-void rosterParsePlayerSynthConn( char *connectString, int maxSize,  char *playerName, char *playerGUID, char *playerIP )
+void rosterParsePlayerSynthConn( char *connectString, int maxSize, char *playerName, char *playerGUID, char *playerIP )
 {
-    strlcpy( playerName, &connectString[ 45 ], maxSize );
+    int i, j = 0, spaceCount = 0;
+
+    // strlcpy( playerName, &connectString[ 45 ], maxSize );  // old code
     strlcpy( playerGUID, getWord( connectString, 1, " " ), maxSize );
     strlcpy( playerIP,   getWord( connectString, 2, " " ), maxSize );
+
+    // look for 3rd <space> for beginning of player name
+    // recoded for EPIC ID
+    // 
+    strclr( playerName );
+    for (i=0; i < (int) strlen( connectString ); i++) {
+        if ( connectString[i] == ' ' ) spaceCount++;
+        if ( spaceCount == 3 ) {
+            j = i + 1;
+            break;
+        }
+    }
+    if ( j != 0 ) strlcpy( playerName, &connectString[ j ], maxSize );
+
+    logPrintf( LOG_LEVEL_DEBUG, "roster-synconn", "Connect String ::%s::\n", connectString);
+    logPrintf( LOG_LEVEL_DEBUG, "roster-synconn", "Parsed String  ::%s::%s::%s::\n", playerName, playerGUID, playerIP );
+    
     return;
 }
 
@@ -721,9 +821,24 @@ void rosterParsePlayerSynthConn( char *connectString, int maxSize,  char *player
 //
 void rosterParsePlayerSynthDisConn( char *connectString, int maxSize,  char *playerName, char *playerGUID, char *playerIP )
 {
-    strlcpy( playerName, &connectString[ 45 ], maxSize );
+    int i, j = 0, spaceCount = 0;
+
+    // strlcpy( playerName, &connectString[ 45 ], maxSize );  // old code
     strlcpy( playerGUID, getWord( connectString, 1, " " ), maxSize );
     strlcpy( playerIP,   getWord( connectString, 2, " " ), maxSize );
+
+    // look for 3rd <space> for beginning of player name
+    // recoded for EPIC ID
+    // 
+    strclr( playerName );
+    for (i=0; i < (int) strlen( connectString ); i++) {
+        if ( connectString[i] == ' ' ) spaceCount++;
+        if ( spaceCount == 3 ) {
+            j = i + 1;
+            break;
+        }
+    }
+    if ( j != 0 ) strlcpy( playerName, &connectString[ j ], maxSize );
     return;
 }
 
@@ -797,9 +912,15 @@ void rosterParsePlayerDisConn( char *connectString, int maxSize, char *playerNam
 //
 int rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chatLine )
 {
-    int errCode = 1, i;
-    char strIn2[256];
-    char *steamID = NULL, *chatText = NULL;
+    int   errCode = 1, i;
+    char  strIn2[256], *p;
+    char *chatText = NULL;
+
+
+    // Clear the return variables in case of parsing error
+    //
+    strclr( clientID );
+    strclr( chatLine );
 
     // check if this is a valid chat line
     //
@@ -818,18 +939,32 @@ int rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chat
         if ( chatText == NULL )  chatText = strstr( strIn2, "Team 0 Chat: " );
         if ( chatText == NULL )  chatText = strstr( strIn2, "Team 1 Chat: " );
         if ( chatText != NULL )  {
-            chatText += 13;
-            strlcpy( chatLine, chatText, maxChars );
+            // chatText += 13;
+            strlcpy( chatLine, chatText+13, maxChars );
             errCode = 0;
         }
 
-        // Find the steam ID of the originator
+        // Find the steam or EPIC ID of the originator
+        // EPIC
         //
-        strclr( clientID );
-        if ( NULL != (steamID = strstr( strIn2, "(76" ) )) {
-            strlcpy( clientID, &steamID[1], 18 );
-        }
+        if ( chatText != NULL ) {   // from start of chat text, work backwards to find the "(" symbol
 
+            p = chatText;
+            while ( (p--) != chatLine ) {         
+                if ( *p == '(' ) {
+                    p++;
+                    strlcpy( clientID, p, 66 );       // check if this is EPIC ID
+                    if ( 0 == rosterIsValidGUID( clientID ) ) {
+                        strlcpy( clientID, p, 18 );  // check if this is Steam ID
+                        if ( 0 == rosterIsValidGUID( clientID ) ) {
+                            strclr( clientID );      // parse error, no ID
+                            errCode = 2;
+                        }
+                    }
+                    break;
+                }
+            }
+        }        
     }
     return errCode;
 }
@@ -895,29 +1030,42 @@ void rosterParseMapname( char *mapLogString, int maxChars, char *mapName )
 //  direction is 'disconnect'; calling it backwards finds 'new connections'
 //
 
-#define SIZEOFGUID  (17)            // e.g., 76561100000000000 
+#define SIZEOFGUID  (17)            // e.g., 76561100000000000 (17) or EPIC 
 #define SIZEOFIP    (15)            // e.g., 123.035.001.024
 
-int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *))
+int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *) )
 {
-    char *w;
-    char playerGUID[256], playerIP[256], playerName[256];
-    int i = 0;
+    char *w, *q, lineBuf[1024];
+    static char playerGUID[256], playerIP[256], playerName[256];
+    int  startOfName,  i = 0;
 
     while (1 == 1) {
-        w = getWord( prevRoster, i++, "\011" );
-        if ( w == NULL )      break;
-        if ( 0 == strlen(w) ) break;
+        if ( NULL == (w = getWord( prevRoster, i++, "\011" )) )    // tab deliminated
+            break;
+        strlcpy( lineBuf, w, 1024 );
+        if ( 0 == strlen( lineBuf ) ) break;
 
-        if ( NULL == strstr( currRoster, w ) ) {  // if missing
+        if ( NULL == strstr( currRoster, lineBuf ) ) {  // if missing
 
-            // parse the w
+            // parse the record into fields -- is follows 
+            // rosterPlayerList( type=4, delim="tab" ) format.
+            // 76561100000000000 001.002.003.004 Player Name<tab>
             //
-            strlcpy( playerGUID, w, SIZEOFGUID+1 );
-            playerGUID[ SIZEOFGUID+1 ] = 0;    // safety (probably not needed)
-            strlcpy( playerIP,   &w[SIZEOFGUID+1], SIZEOFGUID );
-            playerIP[ SIZEOFIP ] = 0;          // safety (probably not needed)
-            strlcpy( playerName,  &w[SIZEOFGUID+SIZEOFIP+2], 256 );
+            if ( NULL != (q = getWord( lineBuf, 0, " \011" ))) 
+                strlcpy( playerGUID, q, 255 );
+            else  
+                strclr( playerGUID );
+            
+            if ( NULL != (q = getWord( lineBuf, 1, " \011" ))) 
+                strlcpy( playerIP, q, 255 );   // <---- fails
+            else 
+                strclr( playerIP );
+
+            startOfName = strlen( playerGUID ) + strlen( playerIP ) + 2;
+            strlcpy( playerName, &lineBuf[ startOfName ], 255 );
+
+            logPrintf( LOG_LEVEL_DEBUG, "roster", "Change Line    ::%s::\n", lineBuf ) ;
+            logPrintf( LOG_LEVEL_DEBUG, "roster", "Change Parsed  ::%s::%s::%s::\n", playerName, playerGUID, playerIP );
 
             (*callback)( playerName, playerIP, playerGUID );
         }
@@ -925,65 +1073,3 @@ int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callba
     return 0;
 }
 
-
-
-//  ==============================================================================================
-//  _rosterTest
-//
-//  Test/dev method that reads captured raw RCON data dump into 'buf' then parse.
-//  This routine is not called in operational program.
-//
-
-#if 0
-static int _rosterReadTest( char *binaryDumpFile, unsigned char *buf )
-{
-    int i, n;
-    FILE *fpr;
-    char *p = NULL;
-
-    fpr = fopen( binaryDumpFile, "rb" );
-    if ( fpr == NULL ) {
-        printf("\nOpen error\n");
-        abort();
-    }
-    n = fread( buf, 1, 8*4096, fpr );
-    printf("\nN = %d\n", n);
-    if (  p == NULL) printf("\nRead error\n");
-    fclose( fpr );
-
-    i = 0;
-    while (1)  {
-        printf("%c", buf[i++]);
-        // if (buf[i] == 0) break;
-        if (i == n) break;
-    }
-    printf("\n\n----------------------\n\n");
-    return( n );
-}
-
-int roster_test_main()
-{
-    unsigned char buf[4*4096];  
-    int n;
-
-    // 275::Name::76560000000000001::111.22.33.44::470
-    rosterInit();
-    rosterReset();
-    n = _rosterReadTest( "dump.bin", buf );
-    tabDumpDebug( buf, n );
-    printf("\n---Parsing -----\n");
-    rosterParse( buf, n );
-    printf("\n---Dumping -----\n");
-    rosterDump( 0, 0 );
-    printf("\n---Counting-----\n");
-    printf("\nCount %d\n", rosterCount());
-    printf( "%s::%s::%s\n", 
-        rosterLookupNameFromIP( "100.36.84.54" ),
-        rosterLookupSteamIDFromName( "TestFlight" ),
-        rosterLookupIPFromName( "TestFlight" )
-    );
-    printf("Roster ::%s::\n", rosterPlayerList(2, " : "));
-    // rosterWeb();
-}
-
-#endif
