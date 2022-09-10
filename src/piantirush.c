@@ -336,8 +336,10 @@ static void _capRusherEnterZone( char *playerCharID, char *playerName )
     else {
         logPrintf(LOG_LEVEL_CRITICAL, "piantirush", "**Internal error - territorialRusher table full" );
     }
+
     return;
 }
+
 
 //  ==============================================================================================
 //  _capRusherExitZone (internal)
@@ -395,9 +397,7 @@ static void _capRusherPeriodicCheck( void )
                             strlcpy( playerGUID, g, 256 );  // EPIC
                             _localSay( "'%s' auto-kicked for early breach",  territorialRushers[i].playerName );
                             logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for early breach", territorialRushers[i].playerName, playerGUID );
-#if (SISSM_TEST == 0)
                             _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTimeKickMessage );
-#endif
 
                             // remove the player from cached table in case another player connects and the
                             // system re-uses the same character ID
@@ -416,15 +416,12 @@ static void _capRusherPeriodicCheck( void )
                 // check for player exceeding number of nuisance "taps" 
                 //
                 if (( 0 != piantirushConfig.earlyBreachMaxTaps ) &&  
-// asdf2
                     ( territorialRushers[i].playerEarlyBreachCount++ > piantirushConfig.earlyBreachMaxTaps ) ) {  // 20211006tap
                     if ( NULL != ( g = rosterLookupSteamIDFromName( territorialRushers[i].playerName )) ) {
                         strlcpy( playerGUID, g, 256 );  // EPIC
                         _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
                         logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for excess objective tapping", territorialRushers[i].playerName, playerGUID );
-#if (SISSM_TEST == 0)
                         _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTapsKickMessage );
-#endif
                         // remove the player from cached table in case another player connects and the
                         // system re-uses the same character ID
                         //
@@ -459,9 +456,9 @@ static void _captureSpeed( int isSlow )
     //
     v = apiGetServerMode();
     // if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return;
-    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) ) _fastMode = 1;
-   
-// asdf
+
+    if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) ) 
+        _fastMode = 1;
  
     if ( apiPlayersGetCount() <=  piantirushConfig.nPlayerExemption )
         isSlowCopy = 0;
@@ -1030,9 +1027,7 @@ int piantirushCacheDestroyed( char *strIn )
     if ( piantirushConfig.autoKickEarlyDestruction ) {
         if ( ( _fastMode == 0 ) && ( alarmStatus( aPtr ) >= piantirushConfig.earlyDestroyTolerance )) {
             if ( kickArmed2 && kickArmed ) {
-#if (SISSM_TEST == 0)
                 apiKickOrBan( 0, playerGUID, piantirushConfig.earlyDestroyKickMessage );
-#endif
                 logPrintf( LOG_LEVEL_WARN, "piantirush", "%s[%s] Auto-kicked for early cache destruction", playerName, playerGUID );
                 _localSay( "'%s' auto-kicked for rushing", playerName );
             }
@@ -1058,14 +1053,20 @@ int piantirushCacheDestroyed( char *strIn )
 int piantirushChatCB( char *strIn )
 {
     char clientID[256], chatLine[256];
-    int errCode;
+    int isQualified = 0, errCode;
 
     if ( piantirushConfig.autoKickEarlyDestruction ) {
         if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" ))  {
             if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatLine ))) {
                 if ( NULL != strstr( piantirushConfig.earlyDestroyPlayerRequest, chatLine )) {
-                    // check if this player is alive
-                    if ( apiIsPlayerAliveByGUID( clientID ) )
+
+                    // check if this player is qualified to call this command 
+                    //
+                    isQualified  = apiIsPlayerAliveByGUID( clientID );
+                    isQualified |= apiAuthIsAttribute( clientID, "deadcmdr" );
+                    isQualified |= apiIsHotRestart();
+
+                    if ( isQualified ) 
                         alarmReset( rPtr, 2 );        // give answer 2 seconds later for cosmetics 
                 }
             }
@@ -1076,8 +1077,14 @@ int piantirushChatCB( char *strIn )
         if ( NULL != strstr( rosterGetObjectiveType(), "Captur" ))  {
             if ( 0 == (errCode = rosterParsePlayerChat( strIn, 256, clientID, chatLine ))) {
                 if ( NULL != strstr( piantirushConfig.earlyBreachPlayerRequest, chatLine )) {
-                    // check if this player is alive
-                    if ( apiIsPlayerAliveByGUID( clientID ) )
+ 
+                    // check if this player is qualified to call this command 
+                    //
+                    isQualified  = apiIsPlayerAliveByGUID( clientID );
+                    isQualified |= apiAuthIsAttribute( clientID, "deadcmdr" );
+                    isQualified |= apiIsHotRestart();
+
+                    if ( isQualified )
                         alarmReset( bPtr, 2 );        // give answer 2 seconds later for cosmetics  
                 }
             }
@@ -1117,9 +1124,6 @@ int piantirushObjTouchCB( char *strIn )
 
                         if ( (piantirushConfig.earlyBreachShow) && ( kickArmed2 && kickArmed )) {
                             _localSayThrottled( "'%s' %s", playerName, piantirushConfig.earlyBreachWarn );
-
-
-// asdf2
                         }
 
                         // call the cap-rush algo submodule here
@@ -1325,6 +1329,7 @@ int piantirushInstallPlugin( void )
 
     eventsRegister( SISSM_EV_BP_TOUCHED_OBJ,       piantirushObjTouchCB );
     eventsRegister( SISSM_EV_BP_UNTOUCHED_OBJ,     piantirushObjUntouchCB );
+
 
     return 0;
 }

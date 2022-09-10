@@ -35,6 +35,7 @@
 #include "cfs.h"
 #include "util.h"
 #include "alarm.h"
+#include "p2p.h"
 
 #include "roster.h"
 #include "api.h"
@@ -62,13 +63,16 @@ static struct {
     int  autoRefreshHeader;                // 1=create html page autorefresh header, 0=none
     int  commTimeoutSec;                   // # sec of RCON failure to indicate "fail" on web
     int  showSessionID;                    // 1=show replay SessionID, 0=no
+    int  reReadHostName;                   // 1=re-read hostname every iteration, 0=one time only
 
     int  showUpTime;                       // 1=show server "up time" and last rebooted reason
     int  showLastReboot;                   // 1=show last reboot time and last rebooted reason 
     int  showCurrentTime;                  // 1=show current time
+    int  showGameMode;                     // 1=show current game mode
 
 } piwebgenConfig;
 
+static char gameMode[ API_ROSTER_STRING_MAX ];
 
 //  ==============================================================================================
 //  piwebgenInitConfig
@@ -101,8 +105,14 @@ int piwebgenInitConfig( void )
     piwebgenConfig.showUpTime        = (int) cfsFetchNum( cP, "piwebgen.showUpTime", 1.0 );
     piwebgenConfig.showLastReboot    = (int) cfsFetchNum( cP, "piwebgen.showLastReboot", 0 );
     piwebgenConfig.showCurrentTime   = (int) cfsFetchNum( cP, "piwebgen.showCurrentTime", 0 );
+    piwebgenConfig.showGameMode      = (int) cfsFetchNum( cP, "piwebgen.showGameMode", 0 );
+    piwebgenConfig.reReadHostName    = (int) cfsFetchNum( cP, "piwebgen.reReadHostName", 0 );
+
 
     cfsDestroy( cP );
+
+    strlcpy( gameMode, "Unknown", API_ROSTER_STRING_MAX );
+
     return 0;
 }
 
@@ -242,7 +252,8 @@ static int _genWebFile( void )
         // Displaying the server name - from sissm.cfg file, or RCON
         //
         srvName = apiGetServerName();
-        if ( 0 == strncmp( srvName, "*", 2 ) ) srvName = apiGetServerNameRCON(0);
+        if ( 0 == strncmp( srvName, "*", 2 ) ) 
+            srvName = apiGetServerNameRCON( 0 );
         fprintf( fpw, "<b>%s</b>\n", srvName );
 
         // Option for displaying extra line description
@@ -294,6 +305,16 @@ static int _genWebFile( void )
             fprintf( fpw, "<br>Admin: &nbsp;&nbsp; %s\n", hyperLinkCode );
         }
 
+        if ( 0 != piwebgenConfig.showGameMode ) {
+            fprintf( fpw, "<br>Game Mode: &nbsp;&nbsp;&nbsp;&nbsp;   %s\n", gameMode );
+        }
+
+        if ( 1L == p2pGetL( "pigateway.p2p.lockOut", 0L )) {
+            fprintf( fpw, "<br>* Temporarily LOCKED for Private Session *\n" );
+        }
+        else if ( 2L == p2pGetL( "pigateway.p2p.lockOut", 0L )) {
+            fprintf( fpw, "<br>*** Temporarily LOCKED for Private Session ***\n" );
+        }
 
         // Display list of players
         //
@@ -405,6 +426,10 @@ int piwebgenMapChangeCB( char *strIn )
 //
 int piwebgenGameStartCB( char *strIn )
 {
+    // re-read & cache server name
+    //
+    apiGetServerNameRCON( piwebgenConfig.reReadHostName );
+
     return 0;
 }
 
@@ -462,6 +487,31 @@ int piwebgenCapturedCB( char *strIn )
 int piwebgenPeriodicCB( char *strIn )
 {
     static unsigned int intervalCount = 0;
+    static unsigned int modePollingGameMode   = 0;
+    static unsigned int modePollingHostName   = 15;
+
+    if ( piwebgenConfig.showGameMode ) {
+        if ( modePollingGameMode++ > 60 ) {
+            modePollingGameMode = 0;
+
+            // Get current game mode: "checkpoint", "hardcorecheckpoint"....
+            //
+            strlcpy( gameMode, apiGameModePropertyGet( "gamemodetagname" ), API_ROSTER_STRING_MAX );
+            if ( 0 != strlen( gameMode ) )
+                logPrintf( LOG_LEVEL_INFO, "piwebgen", "GameMode is ::%s::", gameMode );
+            else {
+                strlcpy( gameMode, "Unknown", API_ROSTER_STRING_MAX );
+                logPrintf( LOG_LEVEL_WARN, "piwebgen", "** Unable to read; current GameMode" );
+            }
+        }
+    }
+
+    if ( piwebgenConfig.reReadHostName ) {
+        if ( modePollingHostName++ > 60 ) {
+            modePollingHostName = 0;
+            apiGetServerNameRCON( piwebgenConfig.reReadHostName );
+        }
+    }
 
     if ( 0 != piwebgenConfig.updateIntervalSec ) {
 

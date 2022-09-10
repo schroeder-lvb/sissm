@@ -49,8 +49,8 @@
 #define API_LOG2RCON_DELAY_MICROSEC  (250000)          // system delay between log to rcon (tuned) 
 #define API_LISTPLAYERS_PERIOD           (10)     // #seconds periodic for listserver roster fetch
 
-#define API_ROSTER_STRING_MAX        (256*64)      // max size of contatenated roster string +EPIC
-#define API_LINE_STRING_MAX             (256)   
+// #define API_ROSTER_STRING_MAX        (256*64)      // max size of contatenated roster string +EPIC
+// #define API_LINE_STRING_MAX             (256)   
 
 #define API_MAXMAPS                     (512)    // max maps listed in mapcycle.txt
 
@@ -154,6 +154,7 @@ int maxBotsCounterAttack = 30;                         // max bots per wave on f
 double finalCacheBotQuotaMultiplier = 0;                     // 0=disable, typical value 1.2 - 1.5
 #endif
 
+static int _inHotRestart = 1;            // assume SISSM hotrestart, cleared when new round starts
 
 //  ==============================================================================================
 //  apiRemoveCodes
@@ -525,38 +526,6 @@ int _apiPollAlarmCB( char *strIn )
 // 
 int _apiChatCB( char *strIn )
 {
-    
-#if SISSM_TEST
-
-    // This block of code allows a single developer to test multiplayer 
-    // condition by faking the active player count reported by this module.
-    //
-    if ( NULL != strstr( strIn, "debug0000" )) {
-        _overrideAliveCount = 0;
-       apiSay("Debug Mode alive=0");
-    }
-
-    if ( NULL != strstr( strIn, "debug0001" )) {
-        _overrideAliveCount = 1;
-       apiSay("Debug Mode alive=1");
-    }
-
-    if ( NULL != strstr( strIn, "debug0002" )) {
-        _overrideAliveCount = 2;
-       apiSay("Debug Mode alive=2");
-    }
-
-    if ( NULL != strstr( strIn, "debug0003" )) {
-        _overrideAliveCount = 3;
-       apiSay("Debug Mode alive=3");
-    }
-    if ( NULL != strstr( strIn, "debug0006" )) {
-        _overrideAliveCount = 6;
-       apiSay("Debug Mode alive=6");
-    }
-
-#endif
-    
     return 0;
 }
 
@@ -676,14 +645,15 @@ int apiBPPlayerCount( void )
 {
     int i;
     int countPlayers = 0;
+    long devOverride = 0L;
 
     for ( i=0; i<API_MAXENTITIES; i++ ) {
         if (0 != strlen( soldierTranslate[ i ].playerName ) ) countPlayers++;
     }
 
-#if SISSM_TEST
-    if ( _overrideAliveCount ) countPlayers = _overrideAliveCount;
-#endif
+    if ( 0L != (devOverride = p2pGetL( "dev.p2p.humans", 0L )) ) {
+        countPlayers = 0xffL & devOverride;
+    }
 
     return countPlayers;
 }
@@ -1017,6 +987,28 @@ char apiLookupObjectiveLetterFromCache( char *objectiveName )
     return retChar;
 };
 
+//  ==============================================================================================
+//  apiLookupLastObjectiveLetterFromCache
+//
+//  Returns the last objective letter 'A', 'B', 'C', etc. from the cached objective list.
+//  
+//
+char apiLookupLastObjectiveLetterFromCache( void )
+{
+    char retChar = ' ';
+    int i;
+
+    for ( i = 0; i<API_OBJECTIVES_MAX; i++ ) {
+       if ( 0 != strlen( _objectiveListCache[i] )) {
+           retChar = i + 'A';
+       }
+       if ( 0 == strlen( _objectiveListCache[i] )) {
+           break;
+       }
+    }
+    return retChar;
+};
+
 
 //  ==============================================================================================
 //  _apiRoundStartCB
@@ -1032,44 +1024,25 @@ int _apiRoundStartCB( char  *strIn )
     errCode = _apiFetchGameState();
     logPrintf( LOG_LEVEL_INFO, "api", "RoundStart ActiveObjective update::%s:: and Error ::%d::", gameStatePrevious, errCode );
 
+    // On new round clear the 'SISSM hot restart' flag.  
+    //
+    _inHotRestart = 0;
+
     return 0;
 }
 
 
-
 //  ==============================================================================================
-//  apiInit
+//  apiInitAuth
 //
-//  One-time initialization of the API module.  Like the plugins, this module installs several
-//  event and alarm handlers for internal use.
 //
-int apiInit( void )
+void apiInitAuth( void )
 {
-    cfsPtr cP;
+    int i, count;
     char varImg[256];
-    char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
-    int    count, i, myPort, badWordsCount, mapsCount;;
-    char   serverName[API_LINE_STRING_MAX];
+    cfsPtr cP ;
 
-    // Read the "sissm" systems configuration variables
-    //
     cP = cfsCreate( sissmGetConfigPath() );
-
-    myPort = (int) cfsFetchNum( cP, "sissm.RconPort", 27015 );            
-    strlcpy( myIP, cfsFetchStr( cP, "sissm.RconIP", "127.0.0.1"), API_LINE_STRING_MAX );
-    strlcpy( myRconPassword, cfsFetchStr( cP, "sissm.RconPassword", ""), API_LINE_STRING_MAX );
-    // strlcpy( adminListFilePath, cfsFetchStr( cP, "sissm.adminListFilePath", "Admins.txt"), API_LINE_STRING_MAX );
-
-    strlcpy( serverName, cfsFetchStr( cP, "sissm.ServerName", "Unknown Server" ), API_LINE_STRING_MAX );
-
-    // read the Bad Words filename
-    //
-    strlcpy( badWordsFilePath, cfsFetchStr( cP, "sissm.badWordsFilePath", "" ), CFS_FETCH_MAX );
-
-    // read the Mapcycle filepath
-    //
-    strlcpy( mapcycleFilePath, cfsFetchStr( cP, "sissm.mapcycleFilePath", "" ), CFS_FETCH_MAX );
-
 
     // read the AUTH related permission block
     //
@@ -1101,6 +1074,62 @@ int apiInit( void )
             logPrintf(LOG_LEVEL_INFO, "api", "Read Group List ::%s:: count %d", groups[i].groupname, count );
         }
     }
+    cfsDestroy( cP );
+
+    return;
+}
+
+
+//  ==============================================================================================
+//  apiInitBadWords
+//
+//
+void apiInitBadWords( void )
+{
+    int badWordsCount;
+
+    badWordsCount = apiWordListRead( badWordsFilePath, badWordsList );
+    logPrintf( LOG_LEVEL_CRITICAL, "api", "BadWords list %d words from file %s", badWordsCount, badWordsFilePath );
+
+    return;
+}
+
+
+//  ==============================================================================================
+//  apiInit
+//
+//  One-time initialization of the API module.  Like the plugins, this module installs several
+//  event and alarm handlers for internal use.
+//
+int apiInit( void )
+{
+    cfsPtr cP;
+    char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
+    int    i, myPort, mapsCount;;
+    char   serverName[API_LINE_STRING_MAX];
+
+    // Read the "sissm" systems configuration variables
+    //
+    cP = cfsCreate( sissmGetConfigPath() );
+
+    myPort = (int) cfsFetchNum( cP, "sissm.RconPort", 27015 );            
+    strlcpy( myIP, cfsFetchStr( cP, "sissm.RconIP", "127.0.0.1"), API_LINE_STRING_MAX );
+    strlcpy( myRconPassword, cfsFetchStr( cP, "sissm.RconPassword", ""), API_LINE_STRING_MAX );
+    // strlcpy( adminListFilePath, cfsFetchStr( cP, "sissm.adminListFilePath", "Admins.txt"), API_LINE_STRING_MAX );
+
+    strlcpy( serverName, cfsFetchStr( cP, "sissm.ServerName", "Unknown Server" ), API_LINE_STRING_MAX );
+
+    // read the Bad Words filename
+    //
+    strlcpy( badWordsFilePath, cfsFetchStr( cP, "sissm.badWordsFilePath", "" ), CFS_FETCH_MAX );
+
+    // read the Mapcycle filepath
+    //
+    strlcpy( mapcycleFilePath, cfsFetchStr( cP, "sissm.mapcycleFilePath", "" ), CFS_FETCH_MAX );
+
+    // read the AUTH (permissions) data
+    //
+    apiInitAuth();
 
     // Used with Circleus' "Advanced Chat" mod
     //
@@ -1109,7 +1138,7 @@ int apiInit( void )
     strlcpy( sayPostfix,  cfsFetchStr( cP, "sissm.sayPostfix", ""),  API_LINE_STRING_MAX );
 
 #if FINALCOUNTER_REDUCE
-    // Checkpoint/Hardcorecheckpoint Crash Protection Limiter // asdf
+    // Checkpoint/Hardcorecheckpoint Crash Protection Limiter 
     //
     maxBotsCounterAttack = (int) cfsFetchNum( cP, "sissm.MaxBotsCounterAttack", 30.0 ); 
     finalCacheBotQuotaMultiplier = (double) cfsFetchNum( cP, "sissm.FinalCacheBotQuotaMultiplier", 1.2 );
@@ -1172,8 +1201,10 @@ int apiInit( void )
 
     // Read the Bad Words list
     //
-    badWordsCount = apiWordListRead( badWordsFilePath, badWordsList );
-    logPrintf( LOG_LEVEL_CRITICAL, "api", "BadWords list %d words from file %s", badWordsCount, badWordsFilePath );
+    // badWordsCount = apiWordListRead( badWordsFilePath, badWordsList );
+    // logPrintf( LOG_LEVEL_CRITICAL, "api", "BadWords list %d words from file %s", badWordsCount, badWordsFilePath );
+    // 
+    apiInitBadWords();
 
     // Read the Mapcycle.txt
     //
@@ -1460,23 +1491,34 @@ int apiSaySys( const char * format, ... )
 int apiKickOrBan( int isBan, char *playerGUID, char *reason )
 {
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE], playerName[256];
-    int bytesRead, errCode;
+    int bytesRead, errCode, guidType = 0;
+
+    // "stub" for dev testing - do not kick or ban
+    //
+    if ( 0L != p2pGetL( "dev.p2p.nokick", 0L )) {
+        return 0;
+    }
 
     if ( isBan ) {
         snprintf( rconCmd, API_T_BUFSIZE, "banid \"%s\" -1 \"%s\"", playerGUID, reason );
         errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
     }
     else {
-        snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerGUID, reason );
-        errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
 
-        // redundant 'name' kicked after 'guid' kick -- for EPIC
-        //
-        strlcpy( playerName, rosterLookupNameFromGUID( playerGUID ), 256 ); 
-        if ( 0 != strlen( playerName ) ) {
-            snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerName, reason );
-            errCode |= rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
-        }
+        guidType = rosterIsValidGUID( playerGUID ) ;
+        switch ( guidType ) {
+        case 1:         // Steam - kick by Steam ID
+            snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerGUID, reason );
+            errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+            break;
+        case 2:         // EPIC - kick by Name:  bug workaround 
+            strlcpy( playerName, rosterLookupNameFromGUID( playerGUID ), 256 ); 
+            if ( 0 != strlen( playerName ) ) {
+                snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerName, reason );
+                errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
+            }
+            break;
+        } 
     }
 
     logPrintf( LOG_LEVEL_WARN, "api", "apiKickOrBan ::%s::", rconCmd );
@@ -1496,6 +1538,14 @@ int apiKick( char *playerNameOrGUID, char *reason )
     char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
     int bytesRead, errCode;
 
+    // "stub" for dev testing - do not kick or ban
+    //
+    if ( 0L != p2pGetL( "dev.p2p.nokick", 0L )) {
+        return 0;
+    }
+
+    // Process kick
+    //
     snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerNameOrGUID, reason );
     errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
     logPrintf( LOG_LEVEL_WARN, "api", "apiKick ::%s::", rconCmd );
@@ -1560,12 +1610,7 @@ int apiRcon( char *commandOut, char *statusIn )
 //
 int apiPlayersGetCount( void )
 {
-#if (SISSM_TEST == 0)
-      return ( rosterCount() );  
-#else
-    if ( _overrideAliveCount ) return( _overrideAliveCount );
-    else return ( rosterCount() );
-#endif
+    return ( rosterCount() );
 }
 
 //  ==============================================================================================
@@ -1580,6 +1625,80 @@ char *apiPlayersRoster( int infoDepth, char *delimiter )
 {
     return ( rosterPlayerList(infoDepth, delimiter) );
 }
+
+
+//  ==============================================================================================
+//  apiBotRespawn
+//
+//  "Reset" bots to cause Respawn in Co-op modes by one of several algorithms
+//
+//  
+int apiBotRespawn( int resetAlgo )
+{
+    char botMinStr[80], botMinResetStr[80],  botMaxStr[80], botMaxResetStr[80];
+    int  botMin, botMinReset, botMax, botMaxReset;
+    int errCode = 1;
+
+    // Get minimumenemies/maximumenemies strings
+    // Store and convert them to integers
+    //
+    strlcpy( botMinStr, apiGameModePropertyGet( "minimumenemies" ), 80 );
+    strlcpy( botMaxStr, apiGameModePropertyGet( "maximumenemies" ), 80 );
+    if ( 1 == sscanf( botMinStr, "%d", &botMin ) ) {
+        if ( 1 == sscanf( botMaxStr, "%d", &botMax ) ) {
+            errCode = 0;
+        }
+    }
+
+    // drop the count by algo type
+    //
+    if ( errCode == 0) {
+
+        logPrintf( LOG_LEVEL_INFO, "api", "apiBotReset algo ::%d:: min/max read ::%s::%s::", resetAlgo, botMinStr, botMaxStr );
+
+        switch( resetAlgo ) {
+        case 1: 
+            botMinReset = 0;  botMaxReset = 0;
+            break;
+        case 2:                                            // minimum value 
+            botMinReset = 1;  botMaxReset = 2;
+            break;
+        case 3:                                            // minus-one value
+            botMinReset = botMin-1;  botMaxReset = botMax-1;
+            break;
+        case 4:                                            // half value 
+            botMinReset = 1;  botMaxReset = botMax / 2;
+            break;
+        default:                                           // re-write same value
+            botMinReset = botMin;  botMaxReset = botMax;   
+            break;
+        }
+   
+        snprintf( botMinResetStr, 80, "%d", botMinReset );
+        snprintf( botMaxResetStr, 80, "%d", botMaxReset );
+        errCode = _apiGameModePropertySet( "minimumenemies", botMinResetStr );
+        if ( 0 == errCode )  {
+            errCode = _apiGameModePropertySet( "maximumenemies", botMaxResetStr );
+            logPrintf( LOG_LEVEL_INFO, "api", "apiBotReset min/max to ::%s::%s::", botMinResetStr, botMaxResetStr );
+        }
+        
+    }
+
+    // slight delay
+    //
+    if ( errCode == 0 ) 
+        usleep( 250000 );   // 250,000us = 100ms = 0.25s
+ 
+    // Restore minimumenemies/maximumenemies
+    //
+    if ( errCode == 0 ) {
+        errCode |= _apiGameModePropertySet( "minimumenemies", botMinStr );
+        errCode |= _apiGameModePropertySet( "maximumenemies", botMaxStr );
+    }
+
+    return( errCode );
+}
+
 
 
 //  ==============================================================================================
@@ -1854,10 +1973,12 @@ char *apiGetServerNameRCON( int forceCacheRefresh )
         strlcpy( hostName, apiGameModePropertyGet( "serverhostname" ), 256 ); 
         if ( strlen( hostName ) != 0 )  {
             timeLastRead = apiTimeGet();
-            logPrintf( LOG_LEVEL_INFO, "api", "RCON successful read of hostname ::%s::", hostName );
+            logPrintf( LOG_LEVEL_INFO, "api", "RCON successful read of serverhostname ::%s::", hostName );
         }
-        else 
+        else {
             strlcpy( hostName, "Unknown", 256 );
+            logPrintf( LOG_LEVEL_INFO, "api", "RCON Error! -- Failed to read serverhostname." );
+        }
     }
     return ( hostName );
 }
@@ -1998,7 +2119,8 @@ int apiMapcycleRead( char *mapcycleFile )
         }
     }
  
-// asdf
+// todo-mut
+
     // Expand the space-separated single string mutAllowed to list mutAllowedList
     //
     strclr( mutAllowedList[0] );
@@ -2078,11 +2200,9 @@ int apiIsSupportedGameMode( char *candidateMode  )
 #if MUTATOR_SELECT
 static char *_apiIsSupportedMutator( char *candidateMutator )
 {
-// asdf
     static char fullMutatorName[API_MUT_MAXCHAR];
 
-// mutAllowed
-
+// todo-mut mutAllowed
 
     strclr( fullMutatorName );
 
@@ -2115,13 +2235,13 @@ int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char 
                     if ( ( 0 == strlen( gameMode )) || ( 0 == strcasecmp( mapCycleList[i].gameMode, gameMode )) ) {
                         snprintf( strOut, 300, "travel %s", mapCycleList[i].traveler );
 
-  // asdf
-  // remove options=
+// todo-mut
+// remove options=
 
                         if ( 0 != strlen( mutatorsList )) {
  
 
-// asdf loop through allowed mutators for 
+// todo-mut loop through allowed mutators for 
 // correct and complete name substitution
 
 
@@ -2159,14 +2279,23 @@ char *apiMutList( void )
     return( mutAllowed );
 }
 
+//  ==============================================================================================
+//  apiIsHotRestart
+//
+//  Returns true (1) if SISSM is in hot-restart state.  This condition will clear when
+//  SISSM detects a game server new round start event.
+//
+int apiIsHotRestart( void )
+{
+    return( _inHotRestart);
+}
+
 
 #if 0
 
 //  ==============================================================================================
-//  apiMutList
+//  apiMutQueue
 //
-//  Return a space-separated list of available mutators
-//  Information is derivedd from meta-tags in Mapcycle
 //
 char *apiMutQueue( char *mutNext )
 {

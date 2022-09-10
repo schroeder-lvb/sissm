@@ -278,8 +278,15 @@ int pitacnomicChatCB( char *strIn )
 
             // check if the command issuer is 'dead' -- if so, consult list of prohibited 
             // codes that can only be issued by players that are alive.
+            // Exemption-1 is when SISSM is hot-restarted (but not the game server) -- in this condition
+            // SISSM thinks everybody is 'dead' so, override this condition, forcing everyone is 'alive'
+            // until start of the next round.
+            // Exemption-2 is if the players has "deadcmdr" privilege attribute (admins/moderators) then
+            // s/he may be dead, but will may issue the stack/breach/blow commands.
             //
-            if (0 == apiIsPlayerAliveByGUID( clientID )) {  // if the issuer is "dead"
+            if ((0 == apiIsPlayerAliveByGUID( clientID )) 
+                  && !apiIsHotRestart() 
+                  && !apiAuthIsAttribute( clientID, "deadcmdr" )) {  // if the issuer is "dead"
 
                  // check if this 2-letter-code is in the "live player only" list
                  // 

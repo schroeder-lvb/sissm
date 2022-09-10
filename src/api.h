@@ -17,7 +17,13 @@
 #define FINALCOUNTER_REDUCE  (0)     // experimental code, do not enable
 #define MUTATOR_SELECT       (0)     // experimetnal code, do not enable
 
+#define API_ROSTER_STRING_MAX        (256*64)      // max size of contatenated roster string +EPIC
+#define API_LINE_STRING_MAX             (256)
+
+
 extern int   apiInit( void );
+extern void  apiInitAuth( void );
+extern void  apiInitBadWords( void );
 extern int   apiDestroy( void );
 extern int   apiServerRestart( char *reasonForRestart );
 extern int   apiGameModePropertySet( char *gameModeProperty, char *value );
@@ -28,6 +34,7 @@ extern int   apiKickOrBan( int isBan, char *playerGUID, char *reason );
 extern int   apiKick( char *playerNameOrGUID, char *reason );
 extern int   apiKickAll( char *reason );
 extern int   apiRcon( char *commandOut, char *statusIn );
+extern int   apiBotRespawn( int resetAlgo );   // experimental bot reset-respawn
 extern int   apiPlayersGetCount( void );
 extern char *apiPlayersRoster( int infoDepth, char *delimeter );
 extern char *apiGetServerName( void );
@@ -45,6 +52,8 @@ extern int   apiMapcycleRead( char *mapcycleFilePath );
 extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList );
 extern char *apiMapList(void );
 extern int   apiIsSupportedGameMode( char *candidateMode  );
+
+extern int   apiIsHotRestart( void );
 
 #define IDLISTMAXELEM        (256)
 #define IDLISTMAXSTRSZ       (256)   // EPIC
@@ -97,5 +106,5 @@ extern int   apiIsPlayerAliveByGUID( char *playerGUID );
 // name instead of parsing the names of the objective  (3rd party maps)
 //
 extern char apiLookupObjectiveLetterFromCache( char *objectiveName );
-
+extern char apiLookupLastObjectiveLetterFromCache( void );
 

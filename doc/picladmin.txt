@@ -194,14 +194,37 @@ Example:  !contact
 
 ========================
 
-ruiles (rules)
+rules (rules)
 Display server rules
 Example:  !rules
 
+========================
 
+lock [on|off|perm]
+Root/Admin command to reserve the server for access list players ("priport" attribute)
+When lock is "on" only priort players (admins, etc.) can sign in, unlocks on map change.
+When lock is "perm" server is locked until "lock off", or when SISSM is restarted.
+Examples:  lock on, !lock off, !lock perm
 
+========================
 
+endgame {now}
+Immediately end the game in progress, to map voting menu (if enabled)
+Examples:  !endgame now, !eg now
 
+========================
+
+dev [test-var] {int value}
+For develpers only - enabled only for ROOT connection.  Read/write 'test-var' 
+Examples:  !dev nokick 1, !dev nokick 0
+
+========================
+
+reinit
+Root user command to re-read admins (and other priv) list, and the badwords list without
+restarting SISSM.
+Note this affects SISSM privileges only, not the in-game admin screen privilege. 
+Example:  Edit Admins.txt witn your text editor, then: "!reinit"
 
 ////////// Appendix:  Kick/Ban Reasons and Reason-codes
 

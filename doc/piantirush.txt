@@ -28,7 +28,7 @@ LogGameplayEvents=Verbose
 LogDemo=Verbose
 LogObjectives=Verbose
 LogGameMode=Verbose
-LogNet=Verbose
+LogNet=Log
 LogINSGameInstance=Verbose
 LogUObjectGlobals=Verbose
 
