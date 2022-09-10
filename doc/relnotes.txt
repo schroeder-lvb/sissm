@@ -1,5 +1,5 @@
 
-Release 1.1.0 20220909
+Release 1.1.0 20220909 / 1.1.1 20220910
 
     !! Please change in Engine.ini "LogNet=Verbose" to "LogNet=Log" due to large# of data as of Sandstorm 1.12 !!
 
@@ -39,6 +39,9 @@ Release 1.1.0 20220909
            b. Recommended new for Moderators:  botreset endgame
            c. Recommanded new for Solo Admins:  endgame
            c. Command "reinit" should be reserved for "root" user(s) so no entry is needed in sissm.cfg
+
+    Hotfix release 1.1.1 - fixed typo in !endgame command, only 'root' was able to run this command. 
+    Hotfix release 1.1.1 - fixed bug in !lock command was not auto-unlocking in some cases
 
 Release 1.0.0 20220327   
 

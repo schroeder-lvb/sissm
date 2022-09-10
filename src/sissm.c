@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v1.1.0 20220909-1230-[Restricted Edition]"
+#define VERSION    "SISSM v1.1.1 20220910-1430-[Restricted Edition]"
 #else
-#define VERSION    "SISSM v1.1.0 20220909-1230"
+#define VERSION    "SISSM v1.1.1 20220910-1430"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"

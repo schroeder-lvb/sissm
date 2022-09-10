@@ -142,7 +142,7 @@ struct {
     { "rr",     "roundrestart",  "roundrestart [now]",            _cmdRestart },
 //  { "re",     "roundend",      "roundend [now]",                _cmdEnd },
     { "reboot", "reboot",        "reboot now|eor|eog|cancel",     _cmdReboot },
-    { "endgame", "eg",           "endgame now",                   _cmdEndGame }, 
+    { "eg",     "endgame",       "endgame now",                   _cmdEndGame }, 
 
     { "b",      "ban",           "ban  [partial name] {reason}",  _cmdBan },
     { "bt",     "bant",          "bant [partial name] {reason}",  _cmdBant },
@@ -439,7 +439,7 @@ int _cmdLock( char *arg, char *arg2, char *passThru )
     }
     else if (0 == strcmp( "perm", arg )) {
         p2pSetL( "pigateway.p2p.lockOut", 2L );
-        apiSaySys( "Public slots LOCKED until Server Reboot." );
+        apiSaySys( "Public LOCKED until or unlocked, or  server is empty" );
     }
 
     _sayLockStatus( 0 );
