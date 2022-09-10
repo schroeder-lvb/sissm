@@ -281,6 +281,16 @@ int pigatewayClientSynthAddCB( char *strIn )
 //  ...
 int pigatewayClientSynthDelCB( char *strIn )
 {
+    // if there are no players, unlock the server
+    //
+    if ( 0 == apiPlayersGetCount() ) {
+        // Unlcok the server - restore to normal operation
+        // Do not unlock if the variable state is "perm" (=2L) 
+        //
+        p2pSetL( "pigateway.p2p.lockOut", 0L );
+        apiSaySys( "Unlocking the server due to zero players" );
+        logPrintf( LOG_LEVEL_INFO, "pigateway", "Unlocking the server due to zero players" );
+    }
     return 0;
 }
 
@@ -470,6 +480,24 @@ int pigatewayCapturedCB( char *strIn )
 //
 int pigatewayPeriodicCB( char *strIn )
 {
+    static int tenSecondPolling = 0;
+
+    if ( ++tenSecondPolling > 10 ) {
+        // This is a redundant, safety code duplicated from DelCB callback.
+        // if there are no players, unlock the server
+        //
+        tenSecondPolling = 0;
+
+        if ( 0 == apiPlayersGetCount() ) {
+            // Unlcok the server - restore to normal operation
+            // Do not unlock if the variable state is "perm" (=2L) 
+            //
+            p2pSetL( "pigateway.p2p.lockOut", 0L );
+            apiSaySys( "Unlocking the server due to zero players" );
+            logPrintf( LOG_LEVEL_INFO, "pigateway", "Unlocking the server due to zero players at PeriodicCB " );
+        }
+    }
+
     return 0;
 }
 

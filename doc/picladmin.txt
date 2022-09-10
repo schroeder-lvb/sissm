@@ -203,7 +203,7 @@ Example:  !rules
 lock [on|off|perm]
 Root/Admin command to reserve the server for access list players ("priport" attribute)
 When lock is "on" only priort players (admins, etc.) can sign in, unlocks on map change.
-When lock is "perm" server is locked until "lock off", or when SISSM is restarted.
+When lock is "perm" server is locked until "lock off", or when server becomes empty
 Examples:  lock on, !lock off, !lock perm
 
 ========================
