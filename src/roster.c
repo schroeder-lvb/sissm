@@ -26,6 +26,7 @@
 #include "util.h"
 #include "roster.h"
 #include "api.h"
+#include "p2p.h"
 
 #include "winport.h"   // strcasestr
 
@@ -41,7 +42,7 @@ static char rosterObjective[256], rosterObjectiveType[256];
 int rosterIsValidGUID( char *testGUID )
 {
     int i, isValid = 0;
-    int len = strlen( testGUID ); 
+    int len = (int) strlen( testGUID ); 
   
     switch ( len )  { 
     case 17:                   // Steam
@@ -501,10 +502,8 @@ int rosterParse( char *buf, int n )
 //
 int rosterCount( void )
 {
-#if SISSM_TEST
-    extern int _overrideAliveCount;  // from API
-#endif
     int i, count = 0;
+    long devOverride;
 
     for (i=0; i<ROSTER_MAX; i++) {
         if ( strlen( masterRoster[i].netID ) ) {
@@ -513,9 +512,11 @@ int rosterCount( void )
             }
         }
     }
-#if SISSM_TEST
-    if ( _overrideAliveCount ) count = _overrideAliveCount;
-#endif
+
+    if ( 0L != (devOverride = p2pGetL( "dev.p2p.humans", 0L )) ) {
+        count = 0xffL & devOverride;
+    }
+
     return count;
 }
 
@@ -1061,7 +1062,7 @@ int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callba
             else 
                 strclr( playerIP );
 
-            startOfName = strlen( playerGUID ) + strlen( playerIP ) + 2;
+            startOfName = (int) strlen( playerGUID ) + (int) strlen( playerIP ) + 2;
             strlcpy( playerName, &lineBuf[ startOfName ], 255 );
 
             logPrintf( LOG_LEVEL_DEBUG, "roster", "Change Line    ::%s::\n", lineBuf ) ;

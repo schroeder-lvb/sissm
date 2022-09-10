@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v1.0.0 20220327-1800-[Restricted Edition]"
+#define VERSION    "SISSM v1.1.0 20220909-1230-[Restricted Edition]"
 #else
-#define VERSION    "SISSM v1.0.0 20220327-1800"
+#define VERSION    "SISSM v1.1.0 20220909-1230"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -69,15 +69,6 @@
 #include "pidynbots.h"
 #include "pitacnomic.h"
 #include "pistats.h"
-// #include "pimesherr.h"
-
-
-//  ==============================================================================================
-//  Debug/Development
-//
-#if SISSM_TEST
-int _overrideAliveCount = 0;
-#endif
 
 
 //  ==============================================================================================
@@ -394,7 +385,6 @@ int sissmInitPlugins( void )
     pidynbotsInstallPlugin();                           // dynamic-bots adjustments plugin 
     pitacnomicInstallPlugin();         // shortcut phrases for tac-comm without microphone
     pistatsInstallPlugin();               // generate data for gathering player statistics
-    // piMeshErrInstallPlugin();                            // look for mesh error conditions 
 
     // "Third Party" Plugins - for customizations
     //
@@ -480,9 +470,6 @@ void sissmSplash( void )
     logPrintf(LOG_LEVEL_INFO, "sissm", "--------------------------------------" );
     logPrintf(LOG_LEVEL_INFO, "sissm", "%s", VERSION);
     logPrintf(LOG_LEVEL_INFO, "sissm", "%s", COPYRIGHT);
-#if (SISSM_TEST) 
-    logPrintf(LOG_LEVEL_INFO, "sissm", "***** WARNING - DEVELOPMENT MODE ENABLED *****" );
-#endif
     return;
 }
 

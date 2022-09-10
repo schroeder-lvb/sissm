@@ -102,6 +102,7 @@ static int _rulesTickCount = 0;
 //
 
 int _cmdHelp(), _cmdVersion(), _cmdMacros(), _cmdMacrosList();
+int _cmdDeveloper();
 int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
 int _cmdKillFeed(), _cmdFriendlyFire();
 int _cmdRestart(), _cmdEnd(), _cmdReboot();
@@ -109,8 +110,9 @@ int _cmdBan(), _cmdBant(), _cmdKick();
 int _cmdBanId(), _cmdBanIdt(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
-int _cmdRules(), _cmdContact();
-int _cmdMap(), _cmdMapList();
+int _cmdRules(), _cmdContact(), _cmdThirdWave(), _cmdLock();
+int _cmdMap(), _cmdMapList(), _cmdReInit();
+int _cmdBotRespawn(), _cmdBotReset(), _cmdEndGame();
 
 struct {
 
@@ -123,9 +125,10 @@ struct {
 
     { "help",   "help",          "help [command], help list",     _cmdHelp  },
     { "v",      "version",       "version [sissm]",               _cmdVersion },   
+    { "dev",    "developer",     "dev [var][value]",              _cmdDeveloper },   
 
-    { "bf",     "botfixed",      "botfixed [nBots]",               _cmdBotFixed },
-    { "bs",     "botscaled",     "botscaled [nBots]",              _cmdBotScaled },
+    { "bf",     "botfixed",      "botfixed [nBots]",              _cmdBotFixed },
+    { "bs",     "botscaled",     "botscaled [nBots]",             _cmdBotScaled },
     { "bd",     "botdifficulty", "botdifficulty [0-10]",          _cmdBotDifficulty },
     { "x",      "execute",       "execute [alias]",               _cmdMacros },
     { "ml",     "macroslist",    "macroslist",                    _cmdMacrosList },
@@ -139,6 +142,7 @@ struct {
     { "rr",     "roundrestart",  "roundrestart [now]",            _cmdRestart },
 //  { "re",     "roundend",      "roundend [now]",                _cmdEnd },
     { "reboot", "reboot",        "reboot now|eor|eog|cancel",     _cmdReboot },
+    { "endgame", "eg",           "endgame now",                   _cmdEndGame }, 
 
     { "b",      "ban",           "ban  [partial name] {reason}",  _cmdBan },
     { "bt",     "bant",          "bant [partial name] {reason}",  _cmdBant },
@@ -149,20 +153,26 @@ struct {
     { "ub",     "unbanid",       "unbanid [steamid64]",           _cmdUnBanId },
     { "ki",     "kickid",        "kickid [steamid64] {reason}",   _cmdKickId },
 
-    { "info",   "info",          "info",                          _cmdInfo },
+    { "info",   "info",          "info",                          _cmdInfo    },
     { "al",     "allowin",       "allowin [partial name]",        _cmdAllowIn },
-    { "sp",     "spam",          "spam on|off",                   _cmdSpam },
-    { "fast",   "fast",          "fast on|off",                   _cmdFast },
+    { "sp",     "spam",          "spam on|off",                   _cmdSpam    },
+    { "fast",   "fast",          "fast on|off",                   _cmdFast    },
 
-    { "a",      "ask",           "ask",                     _cmdAsk  },
-    { "p",      "prep",          "prep",                    _cmdPrep },
-    { "w",      "warn",          "warn",                    _cmdWarn },
+    { "a",      "ask",           "ask",                     _cmdAsk       },
+    { "p",      "prep",          "prep",                    _cmdPrep      },
+    { "w",      "warn",          "warn",                    _cmdWarn      },
 
     { "map",    "map",           "map name [night][ins]",   _cmdMap       },
     { "maplist","maplist",       "maplist",                 _cmdMapList   },
 
-    { "rules",  "rules",         "rules",                   _cmdRules },
-    { "contact","contact",       "contact",                 _cmdContact },
+    { "rules",  "rules",         "rules",                   _cmdRules     },
+    { "contact","contact",       "contact",                 _cmdContact   },
+
+    { "reinit", "reinit",        "reinit",                  _cmdReInit     },
+    { "bz",     "botrespawn",    "botrespawn [0..3]",       _cmdBotRespawn },
+    { "br",     "botreset",      "botreset",                _cmdBotReset   },
+    // { "tw",     "thirdwave",     "thirdwave on|off",        _cmdThirdWave  },
+    { "lk",     "lock",          "lock on|off|perm",        _cmdLock       },
 
     { "*",      "*",             "*",                       NULL }
 
@@ -369,6 +379,100 @@ int _cmdVersion( char *arg, char *arg2, char *passThru )
     return 0; 
 }
 
+// ===== "developer"
+//
+int _cmdDeveloper( char *arg, char *arg2, char *passThru ) 
+{ 
+    long int argLong;
+    char p2pVarName[255];
+    int errCode = 1;
+
+    if ( 0 != strlen( arg )) {
+        strlcpy( p2pVarName, "dev.p2p.", 80 );
+        strlcat( p2pVarName, arg,        80 );
+        errCode = 0;
+    } 
+
+    if (1 == sscanf( arg2, "%ld", &argLong )) 
+        p2pSetL( p2pVarName, argLong );
+    else 
+        argLong = 0;
+
+    argLong = p2pGetL( p2pVarName, argLong );
+    apiSaySys( "Developer var = '%s' value = '%ld'", p2pVarName, argLong );
+
+    return errCode; 
+}
+
+
+
+// ===== "lock on|off"
+//
+static void _sayLockStatus( int showOnlyIfLocked )
+{
+    int lockStatus;
+    char strOut[40];
+
+    lockStatus = (int) ( 0xffL & p2pGetL( "pigateway.p2p.lockOut", 0L ) );
+    switch( lockStatus ) {
+    case 1:   strlcpy( strOut, "'on'",   40 );  break;
+    case 2:   strlcpy( strOut, "'perm'", 40 );  break;
+    default:  strlcpy( strOut, "'off'",  40 );  break;
+    }
+
+    // check if always display, or only when locked
+    //
+    if ( !showOnlyIfLocked || !(lockStatus==0) ) 
+        apiSaySys( "Server lock status is: %s", strOut );
+}
+int _cmdLock( char *arg, char *arg2, char *passThru ) 
+{  
+    int errCode = 0;
+
+    if (0 == strcmp( "off", arg )) {
+        p2pSetL( "pigateway.p2p.lockOut", 0L );
+        apiSaySys( "Server public slots are UNLOCKED." );
+    }
+    else if (0 == strcmp( "on", arg )) {
+        p2pSetL( "pigateway.p2p.lockOut", 1L );
+        apiSaySys( "Public slots LOCKED until end of game/map change." );
+    }
+    else if (0 == strcmp( "perm", arg )) {
+        p2pSetL( "pigateway.p2p.lockOut", 2L );
+        apiSaySys( "Public slots LOCKED until Server Reboot." );
+    }
+
+    _sayLockStatus( 0 );
+
+    _stddResp( errCode );   // ok or error message to game
+    
+    return errCode; 
+}
+
+
+// ===== "ThirdWwave on|off"
+//
+int _cmdThirdWave( char *arg, char *arg2, char *passThru ) 
+{  
+    int errCode = 0;
+
+    if (0 == strcmp( "off", arg )) {
+        p2pSetL( "pithirdwave.p2p.thirdWaveEnable", 0L );
+        apiSay( "ThirdWave Algorithm DISABLED." );
+    }
+    else if (0 == strcmp( "on", arg )) {
+        p2pSetL( "pithirdwave.p2p.thirdWaveEnable", 1L );
+        apiSay( "ThirdWave Algorithm ENABLED." );
+    }
+    else
+        errCode = 1;
+
+    _stddResp( errCode );   // ok or error message to game
+    
+    return errCode; 
+}
+
+
 // ===== "botfixed [nBots]"
 //
 int _cmdBotFixed( char *arg, char *arg2, char *passThru ) 
@@ -434,6 +538,9 @@ int _cmdBotDifficulty( char *arg, char *arg2, char *passThru )
     double botDifficultyF;
 
     if (1 == sscanf( arg, "%lf", &botDifficultyF )) {
+         
+        if ( botDifficultyF >= 9.9 ) botDifficultyF = 9.9;     // workaround for system bug (?)
+
         if ((botDifficultyF <= 10.0) && (botDifficultyF >= 0.0)) {
            botDifficultyF /= 10.0;
            snprintf( strOut, 256, "%6.3lf", botDifficultyF);
@@ -526,21 +633,34 @@ int _cmdReboot( char *arg, char *arg2, char *passThru  )
 { 
     int errCode = 0;
 
-    if (0 == strcmp( "now", arg ))   {
+    // Cancel any pending reboot request
+    //
+    if (0 == strcmp( "cancel", arg ))   {
+        if (_queueReboot != REBOOT_CANCEL) apiSaySys( "Commanded server reboot is cancelled." );
+        _queueReboot = REBOOT_CANCEL;
+    }
+
+    // special 0-player case - is a reboot now/eog/eor issued from RCON while the
+    // server is empty -- do an immediately reboot.
+    //
+    else if (0 == strcmp( "now", arg ) || (0 == apiPlayersGetCount() ))   {
         apiSaySys( "*Server is REBOOTING - please reconnect" );
         apiServerRestart( "Server Admin Reboot" );
+        _queueReboot = REBOOT_CANCEL;
     }
+
+    // End of Game reboot - queue it and wait for EOG event
+    //
     else if (0 == strcmp( "eog", arg ))  {
-        _queueReboot = REBOOT_EOG;
-        apiSaySys( "This server will reboot at end of this game" );
+       _queueReboot = REBOOT_EOG;
+       apiSaySys( "This server will reboot at end of this game" );
     }
+
+    // End of Round reboot - queue it and wait for EOR event
+    //
     else if (0 == strcmp( "eor", arg ))  {
         _queueReboot = REBOOT_EOR;
         apiSaySys( "This server will reboot at end of this round" );
-    }
-    else if (0 == strcmp( "cancel", arg ))   {
-        if (_queueReboot != REBOOT_CANCEL) apiSaySys( "Commanded server reboot is cancelled." );
-        _queueReboot = REBOOT_CANCEL;
     }
     else 
         errCode = 1;
@@ -549,6 +669,43 @@ int _cmdReboot( char *arg, char *arg2, char *passThru  )
 
     return errCode;
 }
+
+// ===== "endgame [now]" 
+//
+//  End game modifies the time limit parameters and issues are round-restart RCON
+//  command.  In most configuration this will immediately end the current game
+//  and bring up the map voting.
+//
+//  Note there is no need to restore the time limit parameters that are modified here.
+//  This is because when the game server starts a new map, it is reset to the 
+//  game.ini value automatically.
+//
+int _cmdEndGame( char *arg, char *arg2, char *passThru  ) 
+{ 
+    int errCode = 0;
+    char cmdOut[256], statusIn[256];
+
+    if (0 == strcmp( "now", arg ))  {
+        apiSaySys( "*Forcing Game End*" );
+        apiGameModePropertySet( "PreRoundTime", "1" );
+        apiGameModePropertySet( "RoundLimit",   "1" );
+        apiGameModePropertySet( "RoundTIme",    "1" );
+        strlcpy( cmdOut, "restartround 0", 256 );
+        apiRcon( cmdOut, statusIn );
+    }
+    else {
+        apiSaySys( "Specify 'now' to end the game" );
+        errCode = 1;
+    }
+
+    _stddResp( errCode );   // ok or error message to game
+
+    return errCode;
+}
+
+
+
+
 
 // ===== "banid [steamid]"
 // target may be offline (ISS ver 1.4+ banid rcon command)
@@ -935,6 +1092,7 @@ int _cmdFast( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+
 // ===== "map"
 // Change maps 
 //
@@ -980,7 +1138,7 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
 
         // clean up the mutatorsList (remove trailing comma)
         //
-        if ( 0 != ( i = strlen( mutatorsList ) )) {
+        if ( 0 != ( i = (int) strlen( mutatorsList ) )) {
             mutatorsList[ i-1 ] = 0;
         }
 
@@ -1030,6 +1188,55 @@ int _cmdMapList( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+// ===== "reinit"
+//  Superadmin command to re-read the auth and other lists from disk
+//
+int _cmdReInit( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    apiInitAuth();
+    apiInitBadWords();
+
+    apiSaySys( "SISSM ReInit Complete." );
+    return errCode;
+}
+
+// ===== "botspawn"
+//  experimental command to re-spawn the bots
+//
+int _cmdBotRespawn( char *arg, char *arg2, char *passThru ) 
+{ 
+    int errCode = 0;
+    int resetType = 0;
+
+    if ( 1 != sscanf( arg, "%d", &resetType ) ) {
+        resetType = 0;
+    }
+    errCode = apiBotRespawn( resetType );
+
+    apiSaySys( "Bots Respawned" );
+    return errCode;
+}
+
+// ===== "botreset"
+//  Restore bots back to SISSM control (counteracts !bs, !bf, !bd)
+//
+int _cmdBotReset( char *arg, char *arg2, char *passThru ) 
+{ 
+    // signal pidynbots that picladmin (admins) reliquishes 
+    // bot count and difficulty overrides.
+    //
+    p2pSetL( "picladmin.p2p.botAdminControlDifficulty", 0L );
+    p2pSetL( "picladmin.p2p.botAdminControl", 0L );
+
+    // signal pidynbots to force refresh bot configurations
+    // if pidynbots plugin is not enabled, then ignore.
+    //
+    p2pSetL( "pidynbots.p2p.sigBotScaled", 1L );
+
+    apiSaySys( "Bot Reset" );
+    return 0;
+}
 
 #if 0
 //  ==============================================================================================
@@ -1247,6 +1454,29 @@ int picladminPeriodicCB( char *strIn )
             if ( _rulesIndex >= NUM_RULES ) _rulesIndex = -1;
         }
     }
+
+    // Special condition when EOG/EOR reboot is queued but everybody logs off
+    // before end of game/round.
+    //
+    if (( _queueReboot == REBOOT_EOG ) || ( _queueReboot == REBOOT_EOR )) {
+       if ( 0 == apiPlayersGetCount() ) {
+           _queueReboot = REBOOT_CANCEL;
+           apiSaySys( "*Server is REBOOTING - please reconnect" );
+           apiServerRestart( "Server Admin Reboot" );
+       }
+    }
+
+    return 0; 
+}
+
+//  ==============================================================================================
+//  picladminCapturedCB
+//
+//  Callback for when objectie is captured
+//
+int picladminCapturedCB( char *strIn ) 
+{ 
+    // _sayLockStatus(  1 );
     return 0; 
 }
 
@@ -1260,12 +1490,9 @@ int picladminClientAddCB( char *strIn ) { return 0; }
 int picladminClientDelCB( char *strIn ) { return 0; }
 int picladminInitCB( char *strIn ) { return 0; }
 int picladminRestartCB( char *strIn ) { return 0; }
-
-int picladminCapturedCB( char *strIn ) { return 0; }
+int picladminClientSynthAddCB( char *strIn ) { return 0; }
 int picladminShutdownCB( char *strIn ) { return 0; }
 int picladminClientSynthDelCB( char *strIn ) { return 0; }
-int picladminClientSynthAddCB( char *strIn ) { return 0; }
-
 int picladminGameStartCB( char *strIn ) { _resetP2PVars(); return 0; }
 int picladminMapChangeCB( char *strIn ) { _resetP2PVars(); return 0; }
 
@@ -1510,6 +1737,12 @@ int picladminInstallPlugin( void )
     eventsRegister( SISSM_EV_CLIENT_DEL_SYNTH,     picladminClientSynthDelCB );
     eventsRegister( SISSM_EV_CHAT,                 picladminChatCB );
     eventsRegister( SISSM_EV_RCON,                 picladminRconCB );
+
+
+    // Clear the developer varibles for debug use only.
+    //
+    p2pSetL( "dev.p2p.nokick", 0L );
+    p2pSetL( "dev.p2p.humans", 0L );
 
     return 0;
 }

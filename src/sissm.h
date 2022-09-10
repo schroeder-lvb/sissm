@@ -14,8 +14,6 @@
 //  ==============================================================================================
 //
 
-#define SISSM_TEST    (0)
-
 #define SISSM_MAXPLAYERS (64)
 
 extern char *sissmGetConfigPath( void );
@@ -23,9 +21,6 @@ extern void sissmServerRestart( void );
 extern char *sissmVersion( void );
 extern int  sissmRestartServer( void );
 
-#if SISSM_TEST
-extern int _overrideAliveCount;
-#endif
 
 
 

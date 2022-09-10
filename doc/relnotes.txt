@@ -1,3 +1,45 @@
+
+Release 1.1.0 20220909
+
+    !! Please change in Engine.ini "LogNet=Verbose" to "LogNet=Log" due to large# of data as of Sandstorm 1.12 !!
+
+    Picladmin: Added '!reinit' root-admin (owner) command in picladmin to re-read the auth and badwords table (*1)
+    Added "deadcmdr" auth attribute - allows stack/breach/blow ('33', '11', 'aa', etc.) to be issued by dead Admins/moderators
+        Example sissm.cfg:  sissm.groupattr[1]   "admin moderator priport deadcmdr"
+    Fixed sissm hot-restart problem when '11' 'aa' early breach did not register until start of next round or player resurrect.
+    Fixed auto-kick logic to workaround NWI rcon bug with EPIC ID
+    Picladmin: Force bot !difficulty 10.0 (aidifficulty 1.0) limit to 9.9 (aidifficulty 0.99)
+    Pidynbots: Added bias table for game mode-dependent adjustments to bot counts, for mixed checkpoint/hardcore servers
+        To sissm.cfg add the following:
+            pidynbots.modeAdjust[0] "checkpoint          0  0"
+            pidynbots.modeAdjust[1] "hardcorecheckpoint -1 -8"
+    Picladmin: !map command will now recognize ?Mode= string as parameter, e.g., "!map town ins night hardcore"
+        You must 'fully specify' your Mapcycle.txt.   Also see doc/example_Mapcycle.txt
+            #SISSM.mapname=Oilfield
+            (Scenario="Scenario_Refinery_Checkpoint_Insurgents",Options="?Mutators="none",Mode="CheckpointHardcore",Lighting="Day")
+            (Scenario="Scenario_Refinery_Checkpoint_Insurgents",Options="?Mutators="none",Mode="Checkpoint",Lighting="Day")
+    Increase defendtimer "1" to "3" on SoloPlayers which may be causing a race condition bug on slower servers (unverified)
+    Piwebgen:  Added option to display game mode on web:  
+        To sissm.cfg add the following:
+            piwebgen.showGameMode  1    // default 0 do not show
+    Piwebgen:  Added option to periodically re-read server hostname (this is uncommon).  Sissm.cfg adds:
+        To sissm.cfg add the following:
+            piwebgen.reReadHostName  0   // default 0  - do not periodically re-read
+    Picladmin: Issuing "!reboot eor/eog" from RCON on an empty server will now reboot immediately
+    Piclgateway: Added "!lock on|off|perm" command, allows admins to temp block all non-admin/moderator/clan joins.  (*1) 
+        To sissm.cfg add the following:
+            pigateway.adminPortKickMsgFull                 "Server full."
+            pigateway.adminPortKickMsgLock                 "Server hosting a special event."
+    Picladmin: Added !botreset command to restore bot control to SISSM  (counteracts !bs, !bf and !bd commands) (*1)
+    Picladmin: Added !botrespawn experimental command to reset alledged bot bug/stuck bots -- use with care (*1)
+    Picladmin: Added !endgame command to for end of current game, and initiate the next map voting (*1)
+
+    (*1) = Reminder to update your sissm.cfg: add new commands to admin privilege levels "sissm.groupcmds[*]"
+           a. Recommanded new for Admins:      lock botreset botrespawn endgame
+           b. Recommended new for Moderators:  botreset endgame
+           c. Recommanded new for Solo Admins:  endgame
+           c. Command "reinit" should be reserved for "root" user(s) so no entry is needed in sissm.cfg
+
 Release 1.0.0 20220327   
 
     Added Steam and EPIC player-ID compatability (a major internal change)
@@ -24,7 +66,6 @@ Beta 02.9 (0.2.9) 20211117
         Added to pidynbot table, new official maps for bot count adjustments (default: disabled)
         Added new parameters  
             picladmin.botsUpperMin  10        // maximum allowed "minimumenemies" for !botscaled command
-
 
 Beta 02.8 (0.2.8) 20201107
 

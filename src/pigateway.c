@@ -55,8 +55,10 @@ static struct {
 
     int  pluginState;                      // always have this in .cfg file:  0=disabled 1=enabled
 
-    int  firstAdminSlotNo; 
-    char adminListFilePath[CFS_FETCH_MAX];
+    int  firstAdminSlotNo;            // first slot# to start checking if player is on access list
+    char adminPortKickMsgLock[CFS_FETCH_MAX];                // kick message if not on access list
+    char adminPortKickMsgFull[CFS_FETCH_MAX];                    // kick message if server is full
+    // char adminListFilePath[CFS_FETCH_MAX];
     int  gameChangeLockoutSec;
     int  enableBadNameFilter;
     int  minPlayerNameLength;               // minimum char length of player name required to join
@@ -143,10 +145,15 @@ int pigatewayInitConfig( void )
     pigatewayConfig.pluginState = (int) cfsFetchNum( cP, "pigateway.pluginState", 0.0 );  // disabled by default
 
     pigatewayConfig.firstAdminSlotNo = (int) cfsFetchNum( cP, "pigateway.firstAdminSlotNo", 11 );
+    strlcpy( pigatewayConfig.adminPortKickMsgFull, 
+        cfsFetchStr( cP, "pigateway.adminPortKickMsgFull", "Server full." ), CFS_FETCH_MAX);
+    strlcpy( pigatewayConfig.adminPortKickMsgLock, 
+        cfsFetchStr( cP, "pigateway.adminPortKickMsgLock", "Server hosting a special event." ), CFS_FETCH_MAX);
+
     pigatewayConfig.enableBadNameFilter = (int) cfsFetchNum( cP, "pigateway.enableBadNameFilter", 1 );
     pigatewayConfig.gameChangeLockoutSec = (int) cfsFetchNum( cP, "pigateway.gameChangeLockoutSec", 120 );
-    strlcpy( pigatewayConfig.adminListFilePath,  
-        cfsFetchStr( cP, "pigateway.adminListFilePath",  "admins.txt" ), CFS_FETCH_MAX);
+    // strlcpy( pigatewayConfig.adminListFilePath,  
+        // cfsFetchStr( cP, "pigateway.adminListFilePath",  "admins.txt" ), CFS_FETCH_MAX);
     pigatewayConfig.allowInWindowTimeSec = (unsigned long int) cfsFetchNum( cP, "pigateway.allowInWindowTimeSec", 180 );
 
     pigatewayConfig.minPlayerNameLength = (int) cfsFetchNum( cP, "pigateway.minPlayerNameLength", 0 );
@@ -200,13 +207,23 @@ int pigatewayClientSynthAddCB( char *strIn )
 {
     static char playerName[256], playerGUID[256], playerIP[256];
     int alreadyKicked = 0;
-    int kickReason;
+    int kickReason, firstAdminSlot;
 
     rosterParsePlayerSynthConn( strIn, 256, playerName, playerGUID, playerIP );
     logPrintf( LOG_LEVEL_INFO, "pigateway", "Synthetic ADD Callback Name ::%s:: IP ::%s:: GUID ::%s::", 
         playerName, playerIP, playerGUID );
 
-    if (apiPlayersGetCount() >= pigatewayConfig.firstAdminSlotNo ) {         // check if these are admin-only slots
+    // copy to local, first admin slot from sissm.cfg
+    //
+    firstAdminSlot = pigatewayConfig.firstAdminSlotNo;
+  
+    // server lockout via picladmin "lock on|off" command
+    // if "locked" then make all slots "admin" or via the allowin exemption
+    //
+    if ( 0L != p2pGetL( "pigateway.p2p.lockOut", 0L ))   // default is 0L = unlock
+        firstAdminSlot = 1;
+
+    if (apiPlayersGetCount() >= firstAdminSlot ) {         // check if these are admin-only slots
         if ( _allowInExemption( playerName ) ) {
             logPrintf( LOG_LEVEL_CRITICAL, "pigateway", "Special full server join granted by admin ::%s::%s::%s::", 
                     playerName, playerGUID, playerIP );
@@ -214,8 +231,17 @@ int pigatewayClientSynthAddCB( char *strIn )
         else if ( !_isPriority( playerGUID ) && (pigatewayConfig.adminPortDisable == 0) ) {     // check if this is an admin
 
             if ( (apiTimeGet() - timeRestarted) > PIGATEWAY_RESTART_LOCKOUT_SEC ) {  // check if we are restarting
-                apiKickOrBan( 0, playerGUID, "Server_Full" );
-                apiSay ( "Player %s kicked Server Full", playerName );
+                // apiKickOrBan( 0, playerGUID, "Server_full, under maintenance, or hosting a private session." );
+
+                if ( 0L == p2pGetL( "pigateway.p2p.lockOut", 0L ) ) {
+                    apiKickOrBan( 0, playerGUID, pigatewayConfig.adminPortKickMsgFull );    // server full
+                    apiSay ( "Player %s kicked Server Full", playerName );
+                }
+                else {
+                    apiKickOrBan( 0, playerGUID, pigatewayConfig.adminPortKickMsgLock );    // special events !lock
+                    apiSay ( "Player %s kicked Server Reserved", playerName );
+                }
+
                 logPrintf( LOG_LEVEL_CRITICAL, "pigateway", "Full Server Kick ::%s::%s::%s::", 
                     playerName, playerGUID, playerIP );
                 alreadyKicked = 1;
@@ -224,7 +250,6 @@ int pigatewayClientSynthAddCB( char *strIn )
                 logPrintf( LOG_LEVEL_INFO, "pigateway", 
                     "Exempt Full Server Kick due to Restart ::%s::%s::%s::", playerName, playerGUID, playerIP );
             }
-
         }
     }
 
@@ -320,6 +345,16 @@ int pigatewayRestartCB( char *strIn )
 //
 int pigatewayMapChangeCB( char *strIn )
 {
+    unsigned long lockState;
+
+    // Unlcok the server - restore to normal operation
+    // Do not unlock if the variable state is "perm" (=2L) 
+    //
+    lockState = p2pGetL( "pigateway.p2p.lockOut", 0L );
+    if ( lockState != 2L )  {
+        p2pSetL( "pigateway.p2p.lockOut", 0L );
+    }
+
     return 0;
 }
 
@@ -360,6 +395,13 @@ int pigatewayGameEndCB( char *strIn )
 //
 int pigatewayRoundStartCB( char *strIn )
 {
+    if ( 1L ==  p2pGetL( "pigateway.p2p.lockOut", 0L )) {
+        apiSay( "REMINDER: Server is locked by Access Control." );
+    }
+    else if ( 2L ==  p2pGetL( "pigateway.p2p.lockOut", 0L )) {
+        apiSay( "*Server PERM-LOCKED by Access Control!" );
+    }
+
     return 0;
 }
 

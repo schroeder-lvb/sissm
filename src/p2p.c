@@ -125,7 +125,10 @@ double p2pGetF( char *varName, double defaultValue )
     double retValue = defaultValue;
 
     if ( -1 != (i = _p2pSearch( varName, 0 )) ) {
-        sscanf( p2pVarValues[i], "%lf", &retValue ); 
+        if ( 0 == strlen( p2pVarValues[i] )) 
+            retValue = defaultValue;
+        if ( 1 != sscanf( p2pVarValues[i], "%lf", &retValue ) )
+            retValue = defaultValue;
     }
     return( retValue );
 }
@@ -142,7 +145,10 @@ unsigned long p2pGetL( char *varName, unsigned long defaultValue )
     unsigned long retValue = defaultValue;
 
     if ( -1 != (i = _p2pSearch( varName, 0 )) ) {
-        sscanf( p2pVarValues[i], "%lu", &retValue ); 
+        if ( 0 == strlen( p2pVarValues[i] )) 
+            retValue = defaultValue;
+        else if ( 1 != sscanf( p2pVarValues[i], "%lu", &retValue ) ) 
+            retValue = defaultValue;
     }
     return( retValue );
 }

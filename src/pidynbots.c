@@ -46,7 +46,7 @@
 #include "pidynbots.h"
 
 #define PIDYN_MAXADJUSTERS  (64)
-
+#define PIDYN_MAXMODES      (16)
 
 //  ==============================================================================================
 //  Data definition 
@@ -61,6 +61,7 @@ static struct {
     int MaxBotsCrashProtect;
     double AIDifficulty;                                 
     char Adjuster[PIDYN_MAXADJUSTERS][CFS_FETCH_MAX];      // side/map/objective nbots adjustments 
+    char modeAdjust[PIDYN_MAXMODES][CFS_FETCH_MAX];     // bot adjustments (offsets) per game mode
     char BotBias[CFS_FETCH_MAX];                         // nbots count vs humans adjustment table
 
     int enableObjAdj;                       // 1 to enable objective adj; turn off if using webmin
@@ -71,7 +72,9 @@ static struct {
 
 } pidynbotsConfig;
 
-
+// bot count offsets for this gamemode.
+//
+int pidynMinimumOffset = 0, pidynMmaximumOffset = 0;
 
 //  ==============================================================================================
 //  pidynbotsInitConfig
@@ -108,12 +111,80 @@ int pidynbotsInitConfig( void )
         strlcpy( pidynbotsConfig.Adjuster[i], cfsFetchStr( cP, varArray,  "" ), CFS_FETCH_MAX);
     }
 
+    // Read the game mode adjustment offset table
+    //
+    for ( i=0; i<PIDYN_MAXMODES; i++ ) {
+        snprintf( varArray, 256, "pidynbots.modeAdjust[%d]", i );
+        strlcpy( pidynbotsConfig.modeAdjust[i], cfsFetchStr( cP, varArray,  "" ), CFS_FETCH_MAX);
+        logPrintf( LOG_LEVEL_INFO, "pidynbots", "Reading GameMode BotOffset Table: ::%d::%s::", i, pidynbotsConfig.modeAdjust[i] ); 
+    }
+
     // Read the botbias table
     //
     strlcpy( pidynbotsConfig.BotBias, cfsFetchStr( cP, "pidynbots.botbias",  "" ), CFS_FETCH_MAX);
 
     cfsDestroy( cP );
+
     return 0;
+}
+
+//  ==============================================================================================
+//  _modeBotCountOffset
+//
+//  Routine to be called after map change/start of game, to determine game mode,
+//  and lookup bot count offset adjstment values for minimumenemies and maximumenemies
+//
+static int _modeBotCountOffset( int *minimumOffset, int *maximumOffset )
+{
+    static char gameModeCurrent[ API_ROSTER_STRING_MAX ];
+    char wMin[16], wMax[16], *w;
+    int  iMin,     iMax;
+    int  i, errCode = 1;
+
+    *minimumOffset = 0;
+    *maximumOffset = 0;
+
+    // Get current game mode: "checkpoint", "hardcorecheckpoint"....
+    //
+    strlcpy( gameModeCurrent, apiGameModePropertyGet( "gamemodetagname" ), API_ROSTER_STRING_MAX );
+    if ( 0 != strlen( gameModeCurrent ) ) 
+        logPrintf( LOG_LEVEL_INFO, "pidynbots", "GameMode is ::%s::", gameModeCurrent ); 
+    else 
+        logPrintf( LOG_LEVEL_WARN, "pidynbots", "** Unable to read; current GameMode" );
+
+    // Look for a match in gamemode vs. the supported offsets table
+    //
+    if ( 0 != strlen( gameModeCurrent ) )  {
+        for ( i = 0; i < PIDYN_MAXMODES; i++ ) {
+            w = getWord( pidynbotsConfig.modeAdjust[i], 0, " " );
+            if ( w == NULL )        break;
+            if ( strlen( w ) == 0 ) break;
+
+            strclr( wMin ); strclr( wMax );
+           
+            if ( 0 == strcasecmp( w, gameModeCurrent ) ) {  // gamemode match
+                w = getWord( pidynbotsConfig.modeAdjust[i], 1, " " );
+                if ( w != NULL ) strlcpy( wMin, w, 16 );
+                w = getWord( pidynbotsConfig.modeAdjust[i], 2, " " );
+                if ( w != NULL ) strlcpy( wMax, w, 16 );
+                
+                if ( 1 == sscanf( wMin, "%d", &iMin )) {
+                    if ( 1 == sscanf( wMax, "%d", &iMax )) {
+                        *minimumOffset = iMin;
+                        *maximumOffset = iMax;
+                        logPrintf( LOG_LEVEL_INFO, "pidynbots", "GameMode ::%s:: BotCount Offset for Min/Max is %d and %d", gameModeCurrent, iMin, iMax );
+                        errCode = 0;
+                        break;
+                    }
+                }
+            }
+        } 
+    }
+    if ( errCode ) {
+        logPrintf( LOG_LEVEL_WARN, "pidynbots", "Unable to parse GameMode BotCount Offset in sissm.cfg" );
+    }
+
+    return errCode;   
 }
 
 
@@ -293,8 +364,11 @@ static int _computeBotParams( int refresh )
 
             // validate to keep the server from crashing
             // 
-            minBots += botBias;
+            minBots += botBias;                           // offset from bias table
             maxBots += botBias;
+            minBots += pidynMinimumOffset;                // offset from game mode table
+            maxBots += pidynMmaximumOffset;
+
             if ( maxBots > pidynbotsConfig.MaxBotsCrashProtect )  
                 maxBots = pidynbotsConfig.MaxBotsCrashProtect;
             if ( minBots < 1  )      minBots =  1;
@@ -377,8 +451,19 @@ static int _computeBotParams( int refresh )
 //
 int pidynbotsClientAddCB( char *strIn ) { return 0; }
 int pidynbotsClientDelCB( char *strIn ) { return 0; }
-int pidynbotsCapturedCB( char *strIn )  { return 0; }
 int pidynbotsChatCB( char *strIn )      { return 0; }
+
+
+//  ==============================================================================================
+//  pidynbotsCapturedCB 
+//
+//  This callback is invoked at 1Hz periodic rate.  It is used to handle P2P signaling events
+//
+int pidynbotsCapturedCB( char *strIn )  
+{   
+    return 0; 
+}
+
 
 
 //  ==============================================================================================
@@ -471,6 +556,14 @@ int pidynbotsGameEndCB( char *strIn )
 int pidynbotsRoundStartCB( char *strIn )
 {
     logPrintf( LOG_LEVEL_INFO, "pidynbots", "Round Start Event ::%s::", strIn );
+
+    // Compute offset to botcounts per different game mode
+    // if parse error is detected, run wtih '0' for now
+    // 
+    if ( _modeBotCountOffset( &pidynMinimumOffset, &pidynMmaximumOffset )  ) {
+        pidynMinimumOffset = 0;
+        pidynMmaximumOffset = 0;
+    } 
 
     _computeBotParams( 1 );
 

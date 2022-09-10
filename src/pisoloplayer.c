@@ -102,7 +102,7 @@ static int _singlePlayerNoCounter( void )
     w = apiGetServerMode();
     if ((0==strcmp( w, "checkpoint" )) || (0==strcmp( w, "hardcore")) )  {
         if ( pisoloplayerConfig.soloPlayerThreshold >= apiPlayersGetCount() ) {
-            apiGameModePropertySet( "DefendTimer", "1");
+            apiGameModePropertySet( "DefendTimer", "3");
 	    apiSay( pisoloplayerConfig.soloWarning );
             logPrintf( LOG_LEVEL_INFO, "pisoloplayer", "Counterattack disabled for a single player" );
         }
