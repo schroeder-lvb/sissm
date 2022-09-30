@@ -49,9 +49,12 @@ extern int   apiBadNameCheck( char *nameIn, int exactMatch );
 
 
 extern int   apiMapcycleRead( char *mapcycleFilePath );
-extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList );
+extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList, int clearMutator );
 extern char *apiMapList(void );
 extern int   apiIsSupportedGameMode( char *candidateMode  );
+
+extern int   apiMutLookup( char *partialString, char *fullString, int maxStringSize );
+extern char *apiMutList( void );
 
 extern int   apiIsHotRestart( void );
 

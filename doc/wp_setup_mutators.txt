@@ -1,0 +1,156 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+Setting up a Mutator support under SISSM
+JS Scheorder - last revised:  2022.09.29
+=================
+
+===============
+Overview Goals / Objectives:
+===============
+
+NWI implements variations to the game by Modes and Mutators.  Mutators modify behavior of the game modes.  
+
+NWI provides set of standard mutators.  Many third party mods are also implemented as mutators.  Mutators are stackable, meaning more than one can be active at the same time.
+
+For SISSM version 1.2.0 and later, you may specify list of mutator(s) in the !map command.  The !map command is used to change the map, game mode, player sides (Insurgents/Security), map lighting and now the list of mutators.  For example, the following will give players a very creepy experience:
+
+!map ministry checkpoint night frenzy medic regen
+
+Be careful there are two NWI Mutators that have the same name and similar function as the Game Modes --  Frenzy and Hardcore.  This appnote assumes that Hardcore is implemented as a Game Mode; Frenzy, as a Mutator (recommended).
+
+===============
+Mutator Behavior: Static and Dynamic
+===============
+
+There are several places the Mutators are introduced into your server:  (1) In the server application launcher as -Mutators=xxx parameter, (2) in the launcher as ?Mutators=xxx at end of the Scenario string, (3) In the launcher as ?Mutators=xxx suffix in  -ModDownloadTravelTo= string, (4) in your Mapcycle, and finally (5) via the RCON travel command using tools like SISSM.
+
+Mutators specified in the -Mutators=xxx cannot be removed without the game server reboot.  Mutators listed in the -ModDownloadTravelTo parameter will activate as the the initial mutator, and can be unloaded later by SISSM.  Finally, SISSM uses the RCON travel command to enable/disable the individual mutators.
+
+===============
+Setup:
+===============
+
+1.  Launcher
+
+Some mutators are useful as a permanent install (not to be removed by your Admins by the !map command); while others, loaded/unloaded under control of your Admin.   
+
+For example, MapVoteLabels mod that provides OTHER map voting button is indispensable under all circumstances.  But you might want to give your Admins the control to enable or disable the Medic mod, and perhaps you would like it to be enabled by default when the server starts.
+
+In this scenario your launcher might look like this (shown as Linux example):
+
+-------------- // launcher.sh
+./InsurgencyServer-Linux Town?Scenario=Scenario_Hideout_Checkpoint_Security?MaxPlayers=8
+-Mods -Mutators=MapVoteLabels -ModDownloadTravelTo=Town Scenario=Scenario_Hideout_Checkpoint_Security?Mutators=Medic -Port=27102 -QueryPort=27131 -AdminList=Admins -hostname="My Server" -Motd=Motd -MapCycle=Mapcycle -GSLTToken=yyy -GameStats -GameStatsToken=xxx -log
+--------------
+
+2.  SISSM.cfg File
+
+You now need to add two lines to the sissm.cfg file -- one for standard NWI set of mutators that you want your Admins to be able to enable/disable, and the second list for Mod mutators.  I recommended listing ONLY the mutators that are useful to your server, and not the complete list.  Example:
+
+-------------- // sissm.cfg
+sissm.MutatorsStock "AntiMaterielRiflesOnly BoltActionsOnly Frenzy Gunslingers HotPotato ShotgunsOnly PistolsOnly MakarovsOnly NoDrops Vampirism"
+
+sissm.MutatorsMods  "Medic HealthRegen HardcoreHUD"
+--------------
+
+If your SISSM is setup with the tiered privilege levels, you need to add the new !mutlist (mutator list) command for Admins and Moderators to access (this is up to you).  
+
+Example:
+
+-------------- // sissm.cfg
+sissm.groupcmds[1] "help version botfixed botscaled botdifficulty botreset botrespawn execute macroslist killfeed friendlyfire roundrestart endgame reboot ban bant bantid kick banid unbanid kickid spam allowin info fast ask prep warn map maplist mutlist lock wax nokick nowait"
+--------------
+
+If you only have SISSM "root" admins then they already have access to all the commands.
+
+Now restart your server & SISSM!
+
+3.  Mapcycle.txt File
+
+SISSM !map command requires a fully specified format for the Mapcycle file.   In SISSM release under the ./doc subfolder please find an Example Mapcycle file.  In short, this is the recommended format:
+
+-------------- // Mapcycle.txt
+#SISSM.mapname=Oilfield
+(Scenario="Scenario_Refinery_Checkpoint_Security",Mode="CheckpointHardcore",Lighting="Day")
+(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Mode="CheckpointHardcore",Lighting="Day")
+(Scenario="Scenario_Refinery_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Refinery_Checkpoint_Security",Mode="CheckpointHardcore",Lighting="Night")
+(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Mode="CheckpointHardcore",Lighting="Night")
+(Scenario="Scenario_Refinery_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Refinery_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+--------------
+
+
+===============
+!map Command Usage (for your Admins and Moderators)
+===============
+
+Prior to SISSM 1.2, you could change maps, game modes, sides and lighting mode like this:
+
+!maplist
+
+!map ministry
+!map ministry ins
+!map ministry ins night
+!map ministry checkpoint
+!map ministry hardcore
+!map ministry hardcore ins
+!map ministry hardcore ins night
+
+Now you can attach list of mutators to this command.  You can list the supported Mutators like this:
+
+!mutlist
+
+Since the Mutators are stackable you can have one, many or none.  If you wanted to play Pistols-Only with Medic mod you might type:
+
+!map ministry pistols medic
+!map ministry ins night pistols medic
+
+If you do not specify a mutator on the !map command, it will simply continue with the previous set of mutators after the map is changed.  So for the above example, if you typed -- 
+
+!map oilfield
+
+...then the server will change to the Security side Oilfield day-map but with mutators pistols and medic still activated!  If you want pistols only but no medic, then:
+
+!map oilfield pistols
+
+which will remove the Medic capability.  If you want to have no mutators at all, simply state "none" for the mutator name, like this:
+
+!map oilfield none
+
+Server operators are highly recommended to define your own !reset macro so that your admins can restore the server to the original state.  See example_sissm.cfg file.
+
+!reset
+
+Some Useful Examples
+
+When issuing the !map command the first parameter must be the map name.  
+
+The order of parameters you specify after that (game mode, mutator(s), faction sides, and lighting) doesn't matter!  You can even type a partial names for the mutators, and SISSM will try to figure them out for you.  (SISSM will let you know if there are any ambiguities.)
+
+If you are running checkpoint-only, day-only or Security-only server, just don't specify "hardcore", "night" or "ins".  This following set of examples assumes you have Mapcycle file that lists both hardcore and regular checkpoint game modes, both factions (security and insurgents), and both lighting options (day and night).
+
+!map ministry bolt medic 
+!map ministry hardcore pistol medic
+!map ministry checkpoint shotgun medic
+!map ministry checkpoint frenzy night
+!map ministry checkpoint hardcorehud medic ins night
+!map ministry checkpoint hardcorehud
+!map ministry checkpoint hotpotato shotgun
+!map ministry none
+
+===============
+Bugs Bugs Bugs
+===============
+
+The famous BigMoney mode is a combination of strapped/broke and SoldierOfFortune mutators.  
+
+!map ministry checkpoint strapped soldier
+
+Unfortunately the system fails to unload these two mutators to exit the BigMoney mode.  Other than restarting the server, mutators "none" must be used to 'reset' these mutators before you can reconfigure your server again:
+
+!map ministry none
+
+(On example_sissm.cfg, the macro !reset will do the same thing as above)
+
+

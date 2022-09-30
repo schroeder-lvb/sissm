@@ -1105,8 +1105,9 @@ int apiInit( void )
 {
     cfsPtr cP;
     char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
-    int    i, myPort, mapsCount;;
+    int    i, j, myPort, mapsCount;
     char   serverName[API_LINE_STRING_MAX];
+    char   mutListTemp1[CFS_FETCH_MAX], mutListTemp2[CFS_FETCH_MAX], *u;
 
     // Read the "sissm" systems configuration variables
     //
@@ -1126,6 +1127,35 @@ int apiInit( void )
     // read the Mapcycle filepath
     //
     strlcpy( mapcycleFilePath, cfsFetchStr( cP, "sissm.mapcycleFilePath", "" ), CFS_FETCH_MAX );
+
+    // read the Mutator lists allowed by this system
+    //
+    strlcpy( mutListTemp1, cfsFetchStr( cP, "sissm.MutatorsStock", "" ), CFS_FETCH_MAX );
+    strlcpy( mutListTemp2, cfsFetchStr( cP, "sissm.MutatorsMods",  "" ), CFS_FETCH_MAX );
+    strlcat( mutListTemp2, " ", CFS_FETCH_MAX );
+    if (( strlen( mutListTemp2 ) + strlen( mutListTemp1 ) ) < CFS_FETCH_MAX )
+        strlcat( mutListTemp2, mutListTemp1, CFS_FETCH_MAX );
+    else
+        logPrintf( LOG_LEVEL_CRITICAL, "api", "String overflow reading mutator list sissm.MutatorStock/Mods" );
+
+    // parse the Mutator list into separate array element
+    //
+    j = 0;
+    strclr( mutAllowedList[ 0 ] );
+    while ( 1 == 1 ) {
+        u = getWord( mutListTemp2, j, " ,=:\012\015" );
+        if ( u == NULL )              break;
+        if ( 0 == strlen( u ) )       break;
+        strlcpy( mutAllowedList[ j ], u, API_MUT_MAXCHAR );
+        strclr( mutAllowedList[ ++j ] );
+        if ( j >= API_MUT_MAXLIST ) break;
+    }
+    j = 0;
+    while ( 1 == 1 ) {
+        if ( 0 == strlen( mutAllowedList[j] )) break;
+        logPrintf( LOG_LEVEL_INFO, "api", "Mutator read %d ::%s::", j, mutAllowedList[j] );
+        j++;
+    }
 
     // read the AUTH (permissions) data
     //
@@ -1174,7 +1204,7 @@ int apiInit( void )
     eventsRegister( SISSM_EV_BP_TOUCHED_OBJ,    _apiBPCharTouchCB );
     eventsRegister( SISSM_EV_BP_UNTOUCHED_OBJ,  _apiBPCharUntouchCB );
 
-    // Event to handle cahching of map objective list 
+    // Event to handle caching of map objective list 
     //
     eventsRegister( SISSM_EV_MAP_OBJECTIVE, _apiMapObjectiveCB );
 
@@ -2011,10 +2041,12 @@ int apiMapcycleRead( char *mapcycleFile )
         strclr( mapNameMerged[i] );
     }
 
+#if DELME
     // mutator meta:  #SISSM.allowmutator, and #SISSM.defaultmutator
     //
     strclr( mutAllowed );
     strclr( mutDefault );
+#endif
 
     i = 0;
     if ( NULL != (fpr = fopen( mapcycleFile, "rt" ))) {
@@ -2095,6 +2127,8 @@ int apiMapcycleRead( char *mapcycleFile )
 
                     }
                 }
+
+#if DELME
                 else if ( tmpLine == strcasestr( tmpLine, "#SISSM.allowmutator" )) {
                     j = 1;
                     while ( 1 == 1 ) {
@@ -2115,11 +2149,13 @@ int apiMapcycleRead( char *mapcycleFile )
                         strlcat( mutDefault, " ", 256 );
                     } 
                 }
+#endif
             }
         }
     }
  
-// todo-mut
+#if DELME
+    // todo-mut
 
     // Expand the space-separated single string mutAllowed to list mutAllowedList
     //
@@ -2133,6 +2169,7 @@ int apiMapcycleRead( char *mapcycleFile )
             break;
         }              
     }
+#endif 
 
 #if 0
     if ( i != 0 ) {
@@ -2216,7 +2253,7 @@ static char *_apiIsSupportedMutator( char *candidateMutator )
 //
 //  Look up valid traveler and change map
 //
-int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList )
+int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList, int clearMutators )
 {
     int i, errCode = 1;
     char strOut[300], strResp[300];
@@ -2234,18 +2271,9 @@ int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char 
                 if (( mapCycleList[i].secIns == -1 ) || ( mapCycleList[i].secIns == secIns )) {
                     if ( ( 0 == strlen( gameMode )) || ( 0 == strcasecmp( mapCycleList[i].gameMode, gameMode )) ) {
                         snprintf( strOut, 300, "travel %s", mapCycleList[i].traveler );
-
-// todo-mut
-// remove options=
-
                         if ( 0 != strlen( mutatorsList )) {
- 
-
-// todo-mut loop through allowed mutators for 
-// correct and complete name substitution
-
-
-                            strlcat( strOut, "?mutators=", 300 );
+                            strlcat( strOut, "?Mutators=", 300 );
+                            if ( clearMutators ) strlcat( strOut, "?", 300 );
                             strlcat( strOut, mutatorsList, 300 );
                         }
                         logPrintf( LOG_LEVEL_INFO, "api", "*** Admin command map change ::%s::", strOut );
@@ -2276,8 +2304,62 @@ int apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char 
 //
 char *apiMutList( void )
 {
-    return( mutAllowed );
+    static char lineBuffer[ API_LINE_STRING_MAX ];
+    int j = 0;
+ 
+    strclr( lineBuffer );
+    while ( 1 == 1 ) {
+        if ( 0 == strlen( mutAllowedList[j] )) break;
+        strlcat ( lineBuffer, mutAllowedList[j], API_LINE_STRING_MAX );
+        strlcat ( lineBuffer, " ", API_LINE_STRING_MAX );
+        j++;
+    }
+    strTrimInPlace( lineBuffer );
+    return( lineBuffer );
 }
+
+//  ==============================================================================================
+//  apiMutLookup
+//
+//  Given partial mutator name, returns a full name.  Return value of 0 means no match, 1 is 
+//  single match.  Any value >1 means ambiguity and should be treated as error.
+//
+int apiMutLookup( char *partialString, char *fullString, int maxStringSize )
+{
+    int j, returnCount = 0;
+
+    // Clear the return string
+    // 
+    strclr( fullString );
+    returnCount = 0;
+
+    // Special exemption for 'none' which acts as a reset mutator
+    //
+    if ( 0 == strcasecmp( partialString, "none" ) ) {
+        strlcpy( fullString, "none", maxStringSize );
+        returnCount = 1;
+    }
+ 
+    // All other cases, search through the allowed mutator list for 
+    // substring match.
+    //
+    else { 
+    
+        // Look for match and multiple-matches
+        //
+        j = 0;
+        while ( 1 == 1 ) {
+            if ( 0 == strlen( mutAllowedList[j] )) break;
+            if ( NULL != strcasestr( mutAllowedList[j], partialString ) ) {
+                strlcpy( fullString, mutAllowedList[j], maxStringSize );
+                returnCount++;
+            }
+            j++;
+        }
+    }
+    return returnCount;
+}
+
 
 //  ==============================================================================================
 //  apiIsHotRestart

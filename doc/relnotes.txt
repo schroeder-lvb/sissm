@@ -1,3 +1,32 @@
+Release 1.2.0 20220929
+
+    Picladmin: Added "!wax on|off|perm" command to autokick players not using breach code (extends piantirush autokick feature) (*1)
+        piantirush.trainingOnDefaultEnable   0
+        piantirush.trainingModeMsg           "Typing '11' before Breach/Blow is REQUIRED!!"
+    Example_sissm.cfg - English cleanup, removed "5 second" time text reference from 'aa' and '22' two letter codes.
+    Picladmin: Added !nokick (!nk) command to exempt antirush autokick for small window of time (~15s)  (*1)
+        On sissm.cfg file
+            picladmin.noKickProtectSec  15   // #sec to exempt autokick when !nokick command is issued
+    Picladmin/antirush: Fixed 'a', '1', '2' bug - will no longer accelerate early breach/blow
+    Possible fix of a bug auto-kick was not detecting early rushers entering the capture zone.
+    Picladmin: "!help list" now only shows commands allowed to be executed by the command originator
+    Example_sissm.cfg:  English/cosmetics two-letter-codes, cleaned up jj, JJ, mm
+    Pidynbots: Increased PIDYN_MAXADJUSTERS from 64 to 128 (map table size for dynbots bot count adjustment)
+    Picladmin:  "!bf 0" now works for server testing with zero bots!
+    Picladmin: Added !nowait (!nw) command to remove anti-rush (piantirush) delay for the current objective only. (*1)
+
+    Picladmin: Added mutator support to the "map" command
+    Picladmin: Update sissm.cfg with list of supported mutators, examples:
+        sissm.MutatorsStock "AntiMaterielRiflesOnly BoltActionsOnly Frenzy HotPotato ShotgunsOnly PistolsOnly MakarovsOnly NoDrops Vampirism"
+        sissm.MutatorsMods  "Medic HealthRegen HardcoreHUD"
+    Picladmin: Added new command "mutlist" to list the above mutators (*1)
+    Piclgateway: Modified "!lock on|off|perm" so that perm requires either 'off' command or empty server to clear
+    Documentation: updated doc/picladmin.txt command list.
+    Docuemntation: added doc/wp_setup_mutators.txt appnote.
+
+    (*1) = Reminder to update your sissm.cfg: add new commands to admin privilege levels "sissm.groupcmds[*]"
+           a. Recommanded new for Admins:      wax nowait nokick mutlist 
+           b. Recommended new for Moderators:  wax nowait nokick mutlist 
 
 Release 1.1.0 20220909 / 1.1.1 20220910
 
@@ -38,7 +67,7 @@ Release 1.1.0 20220909 / 1.1.1 20220910
            a. Recommanded new for Admins:      lock botreset botrespawn endgame
            b. Recommended new for Moderators:  botreset endgame
            c. Recommanded new for Solo Admins:  endgame
-           c. Command "reinit" should be reserved for "root" user(s) so no entry is needed in sissm.cfg
+           d. Command "reinit" should be reserved for "root" user(s) so no entry is needed in sissm.cfg
 
     Hotfix release 1.1.1 - fixed typo in !endgame command, only 'root' was able to run this command. 
     Hotfix release 1.1.1 - fixed bug in !lock command was not auto-unlocking in some cases

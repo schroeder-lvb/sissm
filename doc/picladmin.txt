@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PICLADMIN - User's Manual for the Assistant Administrators
-JS Schroeder -- last updated:  2020.11.08
+JS Schroeder -- last updated:  2022.09.29 
 
 PICLADMIN (Plugin Command-Line Admin) plugin allows admin commands to be
 executed through the in-game chat interface.  The server operator set up
@@ -34,16 +34,23 @@ Examples:  !help list, !help banid
 
 ========================
 
-botfixed (bf) [2-60]
+botfixed (bf) [0-60]
 Set fixed bot count regardless of how many players are in game.
 Examples:  !bf 20, !botfixed 50
 
+([SISSM1.2] !bf 0 is now allowed for testing)
 ========================
 
 botscaled (bs) {2-59} [2-60]
 Set bot count in scaling mode - if two numbers are specified min:max
 range is set; one number, only max limit is set.
 Examples:  !bs 36, !botscaled 32, !bs 4 36
+
+========================
+
+botreset
+Set bot count changed by !bs or !bf back to default 
+Examples:  !br
 
 ========================
 
@@ -173,18 +180,30 @@ Example:  !allowin jullie, !allowin *, !allowin
 
 ========================
 
-maplist (mapname) 
+maplist
 Lists available maps installed on server.
 Note: for this feature to work, a specific mapcycle.txt format with metatag is required!
 Example:  !maplist
 
+mutlist
+Lists available mutators availalbe on the server.
+Note: for this feature to work, sissm.cfg must specify list of allowed mutators.
+Example:  !mutlist
+
 ========================
 
-map (map) [mapname] {ins} {night}
+map (map) [mapname] {gamemode} {ins} {night} {mut1, mut2, mut3...}
 Immediately change map 
 Partial match for map name is accepted, and the first matched map is activated
 Note: for this feature to work, a specific mapcycle.txt format with metatag is required!
 Examples:  !map minist, !map ministry ins, !map minis night, !map inist night ins
+
+[SISSM 1.2]
+Note gamemode and mutators (mut1, mut2, mut3...) are supported.  If no mutator
+are used, specify 'none'.  gamemode is extracted from fully-specified mapcycle file
+(typically checkpoint, checkpointhardcore, etc.)
+Examples:  !map ministry checkpoint ins night shotguns 
+Examples:  !map ministry none
 
 ========================
 
@@ -208,6 +227,22 @@ Examples:  lock on, !lock off, !lock perm
 
 ========================
 
+wax [on|off|perm]
+Admin/Moderator command to require typing breach/blow code before action, or else
+the player is kicked (if autokick is on).
+On, Off, Perm actions have 2 objective delay to come into effect.
+On: means wax will stay active until map change, or when server goes idle.
+Perm: means wax will stay active until turned off, or server goes idle.
+
+========================
+
+strict
+This allows unpriviledge players to "!wax on" 
+Can only be turned off by admins/moderators with !wax command privilege.
+The command will cancel on map change, or when server goes idle.
+
+========================
+
 endgame {now}
 Immediately end the game in progress, to map voting menu (if enabled)
 Examples:  !endgame now, !eg now
@@ -215,8 +250,8 @@ Examples:  !endgame now, !eg now
 ========================
 
 dev [test-var] {int value}
-For develpers only - enabled only for ROOT connection.  Read/write 'test-var' 
-Examples:  !dev nokick 1, !dev nokick 0
+For develpers only - enabled only for the ROOT connection.  Reads/writes to 'test-var' 
+Examples:  !dev nokick 1, !dev nokick 0, !dev humans 8, !dev humans 0
 
 ========================
 
@@ -239,14 +274,14 @@ Depending on your server, a single word 'reason code' for kicks and bans may be
 attached, and it will be displayed on subject player screen.  These are default
 SISSM reason codes:
 
-rush –   Tactical servers require you concur with your squad BEFORE entering objective zone or exploding a cache.
-tk –     Team kills pre-game/in-game, post-mortem body mutilations are prohibited.
-attack – Personal attacks against other players are prohibited."
-troll –  Reason unspecified
-sex -    Gender discrimination, improper or explicit content in your comms, player name, profile or avatar
-race –   Racist behaviors strictly prohibited on this server
-afk –    Idle Timeout / AFK
-tac –    This is a Military-Tactical server. Please work with your squad.
+rush         Tactical servers require you concur with your squad BEFORE entering objective zone or exploding a cache.
+tk           Team kills pre-game/in-game, post-mortem body mutilations are prohibited.
+attack       Personal attacks against other players are prohibited.
+troll        Reason unspecified
+sex          Gender discrimination, improper or explicit content in your comms, player name, profile or avatar
+race         Racist behaviors strictly prohibited on this server
+afk          Idle Timeout / AFK
+tac          This is a Military-Tactical server. Please work with your squad.
 
 Example:
 
