@@ -88,6 +88,9 @@ static struct {
     int  rulesIntervalSec;
 
     int  tempBanMinutes;
+    int  noKickProtectSec;
+
+    char strictTutorial[CFS_FETCH_MAX];
 
 } picladminConfig;
 
@@ -106,13 +109,13 @@ int _cmdDeveloper();
 int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
 int _cmdKillFeed(), _cmdFriendlyFire();
 int _cmdRestart(), _cmdEnd(), _cmdReboot();
-int _cmdBan(), _cmdBant(), _cmdKick();
+int _cmdBan(), _cmdBant(), _cmdKick(), _cmdNoWait();
 int _cmdBanId(), _cmdBanIdt(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
-int _cmdRules(), _cmdContact(), _cmdThirdWave(), _cmdLock();
-int _cmdMap(), _cmdMapList(), _cmdReInit();
-int _cmdBotRespawn(), _cmdBotReset(), _cmdEndGame();
+int _cmdRules(), _cmdContact(), _cmdThirdWave(), _cmdLock(), _cmdNoKick();
+int _cmdMap(), _cmdMapX(), _cmdMapList(), _cmdMutList(), _cmdReInit();
+int _cmdBotRespawn(), _cmdBotReset(), _cmdEndGame(), _cmdWax(), _cmdStrict();
 
 struct {
 
@@ -157,27 +160,53 @@ struct {
     { "al",     "allowin",       "allowin [partial name]",        _cmdAllowIn },
     { "sp",     "spam",          "spam on|off",                   _cmdSpam    },
     { "fast",   "fast",          "fast on|off",                   _cmdFast    },
+    { "nk",     "nokick",        "nokick",                        _cmdNoKick  },
+    { "nw",     "nowait",        "nowait",                        _cmdNoWait  },
 
-    { "a",      "ask",           "ask",                     _cmdAsk       },
-    { "p",      "prep",          "prep",                    _cmdPrep      },
-    { "w",      "warn",          "warn",                    _cmdWarn      },
+    { "a",      "ask",           "ask",                           _cmdAsk     },
+    { "p",      "prep",          "prep",                          _cmdPrep    },
+    { "w",      "warn",          "warn",                          _cmdWarn    },
 
-    { "map",    "map",           "map name [night][ins]",   _cmdMap       },
-    { "maplist","maplist",       "maplist",                 _cmdMapList   },
+    { "mapx",    "mapx",         "map name [night][ins]",         _cmdMapX    },
+    { "map",     "map",          "mapx name [night][ins]{mut mut mut...}",  _cmdMap  },
+    { "maplist", "maplist",      "maplist",                 _cmdMapList    },
+    { "mutlist", "mutlist",      "mutlist",                 _cmdMutList    },
 
-    { "rules",  "rules",         "rules",                   _cmdRules     },
-    { "contact","contact",       "contact",                 _cmdContact   },
+    { "rules",  "rules",         "rules",                   _cmdRules      },
+    { "contact","contact",       "contact",                 _cmdContact    },
 
     { "reinit", "reinit",        "reinit",                  _cmdReInit     },
     { "bz",     "botrespawn",    "botrespawn [0..3]",       _cmdBotRespawn },
     { "br",     "botreset",      "botreset",                _cmdBotReset   },
     // { "tw",     "thirdwave",     "thirdwave on|off",        _cmdThirdWave  },
     { "lk",     "lock",          "lock on|off|perm",        _cmdLock       },
+    { "wax",    "wax",           "wax on|off|perm",         _cmdWax        },
+    { "sr",     "strict",        "strict",                  _cmdStrict     },
 
     { "*",      "*",             "*",                       NULL }
 
 };
 
+
+// ===== _setOrigin/_gerOrigin
+// 
+// Set command origin ID for authentication/priv controls
+//
+
+static char currentOriginID[ 256 ];   // supports SteamID and Others
+
+static void _setOriginID( char *originID )
+{
+    strlcpy( currentOriginID, originID, 256 );
+    return;
+}
+
+static char *_getOriginID( void )
+{
+    return( currentOriginID );
+}
+
+// 
 // ===== write ok, error, or unauthorized status to in-game chat
 //
 static int _respSay( char msgArray[NUM_RESPONSES][CFS_FETCH_MAX] )
@@ -334,7 +363,7 @@ int _cmdMacrosList( char *arg, char *arg2, char *passThru )
 int _cmdHelp( char *arg, char *arg2, char *passThru ) 
 { 
     int i = 0, notFound = 1;
-    char outStr[1024];
+    char outStr[1024], originID[256];
 
     // if has parameter then look for a specific help for that command
     //
@@ -352,15 +381,19 @@ int _cmdHelp( char *arg, char *arg2, char *passThru )
 
     // if above search was invalid command, or no arg was specified, display list of commands
     // 
-    if (notFound) {
+    if ( notFound ) {
+        strlcpy( originID, _getOriginID(), 256 );   // get requester ID
+
         strlcpy( outStr, "help [cmd], avail: ", 1024);
         i = 0;           
         while ( 1 == 1 ) {
-            strlcat( outStr, cmdTable[i].cmdLong, 1024 );
-            strlcat( outStr, " ", 1024 );
-            if ( strlen(outStr) > 40 ) {
-                apiSaySys( outStr );
-                strclr( outStr );
+            if ( apiAuthIsAllowedCommand( originID, cmdTable[i].cmdLong ) ) {
+                strlcat( outStr, cmdTable[i].cmdLong, 1024 );
+                strlcat( outStr, " ", 1024 );
+                if ( strlen(outStr) > 40 ) {
+                    apiSaySys( outStr );
+                    strclr( outStr );
+                }
             }
             i++;
             if ( 0 == strcmp( "*", cmdTable[i].cmdShort )) break; 
@@ -435,11 +468,11 @@ int _cmdLock( char *arg, char *arg2, char *passThru )
     }
     else if (0 == strcmp( "on", arg )) {
         p2pSetL( "pigateway.p2p.lockOut", 1L );
-        apiSaySys( "Public slots LOCKED until end of game/map change." );
+        apiSaySys( "Server LOCKED to public until next map." );
     }
     else if (0 == strcmp( "perm", arg )) {
         p2pSetL( "pigateway.p2p.lockOut", 2L );
-        apiSaySys( "Public LOCKED until or unlocked, or  server is empty" );
+        apiSaySys( "Server LOCKED to public until unlocked.");
     }
 
     _sayLockStatus( 0 );
@@ -449,6 +482,57 @@ int _cmdLock( char *arg, char *arg2, char *passThru )
     return errCode; 
 }
 
+// ===== "wax on|off"
+//
+int _cmdWax( char *arg, char *arg2, char *passThru ) 
+{  
+    int errCode = 0;
+
+    if (0 == strcmp( "off", arg )) {
+        p2pSetL( "piantirush.p2p.training", 0L );
+        apiSaySys( "Wax Off - starting next objective");
+    }
+    else if (0 == strcmp( "on", arg )) {
+        p2pSetL( "piantirush.p2p.training", 1L );
+        apiSaySys( "Wax On - starting next objective");
+        p2pSetF("piantirush.p2p.fast", 0.0 );             // turn off FAST mode
+    }
+    else if (0 == strcmp( "perm", arg )) {
+        p2pSetL( "piantirush.p2p.training", 2L );
+        apiSaySys( "Wax On/Perm - starting next objective");
+        p2pSetF("piantirush.p2p.fast", 0.0 );             // turn off FAST mode
+    }
+    else {
+        switch ( p2pGetL( "piantirush.p2p.training", 0L ) ) {
+            case 1L:  apiSaySys( "Wax is ON" );    break;
+            case 2L:  apiSaySys( "Wax is PERM" );  break;
+            default:  apiSaySys( "Wax is OFF" );  
+        }
+    }
+    
+    return errCode; 
+}
+
+// ===== "strict"
+// Strict command is same as "!wax on" but should be enabled for
+// regular players.  "!wax on" will auto-disable at next map change.
+//
+int _cmdStrict( char *arg, char *arg2, char *passThru ) 
+{
+    switch ( p2pGetL( "piantirush.p2p.training", 0L ) ) {
+    case 0L:
+        p2pSetL( "piantirush.p2p.training", 1L );
+        apiSaySys( picladminConfig.strictTutorial );
+        p2pSetF("piantirush.p2p.fast", 0.0 );             // turn off FAST mode
+        break;
+    default:
+        apiSaySys( "Strict/Wax mode already enabled" );
+    };
+    return 0;
+}
+
+
+// ===== "ThirdWwave on|off"
 
 // ===== "ThirdWwave on|off"
 //
@@ -480,7 +564,7 @@ int _cmdBotFixed( char *arg, char *arg2, char *passThru )
     int errCode = 1, botCount;
 
     if (1 == sscanf( arg, "%d", &botCount )) {
-        if ( ( botCount <=  picladminConfig.botMaxAllowed ) && ( botCount >= 2 ) ) {
+        if ( ( botCount <=  picladminConfig.botMaxAllowed ) && ( botCount >= 0 ) ) {
            apiGameModePropertySet( "minimumenemies", _int2str( botCount/2 ) ); 
            apiGameModePropertySet( "maximumenemies", _int2str( botCount/2 ) );  
            apiGameModePropertySet( "soloenemies", _int2str( botCount/2 ) );  
@@ -1084,19 +1168,48 @@ int _cmdFast( char *arg, char *arg2, char *passThru )
     else if (0 == strcmp( "on", arg )) {
         p2pSetF("piantirush.p2p.fast", 1.0 );
         apiSaySys("Anti-Rushing algorithm is disabled by admin");
+        p2pSetL( "piantirush.p2p.training", 0L );    // turn off WAX
     }
     else {
-        _stddResp( 1 );   // ok or error message to game
+        if (0.0 == p2pGetF( "piantirush.p2p.fast", 0.0 ) )
+            apiSaySys( "Fast is OFF" );
+        else
+            apiSaySys( "Fast is ON" );
     }
 
     return errCode;
 }
 
-
-// ===== "map"
-// Change maps 
+// ===== "nokick"
+// Exempt autokick by piantirush for window of seconds (training)
 //
-int _cmdMap( char *arg, char *arg2, char *passThru ) 
+int _cmdNoKick( char *arg, char *arg2, char *passThru ) 
+{ 
+    // Run this discretely - so no prompt.
+    //
+    p2pSetL( "piantirush.p2p.nokickprotect", (long) picladminConfig.noKickProtectSec );
+
+    return 0;
+}
+
+// ===== "nowait"
+// Exempt autokick by piantirush for window of seconds (training)
+//
+int _cmdNoWait( char *arg, char *arg2, char *passThru ) 
+{ 
+    // Run this discretely - so no prompt.
+    // Set semaphore (binary), will be picked up by Periodic Processing
+    // in piantirush plugin
+    //
+    p2pSetL( "piantirush.p2p.SigNoWait", 1L );
+
+    return 0;
+}
+
+// ===== "mapX" OBSOLETE
+// Change maps OBSOLETE
+//
+int _cmdMapX( char *arg, char *arg2, char *passThru ) 
 { 
     int errCode = 0;
     int isNight = 0, isIns = 0;
@@ -1125,11 +1238,12 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
             w = getWord( passThru, j++, " " );
             if ( w == NULL )       break;
             if ( 0 == strlen( w )) break;
- 
+#if 0 
             if ( w[0] == '%' ) {
                 strlcat( mutatorsList, &w[1], 256 );
                 strlcat( mutatorsList, ",",  256 );
             };
+#endif
 
             if ( apiIsSupportedGameMode( w ) ) {
                 strlcpy( gameMode, w, 80 );
@@ -1143,7 +1257,7 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
         }
 
         // change map
-        errCode = apiMapChange( arg, gameMode, isIns, isNight, mutatorsList );
+        errCode = apiMapChange( arg, gameMode, isIns, isNight, mutatorsList, 0 );
 
         if ( errCode ) {
             apiSaySys( "Map/mode/side not found" );
@@ -1152,19 +1266,110 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
-
-// ===== "maplist"
-// list maps 
+// ===== "map"
+// Change Maps Extended
 //
-int _cmdMapList( char *arg, char *arg2, char *passThru ) 
-{ 
-    char *w, *v, outBuf[256];
+int _cmdMap( char *arg, char *arg2, char *passThru )
+{
     int errCode = 0;
+    int isNight = 0, isIns = 0, clearMutators = 0;
+    char *w, gameMode[80], wordBuf[80], mutName[80];
+    char mutatorsList[256];
+    int i, j, c;
+
+    strclr( mutatorsList );
+    strclr( gameMode );
+
+    if ( 0 == strlen( arg ) ) {
+        apiSaySys( "You must specify a map.  Type !maplist");
+        errCode = 1;
+    }
+    else {
+        //
+        // Walk through each word to determine if it is "ins", "sec", 
+        // "day", "night" or any of the approved mutators or game modes.
+        // The check order may be important in the future.
+        //
+        j = 2;
+        while ( errCode == 0 ) {
+
+            w = getWord( passThru, j++, " " );
+            if ( w == NULL )       break;
+            if ( 0 == strlen( w )) break;
+         
+            strlcpy( wordBuf, w, 80 );
+
+            // alias 
+            //
+            if ( 0 == strcasecmp( wordBuf, "hardcore" )) strlcpy( wordBuf, "checkpointhardcore", 80 );
+
+            // process each word
+            //
+            if ( 0 == strcmp( wordBuf, "@" ) ) 
+                clearMutators = 1;
+            else if (NULL != strcasestr( wordBuf, "night" )) 
+                isNight = 1;
+            else if (NULL != strcasestr( wordBuf, "ins"   )) 
+                isIns   = 1;
+            else if ( apiIsSupportedGameMode( wordBuf ) ) {
+                strlcpy( gameMode, wordBuf, 80 );
+            }
+            else {
+                c = apiMutLookup( wordBuf, mutName, 80 );
+                switch (c) {
+                    case 0:
+                        apiSaySys("Unknown game mode or mutator '%s'", wordBuf );
+                        logPrintf(  LOG_LEVEL_INFO, "picladmin", "Unknown game mode or mutator '%s'", wordBuf );
+                        errCode = 1;
+                        break;
+                    case 1:
+                        strlcat( mutatorsList, mutName, 256 );
+                        strlcat( mutatorsList, ",",     256 );
+                        break;
+                    default:
+                        apiSaySys("Ambiguious mutator name '%s'", wordBuf );
+                        logPrintf(  LOG_LEVEL_INFO, "picladmin", "Ambiguious mutator name '%s'", wordBuf );
+                        errCode = 1;
+                        break;
+                }
+            }
+        }
+
+        // clean up the mutatorsList (remove trailing comma)
+        //
+        if ( 0 != ( i = (int) strlen( mutatorsList ) )) {
+            mutatorsList[ i-1 ] = 0;
+        }
+
+        if ( 0 == errCode ) {
+            // change map
+            logPrintf(  LOG_LEVEL_INFO, "picladmin", "----------------------------------------------------" );
+            logPrintf(  LOG_LEVEL_INFO, "picladmin", "Map change to '%s' Mode '%s'  Sec/Ins '%d' Day/Night '%d'", arg, gameMode, isIns, isNight );
+            logPrintf(  LOG_LEVEL_INFO, "picladmin", "Mutators: '%s'  clear: %d", mutatorsList, clearMutators );
+            errCode = apiMapChange( arg, gameMode, isIns, isNight, mutatorsList, clearMutators );
+        }
+
+        if ( errCode ) {
+            apiSaySys( "Map/mode/side/mutator not found" );
+        }
+    }
+    return errCode;
+}
+
+
+// ===== _showList 
+// list maps and mutators to console
+//
+static int _showList( char *list )
+{
+    char *w, *v, outBuf[256];
+    int errCode = 1;
     int j, i, exitF = 0;;
 
-    w = apiMapList();
+    w = list;
     j = 0;
     if ( w != NULL ) { 
+        errCode = 0;
         while ( 0 == exitF ) {
             strclr( outBuf );
             for (i=0; i<4; i++) {
@@ -1183,8 +1388,39 @@ int _cmdMapList( char *arg, char *arg2, char *passThru )
             apiSaySys( "%s", outBuf );
         }
     } 
+    return errCode;
+}
 
-    // apiSaySys( "Maps: %s", w );
+// ===== "maplist"
+// list maps 
+//
+int _cmdMapList( char *arg, char *arg2, char *passThru ) 
+{ 
+    char *w, listBuf[1024];
+    int errCode = 0;
+
+    if (NULL != (w = apiMapList() )) {
+        strlcpy( listBuf, w, 1024 );
+        _showList( listBuf );
+    }
+
+    return errCode;
+}
+
+
+// ===== "mutList"
+// list mutators
+//
+int _cmdMutList( char *arg, char *arg2, char *passThru )
+{
+    char *w, listBuf[1024];
+    int errCode = 0;
+
+    if (NULL != (w = apiMutList() )) {
+        strlcpy( listBuf, w, 1024 );
+        _showList( listBuf );
+    }
+
     return errCode;
 }
 
@@ -1373,6 +1609,17 @@ int picladminInitConfig( void )
     //
     picladminConfig.tempBanMinutes = (int) cfsFetchNum( cP, "picladmin.tempBanMinutes", 1440.0 );
 
+    // Read the nokick exemption (from antirush autokick) window time in seconds
+    //
+    picladminConfig.noKickProtectSec = (int) cfsFetchNum( cP, "picladmin.noKickProtectSec",  15.0 );
+    if ( picladminConfig.noKickProtectSec < 0 ) picladminConfig.noKickProtectSec = 0;
+
+    // Info text that is shown when a player types !strict
+    //
+    strlcpy( picladminConfig.strictTutorial,  cfsFetchStr( cP, "picladmin.strictTutorial",
+        "*Type '22' & '11' before Obj breach/blow to avoid AUTO-KICK!"), 
+        CFS_FETCH_MAX);
+
     cfsDestroy( cP );
     return 0;
 }
@@ -1527,10 +1774,15 @@ int _commandExecute( char *cmdString, char *originID )
         strlcpy( cmdOut, "help",  256 );
     } 
 
+    // remember the origin ID for some command that may need it (e.g., !help)
+    //
+    _setOriginID( originID );
+
     // loop through the command table
     //
     i = 0;
     while ( 1==1 ) {
+
         if ( (0 == strcmp( cmdTable[i].cmdShort, cmdOut )) || (0 == strcmp( cmdTable[i].cmdLong, cmdOut )) ) {
 
             isCommand = 1;
@@ -1573,6 +1825,10 @@ int _commandExecute( char *cmdString, char *originID )
             }
         }
     }
+
+    // Command level security - set ident to invalid
+    //
+    _setOriginID( "INVALID" );
 
     return errCode; 
 }
@@ -1743,6 +1999,10 @@ int picladminInstallPlugin( void )
     //
     p2pSetL( "dev.p2p.nokick", 0L );
     p2pSetL( "dev.p2p.humans", 0L );
+
+    // clear the origin ID
+    // 
+    _setOriginID( "INVALID");
 
     return 0;
 }

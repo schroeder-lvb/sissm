@@ -45,7 +45,7 @@
 
 #include "pidynbots.h"
 
-#define PIDYN_MAXADJUSTERS  (64)
+#define PIDYN_MAXADJUSTERS  (128)
 #define PIDYN_MAXMODES      (16)
 
 //  ==============================================================================================

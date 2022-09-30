@@ -100,6 +100,22 @@ static struct {
     int  autoKickExemptLMS;            // max # of surviving players to exempt auto-kick algorithm
     char autoKickExemptMsg[CFS_FETCH_MAX];                              // exempt message when LMS 
 
+    // These are for "strict" training modes.  When enabled ("!wax on") by admin, it extends
+    // auto-kick/slow-capture timer limit so that players MUST type 'aa', '11', etc. to capture
+    // an objective, irigardless of the clock.  Also note that enabling Training mode does NOT 
+    // allow for early capture -- players will get 'deny' message if timer is still blocking 
+    // the objective.
+    // 
+    int  lockIntervalSecTrainOffset,    trTimeOfs;
+    int  slowIntervalSecTrainOffset,    trSlowOfs;
+    int  earlyBreachSpeedupTrainOffset, trEarlyOfs;
+    int  destroySpeedupTrainOffset,     trEarDesOfs;
+    int  nPlayerExemptionTrainOffset,   trNPlayerOfs;      
+
+    char trainingModeMsg[CFS_FETCH_MAX];                                  // training mode message
+    // int  trainingOnReminderTime;     // time in elapsed sec to display training mode reminder text
+    int  trainingOnDefaultEnable;       // from sissm.cfg option to make training mode default 'on'
+
 } piantirushConfig;
 
 static int _localMute = 0;
@@ -111,6 +127,7 @@ static alarmObj *wPtr  = NULL;                               // Alarm for weapon
 static alarmObj *tPtr  = NULL;                              // Alarm for territorial early cap msg
 static alarmObj *rPtr  = NULL;             // Delay prompt for player request for early cache blow
 static alarmObj *bPtr  = NULL;                 // Delay prompt for player request for early breach
+static alarmObj *xPtr  = NULL;           // training mode ("!wax on") reminder prompt when enabled
 static int lastState = -1;                          // last state of capture rate: { -1, 0, 1, 2 }
 
 
@@ -173,28 +190,44 @@ static int _localSay( const char * format, ... )
 //  _localKickOrBan
 //
 //  Wedge for apiKicOrBan - with local disable capability.
+//  This function returns non-zero if player is NOT KICKED due to exemption 
 //
 static int _localKickOrBan( int isBan, char *optionalPlayerName, char *playerGUID, char *reason )
 {
-    int errCode = 0;
+    int errCode = 0, notKicked = 0;
     char *v;
+    long autoKickExemptSecsL;
+
+    // nonzero value here means protection window is set for non-kick. The
+    // value is countdown timer in seconds, stops at 0L.
+    //
+    autoKickExemptSecsL = p2pGetL( "piantirush.p2p.nokickprotect", 0L );
 
     // a wedge code to disable this plugin if non-Checkpoint mode is running
     //
     v = apiGetServerMode();
     if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) )  return 0;
 
-    // this will kick a player "for reals"
-    //
-    if (0 != strlen( playerGUID )) 
-        errCode |= apiKickOrBan( isBan, playerGUID, reason );
+    if ( 0L == autoKickExemptSecsL ) {
 
-    // redundancy
-    //
-    if ( 0 != strlen( optionalPlayerName )) 
-        errCode |= apiKick( optionalPlayerName, reason );
+        // this will kick a player "for reals"
+        //
+        if (0 != strlen( playerGUID )) 
+            errCode |= apiKickOrBan( isBan, playerGUID, reason );
 
-    return( errCode );
+        // redundancy
+        //
+        if ( 0 != strlen( optionalPlayerName )) 
+            errCode |= apiKick( optionalPlayerName, reason );
+
+        logPrintf( LOG_LEVEL_DEBUG, "piantirush", "Rush-AutoKick ::%s::%s::", playerGUID, optionalPlayerName );
+    }
+    else {
+        notKicked = 1;
+        logPrintf( LOG_LEVEL_INFO, "piantirush", "Rush-AutoKick Exempted by Admin ::%s::%s::", playerGUID, optionalPlayerName );
+    }
+
+    return( notKicked );
 }
 
 //  ==============================================================================================
@@ -395,9 +428,10 @@ static void _capRusherPeriodicCheck( void )
                     if ( territorialRushers[i].playerEarlyBreachCumulativeTime++ > piantirushConfig.earlyBreachMaxTime ) {
                         if ( NULL != ( g = rosterLookupSteamIDFromName( territorialRushers[i].playerName )) ) {
                             strlcpy( playerGUID, g, 256 );  // EPIC
-                            _localSay( "'%s' auto-kicked for early breach",  territorialRushers[i].playerName );
-                            logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for early breach", territorialRushers[i].playerName, playerGUID );
-                            _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTimeKickMessage );
+                            if ( 0 == _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTimeKickMessage ) ) {
+                                _localSay( "'%s' auto-kicked for early breach",  territorialRushers[i].playerName );
+                                logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for early breach", territorialRushers[i].playerName, playerGUID );
+                            }
 
                             // remove the player from cached table in case another player connects and the
                             // system re-uses the same character ID
@@ -419,9 +453,10 @@ static void _capRusherPeriodicCheck( void )
                     ( territorialRushers[i].playerEarlyBreachCount++ > piantirushConfig.earlyBreachMaxTaps ) ) {  // 20211006tap
                     if ( NULL != ( g = rosterLookupSteamIDFromName( territorialRushers[i].playerName )) ) {
                         strlcpy( playerGUID, g, 256 );  // EPIC
-                        _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
-                        logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for excess objective tapping", territorialRushers[i].playerName, playerGUID );
-                        _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTapsKickMessage );
+                        if ( 0 == _localKickOrBan( 0, territorialRushers[i].playerName, playerGUID, piantirushConfig.earlyBreachTapsKickMessage ) ) {
+                            _localSay( "'%s' auto-kicked for nuisance objective tapping",  territorialRushers[i].playerName );
+                            logPrintf(LOG_LEVEL_WARN, "piantirush", "%s [%s] auto-kicked for excess objective tapping", territorialRushers[i].playerName, playerGUID );
+                        }
                         // remove the player from cached table in case another player connects and the
                         // system re-uses the same character ID
                         //
@@ -460,7 +495,7 @@ static void _captureSpeed( int isSlow )
     if (! ((0==strcmp( v, "checkpoint" )) || (0==strcmp( v, "hardcore"))) ) 
         _fastMode = 1;
  
-    if ( apiPlayersGetCount() <=  piantirushConfig.nPlayerExemption )
+    if ( apiPlayersGetCount() <=  ( piantirushConfig.nPlayerExemption + piantirushConfig.trNPlayerOfs ) )
         isSlowCopy = 0;
 
     // if we're in 'fast on' mode then always force capture speed to (0 = normal).
@@ -573,7 +608,7 @@ static int _notifyNoDestroyCB( char *str )
 //
 static int _earlyDestroyReqCB( char *str )
 {
-    if ( alarmStatus( aPtr ) < (long) piantirushConfig.destroySpeedup ) {
+    if ( alarmStatus( aPtr ) < (long) (piantirushConfig.destroySpeedup + piantirushConfig.trEarDesOfs) ) {
         _localSay( piantirushConfig.destroyOkPrompt );
         kickArmed = 0;                    // kick safety : disable kick
         alarmCancel( aPtr );
@@ -595,7 +630,7 @@ static int _earlyDestroyReqCB( char *str )
 //
 static int _earlyBreachReqCB( char *str )
 {
-    if ( alarmStatus( aPtr ) < (long) piantirushConfig.earlyBreachSpeedup ) {
+    if ( alarmStatus( aPtr ) < (long) piantirushConfig.earlyBreachSpeedup + piantirushConfig.trEarlyOfs ) {
         _localSay( piantirushConfig.breachOkPrompt );
         alarmReset( aPtr, 2L );   
         _capRusherClear();
@@ -614,6 +649,24 @@ static int _earlyBreachReqCB( char *str )
 static int _earlyTerritorialCB( char *str )
 {
     // _localSay( "DEBUG: ok to capture" );
+    return 0;
+}
+
+//  ==============================================================================================
+//  _trainingModeReminderCB
+//
+static int _trainingModeReminderCB( char *str )
+{
+    if ( 0 != (int) strlen( piantirushConfig.trainingModeMsg ) )  {
+        if ( NULL != strstr( rosterGetObjectiveType(), "WeaponCache" ) ) {
+            _localSay( piantirushConfig.destroyOkPrompt );
+            _localSay( piantirushConfig.trainingModeMsg );
+        }
+        else {
+            _localSay( piantirushConfig.breachOkPrompt );
+            _localSay( piantirushConfig.trainingModeMsg );
+        }
+    }
     return 0;
 }
 
@@ -678,20 +731,43 @@ static int _normalSpeedAlarmCB( char *str )
 void _startOfEverything( void )
 {
     int currentPlayerCount;
+   
+    // this block is for the offset timer/values used in "training mode" 
+    // from PICLADMIN: "!wax on/off" 
+    //
+    if ( 0L == p2pGetL( "piantirush.p2p.training", 0L )) {
+        piantirushConfig.trTimeOfs     = 0;
+        piantirushConfig.trSlowOfs     = 0;
+        piantirushConfig.trEarlyOfs    = 0;
+        piantirushConfig.trEarDesOfs   = 0;
+        piantirushConfig.trNPlayerOfs  = 0;
+    }
+    else {
+        piantirushConfig.trTimeOfs     = piantirushConfig.lockIntervalSecTrainOffset;
+        piantirushConfig.trSlowOfs     = piantirushConfig.slowIntervalSecTrainOffset;
+        piantirushConfig.trEarlyOfs    = piantirushConfig.earlyBreachSpeedupTrainOffset;
+        piantirushConfig.trEarDesOfs   = piantirushConfig.destroySpeedupTrainOffset;
+        piantirushConfig.trNPlayerOfs  = piantirushConfig.nPlayerExemptionTrainOffset;
+    }
 
     currentPlayerCount = apiPlayersGetCount();
     if (currentPlayerCount >= piantirushConfig.nPlayerLockThreshold ) {
-        alarmReset( aPtr, piantirushConfig.lockIntervalSec );
-        // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start LOCK alarm set %d", piantirushConfig.lockIntervalSec);
+        alarmReset( aPtr, piantirushConfig.lockIntervalSec + piantirushConfig.trTimeOfs );
+        if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) )     // if training mode enabled "on" or "perm"
+            alarmReset( xPtr, piantirushConfig.lockIntervalSec );   // training mode reminder
+        // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start LOCK alarm set %d", piantirushConfig.lockIntervalSec + piantirushConfig.trTimeOfs);
         _captureSpeed( 2 );
     }
-    else if (currentPlayerCount > piantirushConfig.nPlayerExemption)  { 
-        alarmReset( aPtr, piantirushConfig.slowIntervalSec );
-        // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start SLOW alarm set %d", piantirushConfig.lockIntervalSec);
+    else if (currentPlayerCount > ( piantirushConfig.nPlayerExemption + piantirushConfig.trNPlayerOfs ) )  { 
+        if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) )     // if training mode enabled "on" or "perm"
+            alarmReset( xPtr, piantirushConfig.slowIntervalSec );   // training mode reminder 
+        alarmReset( aPtr, piantirushConfig.slowIntervalSec +  piantirushConfig.trSlowOfs);
+        // logPrintf(LOG_LEVEL_DEBUG, "piantirush", "Antirush start SLOW alarm set %d", piantirushConfig.lockIntervalSec +  piantirushConfig.trSlowOfs);
         _captureSpeed( 1 );
     }
     else {
         alarmCancel( aPtr );  
+        alarmCancel( xPtr );
         _captureSpeed( 0 );   
     }
 
@@ -770,9 +846,23 @@ int piantirushMapChangeCB( char *strIn )
 //
 int piantirushGameStartCB( char *strIn )
 {
+    // Disable the no-kick protection window.  "nokickprotect" is a countdown, typically
+    // set to numbers like 15L seconds by picladmin !nk (!nokick) command to exempt
+    // anticipated antrush auto-kicks for new players in-training, and commander calls over cache.
+    //
+    p2pSetL( "piantirush.p2p.nokickprotect", 0L );
+
+    // if training mode is "on by default" in sissm1.cfg, for the p2p variable
+    // to turn it on a start of each game.  Admins can still turn it off by !wax off.
+    // This must be done before _startOfEverything()
+    //
+    if ( piantirushConfig.trainingOnDefaultEnable ) 
+        p2pSetL( "piantirush.p2p.training", 1L );
+
     _captureSpeedForceNext();
     _startOfEverything();
     kickArmed = 0;
+
     return 0;
 }
 
@@ -783,6 +873,12 @@ int piantirushGameStartCB( char *strIn )
 //
 int piantirushGameEndCB( char *strIn )
 {
+    // clear the training mode if "on", but not if "perm" - it is important to call this
+    // before _startOfEverything() below.
+    //
+    if ( 1L == p2pGetL( "piantirush.p2p.training", 0L ) )  // check if "on", not "perm"
+        p2pSetL( "piantirush.p2p.training", 0L );
+
     _captureSpeedForceNext();
     return 0;
 }
@@ -819,6 +915,12 @@ int piantirushRoundStartCB( char *strIn )
     //
     _capRusherClear();
 
+
+    // if in training mode, announce it
+    //
+    if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) )  
+       apiSay( piantirushConfig.trainingModeMsg );
+
     return 0;
 }
 
@@ -843,6 +945,12 @@ int piantirushCapturedCB( char *strIn )
     kickArmed = 0;
     _startOfEverything(); 
 
+
+    // if in training mode, announce it at Capture & RoundStart
+    //
+    if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) )
+       apiSay( piantirushConfig.trainingModeMsg );
+
     return 0;
 }
 
@@ -859,6 +967,7 @@ int piantirushPeriodicCB( char *strIn )
     int playersAlive;
     static int lastLivePlayerCount = -1;
     int currLivePlayerCount;
+    long noProtectSecsL;
 
     currFastState = (int) p2pGetF( "piantirush.p2p.fast", 0.0 ) ;
  
@@ -960,6 +1069,39 @@ int piantirushPeriodicCB( char *strIn )
         kickArmed2 = 1;
 #endif
 
+    // Service the "no kick" protection window countdown in seconds.  If it reaches 0L
+    // then nokick protection becomes disabled.
+    //
+    noProtectSecsL =  p2pGetL( "piantirush.p2p.nokickprotect", 0L ) ;
+    if ( noProtectSecsL != 0L ) {
+         if ( --noProtectSecsL < 0L ) { 
+             noProtectSecsL = 0L;
+             logPrintf( LOG_LEVEL_INFO, "piantirush", "Nokick Protection window is now deactivated." );
+         }
+         else {
+             logPrintf( LOG_LEVEL_INFO, "piantirush", "Nokick Protect window is active: %ld", noProtectSecsL );
+         }
+         p2pSetL( "piantirush.p2p.nokickprotect", noProtectSecsL );
+    }
+
+    // Service the "no wait" speedup feature (admins/moderators) 
+    //
+    if ( 0L != p2pGetL( "piantirush.p2p.SigNoWait", 0L )) {
+        p2pSetL( "piantirush.p2p.SigNoWait", 0L );  // clear the semaphore 
+        if ( alarmStatus( aPtr ) > 2L ) {
+            _capRusherClear();
+            alarmReset( aPtr, 2L );
+        }
+    }
+
+    // If the server goes empty, make sure Training Mode and AutoKick Exemption is cleared.
+    //
+    if ( 0 == apiPlayersGetCount() ) {
+        p2pSetL( "piantirush.p2p.training", 0L );
+        p2pSetL( "piantirush.p2p.nokickprotect", 0L );
+        p2pSetL( "piantirush.p2p.SigNoWait", 0L );
+    }
+
     return 0;
 }
 
@@ -1027,9 +1169,11 @@ int piantirushCacheDestroyed( char *strIn )
     if ( piantirushConfig.autoKickEarlyDestruction ) {
         if ( ( _fastMode == 0 ) && ( alarmStatus( aPtr ) >= piantirushConfig.earlyDestroyTolerance )) {
             if ( kickArmed2 && kickArmed ) {
-                apiKickOrBan( 0, playerGUID, piantirushConfig.earlyDestroyKickMessage );
-                logPrintf( LOG_LEVEL_WARN, "piantirush", "%s[%s] Auto-kicked for early cache destruction", playerName, playerGUID );
-                _localSay( "'%s' auto-kicked for rushing", playerName );
+                // apiKickOrBan( 0, playerGUID, piantirushConfig.earlyDestroyKickMessage );
+                if ( 0 == _localKickOrBan( 0, playerName, playerGUID, piantirushConfig.earlyDestroyKickMessage ) ) {
+                    logPrintf( LOG_LEVEL_WARN, "piantirush", "%s[%s] Auto-kicked for early cache destruction", playerName, playerGUID );
+                    _localSay( "'%s' auto-kicked for rushing", playerName );
+                }
             }
         }
     }
@@ -1065,7 +1209,7 @@ int piantirushChatCB( char *strIn )
                     isQualified  = apiIsPlayerAliveByGUID( clientID );
                     isQualified |= apiAuthIsAttribute( clientID, "deadcmdr" );
                     isQualified |= apiIsHotRestart();
-
+                    if ( 2 != (int) strlen( chatLine )) isQualified = 0;
                     if ( isQualified ) 
                         alarmReset( rPtr, 2 );        // give answer 2 seconds later for cosmetics 
                 }
@@ -1083,6 +1227,7 @@ int piantirushChatCB( char *strIn )
                     isQualified  = apiIsPlayerAliveByGUID( clientID );
                     isQualified |= apiAuthIsAttribute( clientID, "deadcmdr" );
                     isQualified |= apiIsHotRestart();
+                    if ( 2 != (int) strlen( chatLine )) isQualified = 0;
 
                     if ( isQualified )
                         alarmReset( bPtr, 2 );        // give answer 2 seconds later for cosmetics  
@@ -1103,7 +1248,7 @@ int piantirushChatCB( char *strIn )
 //
 int piantirushObjTouchCB( char *strIn )
 {
-    char *w, *n, *m;
+    char *w, *n, m[64];
     char charID[64], tmpCharID[64], playerName[64]; 
 
     // First check if the time is within the territory  protection window zone (i.e., "too early")
@@ -1118,7 +1263,7 @@ int piantirushObjTouchCB( char *strIn )
                 if ( NULL != strstr( strIn, rosterGetObjective() )) {
                     // Convert Character ID to player Name
                     //
-                    m = apiCharacterToName( charID );
+                    strlcpy(m, apiCharacterToName( charID ), 64 );
                     if ( 0 != strlen( m )) {
                         strlcpy( playerName, m, 64 );
 
@@ -1129,6 +1274,9 @@ int piantirushObjTouchCB( char *strIn )
                         // call the cap-rush algo submodule here
                         //
                         _capRusherEnterZone( charID, playerName );
+                    }
+                    else {
+                        logPrintf(LOG_LEVEL_DEBUG, "piantirush", "**Internal error - unable to match char to name ::%s::", charID );
                     }
                 }
             }
@@ -1146,7 +1294,7 @@ int piantirushObjTouchCB( char *strIn )
 //
 int piantirushObjUntouchCB( char *strIn )
 {
-    char *w, *n, *m;
+    char *w, *n, m[64];
     char charID[64], tmpCharID[64], playerName[64]; 
 
     // First check if the time is within the territory  protection window zone (i.e., "too early")
@@ -1162,7 +1310,7 @@ int piantirushObjUntouchCB( char *strIn )
                 if ( NULL != strstr( strIn, rosterGetObjective() )) {
                     // Convert Character ID to player Name
                     //
-                    m = apiCharacterToName( charID );
+                    strlcpy(m, apiCharacterToName( charID ), 64 );
                     if ( 0 != strlen( m )) {
                         strlcpy( playerName, m, 64 );
                         if ( kickArmed2 && kickArmed ) _localSayThrottled( "'%s' %s", playerName, piantirushConfig.earlyBreachExit );
@@ -1236,11 +1384,11 @@ int piantirushInitConfig( void )
     strlcpy( piantirushConfig.destroyDenyPrompt,     // prompt denying players destroy the cache
         cfsFetchStr( cP, "piantirush.destroyDenyPrompt", "Early destruct DENIED at this time." ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.destroyHoldPrompt,     // prompt ordering players to halt destruction of cache
-        cfsFetchStr( cP, "piantirush.destroyHoldPrompt", "*Cache destruct UNAUTHORIZED - 'aa' or '11'" ), CFS_FETCH_MAX);
+        cfsFetchStr( cP, "piantirush.destroyHoldPrompt", "*Cache destruct UNAUTHORIZED - type '22' then '11'" ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.earlyDestroyKickMessage,     // 'reason' displayed to kicked player 
         cfsFetchStr( cP, "piantirush.earlyDestroyKickMessage", "Auto-kicked for Unauthorized early cache destruction" ), CFS_FETCH_MAX);
     strlcpy( piantirushConfig.earlyDestroyPlayerRequest,     // command typed by players to request early destroy
-        cfsFetchStr( cP, "piantirush.earlyDestroyPlayerRequest", "aa ff 00 11 ask req" ), CFS_FETCH_MAX);
+        cfsFetchStr( cP, "piantirush.earlyDestroyPlayerRequest", "aa ff 11 22 ask req" ), CFS_FETCH_MAX);
 
     piantirushConfig.earlyDestroyTolerance = (int)          // do not kick players if # seconds prior to timer expiry
         cfsFetchNum( cP, "piantirush.earlyDestroyTolerance", 10 );
@@ -1269,6 +1417,39 @@ int piantirushInitConfig( void )
     piantirushConfig.autoKickExemptLMS = (int) cfsFetchNum( cP, "piantirush.autoKickExemptLMS", 2 );
     strlcpy( piantirushConfig.autoKickExemptMsg, cfsFetchStr( cP, "piantirush.autoKickExemptMsg", 
         "Early objective capture is AUTHORIZED due to low survivors"), CFS_FETCH_MAX);   
+
+
+    // training mode vars - default adds "10 minutes" to rush timers but this is only activated if
+    // "piantirush.p2p.training" is nonzero (set by picladmin)
+    // Default = 600 means adds 10 minutes to objective leg; high bot servers run 15 minutes so lock first 10 minutes
+    //
+    piantirushConfig.nPlayerExemptionTrainOffset   = (int) cfsFetchNum( cP, "piantirush.nPlayerExemptionTrainOffset",     0 );  // 0 or -1
+    strlcpy( piantirushConfig.trainingModeMsg, 
+        cfsFetchStr( cP, "piantirush.trainingModeMsg", "Typing '11' before Breach/Blow is REQUIRED!!" ), CFS_FETCH_MAX);
+
+    // training mode undocumented vars - these are undocumented parameters - not needed by most installations
+    //
+    piantirushConfig.lockIntervalSecTrainOffset    = (int) cfsFetchNum( cP, "piantirush.lockIntervalSecTrainOffset",    600 );
+    piantirushConfig.slowIntervalSecTrainOffset    = (int) cfsFetchNum( cP, "piantirush.slowIntervalSecTrainOffset",    600 );
+    piantirushConfig.earlyBreachSpeedupTrainOffset = (int) cfsFetchNum( cP, "piantirush.earlyBreachSpeedupTrainOffset", 600 );
+    piantirushConfig.destroySpeedupTrainOffset     = (int) cfsFetchNum( cP, "piantirush.destroySpeedupTrainOffset",     600 );
+    piantirushConfig.trainingOnDefaultEnable       = (int) cfsFetchNum( cP, "piantirush.trainingOnDefaultEnable",         0 );
+
+    piantirushConfig.trTimeOfs     = 0;
+    piantirushConfig.trSlowOfs     = 0;
+    piantirushConfig.trEarlyOfs    = 0;
+    piantirushConfig.trEarDesOfs   = 0;
+    piantirushConfig.trNPlayerOfs  = 0;
+
+    // Disable Training by default.  In the future this can be copied from sissm.cfg 
+    // but default "off" is good for now
+    //
+    p2pSetL( "piantirush.p2p.training", 0L );
+
+    // Clear the semaphore for 'no wait' speedup request coming from 
+    // picladmin
+    // 
+    p2pSetL( "piantirush.p2p.SigNoWait", 0L );
 
     cfsDestroy( cP );
 
@@ -1304,8 +1485,10 @@ int piantirushInstallPlugin( void )
     bPtr = alarmCreate( _earlyBreachReqCB );
     alarmReset( bPtr, 0L );
 
-    kickArmed = 0;
+    xPtr = alarmCreate( _trainingModeReminderCB );
+    alarmReset( xPtr, 0L );
 
+    kickArmed = 0;
 
     // Install Event-driven CallBack hooks so the plugin gets
     // notified for various happenings.  A complete list is here,

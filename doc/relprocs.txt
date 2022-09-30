@@ -1,8 +1,6 @@
 SISSM Release Procedure 
 (Post-Testing Release Checklist)
 
-
-___ Turn off SISSM_TEST in sissm.h, clean recompile with maximum warn level
 ___ 'git status' audit for missed new files, removed files, changed files
 ___ Remove all debug code, debug-markers from src/*
 ___ Audit any embedded PIIs such as passwords
@@ -25,9 +23,6 @@ ___ Build 4 Windows versions for Quick-Start Package:  Standard & Restricted x 3
 
 ___ Create Quick-Start zip package in Windows environment 
     4 Windows binaries, 2 Linux binaries, Example sissm.cfg, Example badwords.txt, README
-
-_d_ Post Quick-Start package to Cassandra [Discontinued]
-_d_ Update index.html with latest w/ date tag, any new DOC files [Discontinued]
 
 ___ Update Github Binary Download Site
 
