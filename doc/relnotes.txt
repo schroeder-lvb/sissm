@@ -1,3 +1,29 @@
+
+Release 1.3.0 20220427
+
+    Added !clan command and "!lock clan" parameter (see doc/wp_clanlock.txt)
+    Appended lighting (day, night, dusk...) display to map name on piwebgen
+    Added ability to auto-lock server on idle (and reboot/startup) 
+       pigateway.lockServerOnIdle       0   // if =1, server goes to "lock" state on idle/boot
+    Added !mutactive command to display active mutators (picladmin)
+    Added piwebgen.showMutators ; when non-zero, display active mutators on web
+    New plugin piprotect to minimize server crashes on join-in-progress (see plugin doc/piprotect.txt)
+    Added 'kill activity' detector when !wax on/!strict is turned on - can't breach until 'n' seconds of non-kills
+        piantirush.minimumQuietTimeSec  0         // 0 disables this feature.  10 recommended.
+        piantirush.teamNotReadyPrompt   "Denied - Team NOT ready!"
+
+    Fixed a bug where server under "!lock perm" became unlocked after "!reboot now"
+    Incresed string size for authorized list of commands allowed per privilege class
+    Changed Mutator match logic so that exact name match has higher presidence over partial matches.
+    Added acknowledgements to !nowait and !nokick (picladmin)
+    Cleanup multiple messages when "!wax on" is active
+    Enhanced !kick command workaround on NWI bug unable to kick Epic players (for SS vers 1.13, 1.12)
+
+    Reminder to update your sissm.cfg: add new commands to admin privilege levels "sissm.groupcmds[*]"
+       a. Recommanded new for Admins:      !mutactive, !clan
+       b. Recommended new for Moderators:  !mutactive
+       c. Recommanded for all players:     !strict
+
 Release 1.2.0 20220929
 
     Picladmin: Added "!wax on|off|perm" command to autokick players not using breach code (extends piantirush autokick feature) (*1)

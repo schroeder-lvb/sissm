@@ -119,6 +119,27 @@
 (Scenario="Scenario_Gap_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
 (Scenario="Scenario_Gap_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
 
+#SISSM.mapname=Prison
+(Scenario="Scenario_Prison_Checkpoint_Security",Mode="CheckpointHardcore",Lighting="Day")
+(Scenario="Scenario_Prison_Checkpoint_Insurgents",Mode="CheckpointHardcore",Lighting="Day")
+(Scenario="Scenario_Prison_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Prison_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_Prison_Checkpoint_Security",Mode="CheckpointHardcore",Lighting="Night")
+(Scenario="Scenario_Prison_Checkpoint_Insurgents",Mode="CheckpointHardcore",Lighting="Night")
+(Scenario="Scenario_Prison_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_Prison_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+
+#SISSM.mapname=LastLight
+(Scenario="Scenario_LastLight_Checkpoint_Security",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_LastLight_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Day")
+(Scenario="Scenario_LastLight_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_LastLight_Checkpoint_Insurgents",Mode="Checkpoint",Lighting="Night")
+(Scenario="Scenario_LastLight_Checkpoint_Security",Mode="CheckpointHardcore",Lighting="Day")
+(Scenario="Scenario_LastLight_Checkpoint_Insurgents",Mode="CheckpointHardcore",Lighting="Day")
+(Scenario="Scenario_LastLight_Checkpoint_Security",Mode="CheckpointHardcore",Lighting="Night")
+(Scenario="Scenario_LastLight_Checkpoint_Insurgents",Mode="CheckpointHardcore",Lighting="Night")
+
+
 
 ////////////////////////////////////////////////////////////
 //////////////////// Third Party Mod Maps Examples

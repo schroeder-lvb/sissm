@@ -114,8 +114,9 @@ int _cmdBanId(), _cmdBanIdt(), _cmdUnBanId(),_cmdKickId();
 int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
 int _cmdRules(), _cmdContact(), _cmdThirdWave(), _cmdLock(), _cmdNoKick();
-int _cmdMap(), _cmdMapX(), _cmdMapList(), _cmdMutList(), _cmdReInit();
+int _cmdMap(), _cmdMapX(), _cmdMapList(), _cmdMutList(), _cmdMutActive(), _cmdReInit();
 int _cmdBotRespawn(), _cmdBotReset(), _cmdEndGame(), _cmdWax(), _cmdStrict();
+int _cmdClan();
 
 struct {
 
@@ -169,21 +170,23 @@ struct {
 
     { "mapx",    "mapx",         "map name [night][ins]",         _cmdMapX    },
     { "map",     "map",          "mapx name [night][ins]{mut mut mut...}",  _cmdMap  },
-    { "maplist", "maplist",      "maplist",                 _cmdMapList    },
-    { "mutlist", "mutlist",      "mutlist",                 _cmdMutList    },
+    { "maplist", "maplist",      "maplist",                       _cmdMapList    },
+    { "mutlist", "mutlist",      "mutlist",                       _cmdMutList    },
+    { "mutactive", "mutactive",  "mutactive",                     _cmdMutActive  },
 
-    { "rules",  "rules",         "rules",                   _cmdRules      },
-    { "contact","contact",       "contact",                 _cmdContact    },
+    { "rules",  "rules",         "rules",                         _cmdRules      },
+    { "contact","contact",       "contact",                       _cmdContact    },
 
-    { "reinit", "reinit",        "reinit",                  _cmdReInit     },
-    { "bz",     "botrespawn",    "botrespawn [0..3]",       _cmdBotRespawn },
-    { "br",     "botreset",      "botreset",                _cmdBotReset   },
-    // { "tw",     "thirdwave",     "thirdwave on|off",        _cmdThirdWave  },
-    { "lk",     "lock",          "lock on|off|perm",        _cmdLock       },
-    { "wax",    "wax",           "wax on|off|perm",         _cmdWax        },
-    { "sr",     "strict",        "strict",                  _cmdStrict     },
+    { "reinit", "reinit",        "reinit",                        _cmdReInit     },
+    { "bz",     "botrespawn",    "botrespawn [0..3]",             _cmdBotRespawn },
+    { "br",     "botreset",      "botreset",                      _cmdBotReset   },
+    // { "tw",     "thirdwave",     "thirdwave on|off",           _cmdThirdWave  },
+    { "lk",     "lock",          "lock on|off|perm|clan",         _cmdLock       },
+    { "wax",    "wax",           "wax on|off|perm",               _cmdWax        },
+    { "sr",     "strict",        "strict",                        _cmdStrict     },
+    { "cl",     "clan",          "clan clear|add|list",           _cmdClan       },
 
-    { "*",      "*",             "*",                       NULL }
+    { "*",      "*",             "*",                             NULL }
 
 };
 
@@ -450,6 +453,7 @@ static void _sayLockStatus( int showOnlyIfLocked )
     switch( lockStatus ) {
     case 1:   strlcpy( strOut, "'on'",   40 );  break;
     case 2:   strlcpy( strOut, "'perm'", 40 );  break;
+    case 3:   strlcpy( strOut, "'clan'", 40 );  break;
     default:  strlcpy( strOut, "'off'",  40 );  break;
     }
 
@@ -474,10 +478,18 @@ int _cmdLock( char *arg, char *arg2, char *passThru )
         p2pSetL( "pigateway.p2p.lockOut", 2L );
         apiSaySys( "Server LOCKED to public until unlocked.");
     }
+    else if (0 == strcmp( "clan", arg )) {
+        p2pSetL( "pigateway.p2p.lockOut", 3L );
+        apiSaySys( "Server LOCKED for clan-only until unlocked.");
+    }
+    else if (0 == strlen( arg )) {
+        _sayLockStatus( 0 );
+    }
+    else {
+        apiSaySys( "Missing or incorrect option: off|on|perm|clan" );
+    }
 
-    _sayLockStatus( 0 );
-
-    _stddResp( errCode );   // ok or error message to game
+    // _stddResp( errCode );   // ok or error message to game
     
     return errCode; 
 }
@@ -917,21 +929,47 @@ int _cmdBant( char *arg, char *arg2, char *passThru  )
 //
 int _cmdKick( char *arg, char *arg2, char *passThru ) 
 { 
-    int errCode = 1;
-    char cmdOut[256], statusIn[256], steamID[256];
+    int vendorType;
+    int errCode = 0;
+    char steamID[256];
+
+    // Lookup Steam or EPIC ID from player name 'arg'
+    //
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
+
     if ( 0 != strlen( steamID ) ) {
-        if ( snprintf( cmdOut, 255, "kick %s \"%s\"", steamID, _reason( passThru ) ) < 0)
-            logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdKick" );
-        apiRcon( cmdOut, statusIn );
-        apiSay( statusIn );
-        errCode = 0;
+
+        vendorType = rosterIsValidGUID( steamID );
+
+        switch( vendorType ) {
+        case 1:   // steam:  kick by ID for definitive target
+            errCode = apiKick( steamID, _reason( passThru ) );
+            logPrintf( LOG_LEVEL_WARN, "picladmin", "Steam Admin kick by ID  ::%s::", steamID );
+            break;
+        case 2:   // epic:  kick by name due to NWI bug (SS 1.13 and prior)
+            errCode |= apiKick( arg, _reason( passThru ) );
+            logPrintf( LOG_LEVEL_WARN, "picladmin", "EPIC Admin kick by Name ::%s::", arg );
+            break;
+        default:  // fault
+            logPrintf( LOG_LEVEL_WARN, "picladmin", "Failed to kick ::%s::", passThru );
+            errCode = 1;
+            break;
+        }
     }
 
     if ( errCode != 0) _stddResp( errCode );   // ok or error message to game
 
     return errCode; 
 }
+
+#if 0
+    char cmdOut[256], statusIn[256];
+    if ( snprintf( cmdOut, 255, "kick %s \"%s\"", steamID, _reason( passThru ) ) < 0) :
+        logPrintf( LOG_LEVEL_WARN, "picladmin", "Overflow warning at _cmdKick" );
+    }
+    apiRcon( cmdOut, statusIn );
+    apiSay( statusIn );
+#endif
 
 
 // ===== "gamemodeproperty [cvar] [value]"
@@ -1027,6 +1065,10 @@ int _cmdInfo( char *arg, char *arg2, char *passThru )
     else {
         apiSaySys( "Retrieval error ::%s::", strOut );
     }
+    if (apiBPIsActive()) { 
+        apiSaySys( "%d of %d players alive", apiBPPlayerCount(), apiPlayersGetCount());
+    }
+
 
     return errCode; 
 }
@@ -1188,6 +1230,7 @@ int _cmdNoKick( char *arg, char *arg2, char *passThru )
     // Run this discretely - so no prompt.
     //
     p2pSetL( "piantirush.p2p.nokickprotect", (long) picladminConfig.noKickProtectSec );
+    _stddResp( 0 );
 
     return 0;
 }
@@ -1202,6 +1245,7 @@ int _cmdNoWait( char *arg, char *arg2, char *passThru )
     // in piantirush plugin
     //
     p2pSetL( "piantirush.p2p.SigNoWait", 1L );
+    _stddResp( 0 );
 
     return 0;
 }
@@ -1424,6 +1468,23 @@ int _cmdMutList( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+// ===== "mutActive"
+// list mutators
+//
+int _cmdMutActive( char *arg, char *arg2, char *passThru )
+{
+    char *w, listBuf[1024];
+    int errCode = 0;
+
+    if (NULL != (w = apiMutActive( 1 ) )) {
+        strlcpy( listBuf, w, 1024 );
+        _showList( listBuf );
+    }
+
+    return errCode;
+}
+
+
 // ===== "reinit"
 //  Superadmin command to re-read the auth and other lists from disk
 //
@@ -1473,6 +1534,73 @@ int _cmdBotReset( char *arg, char *arg2, char *passThru )
     apiSaySys( "Bot Reset" );
     return 0;
 }
+
+// ===== "clan"
+//  Manage 'clan' list for restricted server access
+//
+int _cmdClan( char *arg, char *arg2, char *passThru ) 
+{ 
+    int j, errCode = 0, found = 0, count;
+    char *w, clanID[127];
+
+    // === Case: "Clear"
+    //
+    if (0 == strcmp( "clear", arg )) {
+        apiClanClear();
+        apiSaySys( "Clan list cleared" );
+        logPrintf( LOG_LEVEL_INFO, "picladmin", "cmdClan cleared list" );
+    } 
+
+    // === Case: "List"
+    //
+    else if (0 == strcmp( "list", arg )) {
+        for (j = 0;; j++ ) {
+            if ( NULL != (w = apiClanGet( j )) )  {
+                strlcpy( clanID, w, 127 );
+                if ( 0 == strlen( clanID ) ) break;
+                found = 1;
+                apiSaySys( "%03d '%s' ", j, clanID );
+                logPrintf( LOG_LEVEL_INFO, "picladmin", "cmdClan list ::%d::%s::", j, clanID );
+            }
+            else {
+                break;
+            }
+        }        
+        if (found == 0) {
+            apiSaySys( "Clan list is empty" );
+        } 
+    } 
+
+    // === Case: "Add"
+    //
+    else if (0 == strcmp( "add", arg )) {
+        if (0 != strlen( arg2 )) {
+            for (count = 0, j = 2;; j++ ) {
+                if (NULL != (w = getWord( passThru, j, " " ))) {
+                    strlcpy( clanID, w, 127 );
+                    apiClanAdd( clanID );
+                    count++;
+                }
+                else {
+                    break;
+                }
+            }
+            // apiClanAdd( arg2 );
+            logPrintf( LOG_LEVEL_INFO, "picladmin", "cmdClan add ::%s::", passThru );
+            p2pSetL( "pigateway.p2p.lockOut", 3L );   // clan-lock the server
+            apiSaySys( "Added %d elements, Server is Clan-locked", count );
+        }
+        else {
+            apiSaySys( "You must specify partial name or ID" );
+        }
+    } 
+    else {
+        apiSaySys( "Missing or incorrect option: clear|add|list" );
+    }
+    return( errCode );
+}
+
+
 
 #if 0
 //  ==============================================================================================
@@ -1587,15 +1715,15 @@ int picladminInitConfig( void )
     // text to show in-game for !ask, !prep, and !warn
     //
     strlcpy( picladminConfig.prepBlow, cfsFetchStr( cP, "picladmin.prepBlow",  
-        "*Planting Explosives/Ready to Blow!" ), CFS_FETCH_MAX);
+        "*Planting/Ready to detonate!" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.prepCapture, cfsFetchStr( cP, "picladmin.prepCapture",  
         "*Testing Capture Point - Stepping On then Off" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.askBlow, cfsFetchStr( cP, "picladmin.askBlow",  
-        "*BLOWING CACHE in 5-sec, <NEGATIVE> to halt" ), CFS_FETCH_MAX);
+        "*DETONATING in 5-sec, <NEGATIVE> to halt" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.askCapture, cfsFetchStr( cP, "picladmin.askCapture",  
         "*BREACHING in 5-sec, <NEGATIVE> to halt" ), CFS_FETCH_MAX);
     strlcpy( picladminConfig.warnRusher, cfsFetchStr( cP, "picladmin.warnRusher",  
-        "*Do NOT ENTER CAP/BLOW CACHE without ASKING TEAM" ), CFS_FETCH_MAX);
+        "*Do NOT BREACH/DETONATE CACHE without ASKING TEAM" ), CFS_FETCH_MAX);
 
     // Read the "reasons" preset strings for ban/banid/kick/kickid commmands
     //
@@ -1617,7 +1745,7 @@ int picladminInitConfig( void )
     // Info text that is shown when a player types !strict
     //
     strlcpy( picladminConfig.strictTutorial,  cfsFetchStr( cP, "picladmin.strictTutorial",
-        "*Type '22' & '11' before Obj breach/blow to avoid AUTO-KICK!"), 
+        "*Auto-kick if no '11' before breach/detonate!"), 
         CFS_FETCH_MAX);
 
     cfsDestroy( cP );
@@ -2003,6 +2131,10 @@ int picladminInstallPlugin( void )
     // clear the origin ID
     // 
     _setOriginID( "INVALID");
+
+    // clear the Clan list
+    // 
+    apiClanClear();
 
     return 0;
 }

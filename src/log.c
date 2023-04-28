@@ -21,6 +21,8 @@
 #include <fcntl.h>
 
 #include "log.h"
+#include "bsd.h"
+
 
 //  ==============================================================================================
 //  Data definition 
@@ -41,7 +43,7 @@ static int  _logLevel = 0;
 //
 void logPrintfInit( int logLevel, char *logFileName, int echoToConsole )
 {
-    strncpy( _logFileName, logFileName, sizeof( _logFileName) );
+    strlcpy( _logFileName, logFileName, sizeof( _logFileName) );
     _logEchoToConsole = echoToConsole;
     _logLevel = logLevel;
     return;

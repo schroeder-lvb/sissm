@@ -82,8 +82,9 @@ struct {
     { SISSM_EV_BP_UNTOUCHED_OBJ,    25, SS_SUBSTR_BP_UNTOUCHED_OBJ  },
     { SISSM_EV_MAP_OBJECTIVE,       26, SS_SUBSTR_MAP_OBJECTIVE     },
     { SISSM_EV_RCON,                27, SS_SUBSTR_RCON              },
-    { SISSM_EV_MESHERR,             28, SS_SUBSTR_MESHERR           },
-
+    { SISSM_EV_ACTIVITY,            28, SS_SUBSTR_ACTIVITY          },
+    { SISSM_EV_CA_START,            29, SS_SUBSTR_CA_START          },
+    { SISSM_EV_CA_STOP,             30, SS_SUBSTR_CA_STOP           },
     { -1,                           -1, "*"                   },
 
 };

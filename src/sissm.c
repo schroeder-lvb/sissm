@@ -18,9 +18,9 @@
 #define SISSM_CRASHREPORT  (1)           // activate Linux crash reporter (-g -rdynamic)
 
 #if SISSM_RESTRICTED
-#define VERSION    "SISSM v1.2.0-DEV 20220929-1920-[Restricted Edition]"
+#define VERSION    "SISSM v1.3.0 20230427-1630-[Restricted Edition]"
 #else
-#define VERSION    "SISSM v1.2.0-DEV 20220929-1920"
+#define VERSION    "SISSM v1.3.0 20230427-1630"
 #endif
 
 #define COPYRIGHT  "(C) 2019 JS Schroeder, released under the MIT License"
@@ -69,7 +69,7 @@
 #include "pidynbots.h"
 #include "pitacnomic.h"
 #include "pistats.h"
-
+#include "piprotect.h"
 
 //  ==============================================================================================
 //  Data definition  
@@ -385,6 +385,7 @@ int sissmInitPlugins( void )
     pidynbotsInstallPlugin();                           // dynamic-bots adjustments plugin 
     pitacnomicInstallPlugin();         // shortcut phrases for tac-comm without microphone
     pistatsInstallPlugin();               // generate data for gathering player statistics
+    piprotectInstallPlugin();                      // protect from system crash due to bug
 
     // "Third Party" Plugins - for customizations
     //
@@ -715,15 +716,6 @@ int main( int argc, char *argv[] )
 {
     int errCode;
     int terminalMode = 0;
-
-// picladmin_test_main();
-//    test_rosterSyntheticChangeEvent();
-//    return( 0 );
-
-    // Sandstorm 1.11 compatilbility, parsing listplayers
-    // printf("\nRoster Test Main in main\n");
-    // roster_test_main();
-    // exit( 0 );
 
     if ( argc > 1 )  {
         if ( 0 == strncmp( argv[1], "-t", 2 ) )  {

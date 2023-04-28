@@ -1,0 +1,76 @@
+SISSM Privileged Access
+2023.04.27
+===========================
+
+SISSM has several features that prioritizes player access to the game server.  Traditionally SISSM can reserve select number of extra slots (usually 1 or 2) so that admins and moderators can join when the server is full.  Guest access to the resrved slots can be given by the !allowin command.  This feature is described in another appnote.
+
+SISSM v1.3 and newer adds an administrator command "!lock".  This allows admins to lock the entire server from the general public access in number of different ways.
+
+*  !lock off - turns off the lock so that anyone can connect to the server (but the 'reserved slots' still applies)
+*  !lock on - limits the connection to only moderators and administrators for the current map
+*  !lock perm - same as "!lock on" but the lock remains active until turned off, or everyone signs off.
+*  !lock clan - only players listed on the clan-list can connect.  This EXCLUDES moderators and administrators unless they are on the clan list.
+
+SISSM Server "Clan" Locking
+=====================================
+
+New feature was added to accomodate "time sharing" the server among multiple group of friends ("clans").
+
+The clan list is maintained by the individual clan leaders ("Senior Admin") who has permission to use the !lock, !allowin, and !clan commmands. The server owner/operator is not required to be involved in maintaining of this list.
+
+The clan members list can be a mixed list of partial names, clan tags, and/or Steam/EPIC ID numbers.  It is recommended that you cut-and-paste your clan list from the text file kept on your client PC for easy access.  Here are some examples:
+
+!clan clear
+!clan list
+
+!clan add bob alice charlie emma 
+!clan add richard 
+!clan add 76561198127224361 76561198127254362 76561198127293363 76561198127222364 7656119812711365
+!clan add 76561198127224361 elmo [ClanTag]
+!clan add [MyclanTag] 
+
+!clan list
+
+You may enter several "clan add" commands in sequence. SISSM simply appends to the internal list.  I recommend adding 5-6 names/IDs at a time, but the total length of the command is limited by number of characters you can type into the in-game chat line.
+
+If you make a mistake, issue the "!clan clear" command and start again.
+
+To manually turn on the clan lock, type:
+
+!lock clan
+
+Like the "!lock perm" command, access control will remain active until the server is rebooted, or when everyone disconnects from the server.  You may also type "!lock perm" so that all admins/moderators may connect again, or "!lock off" for the public servers. 
+
+For your convenience, as soon as you enter the first "!clan add" command, SISSM will automatically turn on "!lock clan" for you.
+
+You can check the status of the server lock state by simply typing:
+
+!lock
+
+The "!lock clan" is different in that it will block all admins/moderators that are not on your clan list.  
+
+More details:
+
+*  Don't forget to add your own name/ID to the clan list!
+*  Clan list is case insensitive.  Bob, BOB, bob are treated the same.
+*  Clan list is a partial string.  "!clan add rob" will allow player named "Robert" to connect.
+*  The root user (typically server owner) may still connect (the root user is not the same as admins)
+*  Currently <spaces> are not supported.  Player name "John Smith" is seen as "John" and "Smith"
+*  Entering SteamIDs are more secure than the player names, because anyone can spoof player names, or clan tags.
+*  Clan list is cleared when the server reboots, everyone signs off, or "!clan clear" is issued.
+*  "!lock clan" does not kick any players that are already connected to the server
+
+If you want to grant access to someone not previously specified on the clan list, you have two choices:
+
+1.  Use the !allowin command.  This opens a short window of time that your guest may join, or
+2.  Simply issue another "!clan add" command (no need to re-enter the entire list)
+
+If you are testing a server, and looking to block ALL players from entering the server:
+
+!clan clear
+!lock clan
+
+This will reject all incoming connections.
+
+
+

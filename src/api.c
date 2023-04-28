@@ -16,7 +16,6 @@
 
 #define _GNU_SOURCE
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -28,7 +27,6 @@
 #else
 #include "winport.h"         // sleep/usleep function
 #endif
-
 
 #include "util.h"
 #include "bsd.h"
@@ -81,12 +79,12 @@ static unsigned long lastGameStateSuccessTime = 0L;  // marks last time activeob
 char rootguids[ API_LINE_STRING_MAX ];                     // separate list for root owner GUIDs
 char rootname[ API_LINE_STRING_MAX ];                               // name of root group 'root'
 
-char everyoneCmds[ API_LINE_STRING_MAX ];             // list of commands enabled for 'everyone'
-char everyoneMacros[ API_LINE_STRING_MAX ];             // list of macros enabled for 'everyone'
+char everyoneCmds[ API_CMDS_STRING_MAX ];             // list of commands enabled for 'everyone'
+char everyoneMacros[ API_CMDS_STRING_MAX ];             // list of macros enabled for 'everyone'
 char everyoneAttr[ API_LINE_STRING_MAX ];           // list of attributes enabled for 'everyone'
 
-char soloAdminCmds[ API_LINE_STRING_MAX ];           // list of commands enabled for 'soloadmin'
-char soloAdminMacros[ API_LINE_STRING_MAX ];           // list of macros enabled for 'soloadmin'
+char soloAdminCmds[ API_CMDS_STRING_MAX ];           // list of commands enabled for 'soloadmin'
+char soloAdminMacros[ API_CMDS_STRING_MAX ];           // list of macros enabled for 'soloadmin'
 char soloAdminAttr[ API_LINE_STRING_MAX ];         // list of attributes enabled for 'soloadmin'
 
 static char removeCodes[ API_LINE_STRING_MAX ];   // color codes to optionally remove (circleus)
@@ -95,8 +93,8 @@ static char sayPostfix[ API_LINE_STRING_MAX ];            // postfix for each me
 
 struct {
     char groupname[ API_LINE_STRING_MAX ];           // name of the group e.g., "sradmin, admin"
-    char groupcmds[ API_LINE_STRING_MAX ];         // allowed commands e.g., "rcon help version"
-    char groupmacros[ API_LINE_STRING_MAX ];             // allowed macros "execute <macroname>"
+    char groupcmds[ API_CMDS_STRING_MAX ];         // allowed commands e.g., "rcon help version"
+    char groupmacros[ API_CMDS_STRING_MAX ];             // allowed macros "execute <macroname>"
     char groupattr[ API_LINE_STRING_MAX ];                        // privileges e.g.,  "priport"
     char groupguid[ API_LINE_STRING_MAX ];            // filepath of GUIDs "/home/my/admins.txt"
     idList_t groupIdList;                                                         // Admins list 
@@ -104,6 +102,12 @@ struct {
 
 // static idList_t adminIdList;                                                  // Admins list 
 // static char adminListFilePath[ API_LINE_STRING_MAX ];        // full file path to admins.txt
+
+// "temporary" clan list that can be used to filter connection (pigateway, picladmin)
+// 
+static idList_t clanIdList;
+
+// "bad words" list that can be used to filter connection (pigatewa)
 
 static wordList_t badWordsList;                                               // Bad words list
 static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file path to admins.txt
@@ -123,7 +127,8 @@ struct {
 char mapNameMerged[ API_MAXMAPS ][40];
 
 char mutAllowed[ 16000 ];                             // allowed mutators list, space separated
-char mutAllowedList[ API_MUT_MAXLIST ][ API_MUT_MAXCHAR ];             // list version of the above
+char mutAllowedList[ API_MUT_MAXLIST ][ API_MUT_MAXCHAR ];         // list version of the above
+char mutAllowedListSorted[ API_MUT_MAXLIST ][ API_MUT_MAXCHAR ];    // above sorted by str size
 char mutDefault[   256 ];          // default mutator(s) - should match what is on the launcher
 
 // Reboot reason & time, for analytics and web display
@@ -258,6 +263,61 @@ int apiWordListCheckExact( char *stringTested, wordList_t wordList )
     return( isMatch );
 }
 
+//  ==============================================================================================
+//  apiIdListAdd
+//
+//  Add a single element to the IdList data structure, looking for the first unused slot.
+//  Returns index of insertion (0..IDLISTMAXELEM-1) or -1 on error "table full"
+//
+int apiIdListAdd( char *connectID, idList_t idList ) 
+{
+    int i, j;
+ 
+    for ( j = -1, i = 0; i<IDLISTMAXELEM; i++ ) {
+        if ( 0 == strlen( idList[i] )) {   // found an empty slot
+            j = i;
+            break;
+        }
+    }
+    if (( j != -1 ) && ( connectID != NULL ))
+        strlcpy( idList[j], connectID, IDLISTMAXSTRSZ );
+
+    return j;
+}
+
+
+//  ==============================================================================================
+//  apiIdListClear
+//
+//  Clear the idList structure. 
+//
+int apiIdListClear( idList_t idList )
+{
+    int i;
+
+    for (i=0; i<IDLISTMAXELEM; i++) 
+        strclr( idList[i] ); 
+
+    return 0;
+}
+
+//  ==============================================================================================
+//  apiIdListGet
+//
+//  Returns a pointer to single element from idList structure, given index. 
+//  Returns empty string "" (not NULL) on end of list.
+//
+char *apiIdListGet( idList_t idList, int index )
+{
+    static char retStr[IDLISTMAXSTRSZ];
+     
+    strclr( retStr );
+    if ( index < IDLISTMAXELEM ) {
+        strlcpy( retStr, idList[ index ], IDLISTMAXSTRSZ );
+    }
+    return retStr;
+}
+
 
 
 //  ==============================================================================================
@@ -337,6 +397,29 @@ int apiIdListCheck( char *connectID, idList_t idList )
     }
     return( isMatch );
 }
+
+//  ==============================================================================================
+//  apiIdListMatch
+//
+//  Same as apiIdLIstCheck except this variant uses case insensitive and substring match
+//  0 if not found.
+//
+int apiIdListMatch( char *connectID, idList_t idList )
+{
+    int i;
+    int isMatch = 0;
+
+    for ( i=0; i<IDLISTMAXELEM; i++ ) {
+        if ( 0 == strlen( idList[i] )) 
+            break;
+        if (NULL != strcasestr( connectID, idList[i] )) {
+            isMatch = 1;
+            break;
+        }
+    }
+    return( isMatch );
+}
+
 
 
 //  ==============================================================================================
@@ -658,6 +741,7 @@ int apiBPPlayerCount( void )
     return countPlayers;
 }
 
+
 //  ==============================================================================================
 //  _apiBPCharNameCB (internal)
 //
@@ -668,16 +752,45 @@ int apiBPPlayerCount( void )
 //
 int _apiBPCharNameCB( char *strIn )
 {
-    char *w, *n = NULL;
-    if ( NULL != (w = strstr( strIn, SS_SUBSTR_BP_PLAYER_CONN ) )) {
-        if (NULL != ( n = &w[ strlen( SS_SUBSTR_BP_PLAYER_CONN ) ])) {
-            if ( n != NULL ) {
-                strlcpy( _cachedName, n, 256 );
-                strClean( _cachedName );   // in-line remove trailing CR or LF 
-                // printf("\nStored to cachedName ::%s::\n", n);
+    char *w = NULL, *n = NULL;
+    int errCode = 1;
+
+    // logPrintf( LOG_LEVEL_INFO, "api", "apiBPCharNameCB ::%s:: ", strIn );
+
+    // for unmodded server processing and legacy MedicDemo mod
+    // 
+    if ( errCode ) { 
+        if ( NULL != (w = strstr( strIn, SS2_SUBSTR_PLAYERCONN1 ) )) {
+            if (NULL != ( n = &w[ strlen( SS2_SUBSTR_PLAYERCONN1 ) ])) {
+                if ( n != NULL ) {
+                    strlcpy( _cachedName, n, 256 );
+                    errCode = 0;
+                }
             }
         }
     }
+
+    // for compatibility with the "Medicon Mod"
+    //
+    if ( errCode ) {
+        if ( NULL != (w = strstr( strIn, SS2_SUBSTR_PLAYERCONN2 ) )) {
+            if (NULL != ( n = &w[ strlen( SS2_SUBSTR_PLAYERCONN2 ) ])) {
+                if ( n != NULL ) {
+                    strlcpy( _cachedName, n, 256 );
+                    errCode = 0;
+                }
+            }
+        }
+    }
+
+    // clean up the string
+    // 
+    if ( 0 == errCode )  {
+        strClean( _cachedName );   
+        strTrimInPlace( _cachedName );   
+        logPrintf( LOG_LEVEL_INFO, "api", "BPChar Start Name ::%s:: ", _cachedName );
+    }
+
     return 0;
 }
 
@@ -1049,21 +1162,21 @@ void apiInitAuth( void )
     strlcpy( rootguids,       cfsFetchStr( cP, "sissm.rootguids", ""),      API_LINE_STRING_MAX );
     strlcpy( rootname,        cfsFetchStr( cP, "sissm.rootname",  ""),      API_LINE_STRING_MAX );
 
-    strlcpy( everyoneCmds,    cfsFetchStr( cP, "sissm.everyonecmds", "" ),  API_LINE_STRING_MAX );
-    strlcpy( everyoneMacros,  cfsFetchStr( cP, "sissm.everyonemcrs", "" ),  API_LINE_STRING_MAX );
+    strlcpy( everyoneCmds,    cfsFetchStr( cP, "sissm.everyonecmds", "" ),  API_CMDS_STRING_MAX );
+    strlcpy( everyoneMacros,  cfsFetchStr( cP, "sissm.everyonemcrs", "" ),  API_CMDS_STRING_MAX );
     strlcpy( everyoneAttr,    cfsFetchStr( cP, "sissm.everyoneattr", "" ),  API_LINE_STRING_MAX );
 
-    strlcpy( soloAdminCmds,   cfsFetchStr( cP, "sissm.soloadmincmds", "" ), API_LINE_STRING_MAX );
-    strlcpy( soloAdminMacros, cfsFetchStr( cP, "sissm.soloadminmcrs", "" ), API_LINE_STRING_MAX );
+    strlcpy( soloAdminCmds,   cfsFetchStr( cP, "sissm.soloadmincmds", "" ), API_CMDS_STRING_MAX );
+    strlcpy( soloAdminMacros, cfsFetchStr( cP, "sissm.soloadminmcrs", "" ), API_CMDS_STRING_MAX );
     strlcpy( soloAdminAttr,   cfsFetchStr( cP, "sissm.soloadminattr", "" ), API_LINE_STRING_MAX );
 
     for (i=0; i<API_MAX_GROUPS; i++) {
         snprintf( varImg, 256, "sissm.groupname[%d]", i);
             strlcpy( groups[i].groupname, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupcmds[%d]", i);
-            strlcpy( groups[i].groupcmds, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+            strlcpy( groups[i].groupcmds, cfsFetchStr( cP, varImg, "" ), API_CMDS_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupmcrs[%d]", i);
-            strlcpy( groups[i].groupmacros, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
+            strlcpy( groups[i].groupmacros, cfsFetchStr( cP, varImg, "" ), API_CMDS_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupattr[%d]", i);
             strlcpy( groups[i].groupattr, cfsFetchStr( cP, varImg, "" ), API_LINE_STRING_MAX );
         snprintf( varImg, 256, "sissm.groupguid[%d]", i);
@@ -1094,6 +1207,52 @@ void apiInitBadWords( void )
     return;
 }
 
+//  ==============================================================================================
+//  apiIsCounterAttack
+//
+//  Returns non-zero value if the game is in Counterattack state.
+//
+static int _inCounterAttack = 0L;
+static unsigned long _inCounterTime = 0L;
+
+int _apiCounterStartCB( char *strIn )
+{
+    // if ( NULL != strstr( strIn, "Advancing spawns for faction" ) ) {
+    if ( NULL != strstr( strIn, "LogGameplayEvents: Display: Objective" ) ) {
+
+        if ( NULL == strstr( strIn, "reset from" ) ) {    // exception case final obj breach
+
+            _inCounterAttack = 1;
+
+            // Take care of reverse or simultaneous reporting by NWI.
+            // this happens when system decides to NOT issue counterattack
+            //
+            if (( apiTimeGet() - _inCounterTime ) < 3L ) {
+                _inCounterAttack = 0;
+            }
+            logPrintf( LOG_LEVEL_INFO, "api", "In CounterAttack State '%s'", strIn );
+        }
+
+    }
+    // logPrintf( LOG_LEVEL_INFO, "api", "StartCB - ACTIVITY '%s'", strIn );
+    return 0;
+}
+
+int _apiCounterStopCB( char *strIn )
+{
+    _inCounterAttack = 0;
+    _inCounterTime = apiTimeGet();  // EPOC resolution 1s
+    logPrintf( LOG_LEVEL_INFO, "api", "Out of CounterAttack State '%s'", strIn );
+
+    return 0;
+}
+
+int apiIsCounterAttack( void )
+{   
+    return( _inCounterAttack );
+}
+
+
 
 //  ==============================================================================================
 //  apiInit
@@ -1105,9 +1264,10 @@ int apiInit( void )
 {
     cfsPtr cP;
     char   myIP[API_LINE_STRING_MAX], myRconPassword[API_LINE_STRING_MAX];
-    int    i, j, myPort, mapsCount;
+    int    i, j, numMutators, myPort, mapsCount;
     char   serverName[API_LINE_STRING_MAX];
     char   mutListTemp1[CFS_FETCH_MAX], mutListTemp2[CFS_FETCH_MAX], *u;
+    char   tmpStr[ API_MUT_MAXCHAR ];
 
     // Read the "sissm" systems configuration variables
     //
@@ -1154,6 +1314,28 @@ int apiInit( void )
     while ( 1 == 1 ) {
         if ( 0 == strlen( mutAllowedList[j] )) break;
         logPrintf( LOG_LEVEL_INFO, "api", "Mutator read %d ::%s::", j, mutAllowedList[j] );
+        j++;
+    }
+
+    // create a sorted Mutator list by size of string (for lookup match priority) 
+    //
+    numMutators = j - 1;
+    for ( j = 0; j<numMutators + 1; j++ ) {   // include one extra array w/ terminating ""
+        strlcpy( mutAllowedListSorted[ j ], mutAllowedList[ j ], API_MUT_MAXCHAR );
+    }
+    for (j = 0; j<numMutators-1; j++ ) {
+        for ( i = j+1; i<numMutators; i++ ) {
+            if (  strlen( mutAllowedListSorted[i] ) > strlen( mutAllowedListSorted[j] ) ) {
+                strlcpy( tmpStr, mutAllowedListSorted[i], API_MUT_MAXCHAR );
+                strlcpy( mutAllowedListSorted[i], mutAllowedListSorted[j], API_MUT_MAXCHAR );
+                strlcpy( mutAllowedListSorted[j], tmpStr, API_MUT_MAXCHAR );
+            }
+        }
+    }
+    j = 0;
+    while ( 1 == 1 ) {
+        if ( 0 == strlen( mutAllowedListSorted[j] )) break;
+        logPrintf( LOG_LEVEL_INFO, "api", "Mutator sort %d ::%s::", j, mutAllowedListSorted[j] );
         j++;
     }
 
@@ -1212,6 +1394,11 @@ int apiInit( void )
     //
     eventsRegister( SISSM_EV_CHAT,                _apiChatCB );
 
+    // for detecting if the game is in Counterattack (Checkpoint/Hardcore)
+    //
+    eventsRegister( SISSM_EV_ACTIVITY,         _apiCounterStartCB );
+    eventsRegister( SISSM_EV_CA_STOP,          _apiCounterStopCB  );
+
     // Setup Alarm (periodic callbacks) for fetching roster from RCON
     // 
     _apiPollAlarmPtr = alarmCreate( _apiPollAlarmCB );
@@ -1261,6 +1448,10 @@ int apiInit( void )
     // on init clear the cache of objectives names
     //
     for (i=0; i<API_OBJECTIVES_MAX; i++) strclr( _objectiveListCache[i]) ;
+
+    // Clear the clan list
+    //
+    apiIdListClear( clanIdList );
 
     return( _rPtr == NULL );
 }
@@ -1446,6 +1637,28 @@ char *apiGameModePropertyGet( char *gameModeProperty )
 }
 
 //  ==============================================================================================
+//  apiGameModePropertyGetRaw
+//
+//  Called from a Plugin, this method reads gamemodeproperty raw string from the game server.
+//
+char *apiGameModePropertyGetRaw( char *gameModeProperty )
+{
+    static char value[16*1024];
+    char rconCmd[API_T_BUFSIZE], rconResp[API_R_BUFSIZE];
+    int bytesRead, errCode;
+
+    strclr( value );
+
+    snprintf( rconCmd, API_T_BUFSIZE, "gamemodeproperty %s", gameModeProperty );
+    if ( 0 == (errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead ))) {
+        if ( ((size_t) bytesRead) > strlen( gameModeProperty )) {
+            strlcpy( value, rconResp, sizeof( value ));   
+        }
+    }
+    return( value );
+}
+
+//  ==============================================================================================
 //  apiSay
 //
 //  Called from a Plugin, this method sends text to in-game screen of all players, 
@@ -1543,7 +1756,7 @@ int apiKickOrBan( int isBan, char *playerGUID, char *reason )
             break;
         case 2:         // EPIC - kick by Name:  bug workaround 
             strlcpy( playerName, rosterLookupNameFromGUID( playerGUID ), 256 ); 
-            if ( 0 != strlen( playerName ) ) {
+            if ( strlen( playerName ) > 3 ) {
                 snprintf( rconCmd, API_T_BUFSIZE, "kick \"%s\" \"%s\"", playerName, reason );
                 errCode = rdrvCommand( _rPtr, 2, rconCmd, rconResp, &bytesRead );
             }
@@ -1753,6 +1966,19 @@ char *apiGetMapName( void )
 {
     return ( rosterGetMapName() );
 }
+
+//  ==============================================================================================
+//  apiGetLighting
+//
+//  Called from a plugin, this routine returns the current map lighting.  This value is not
+//  valid until after the first map change as executed since the restart.
+//
+char *apiGetLighting( void )
+{
+    return ( rosterGetLighting() );
+}
+
+//  ==============================================================================================
 
 //  ==============================================================================================
 //  apiGetSessionID
@@ -2350,6 +2576,19 @@ int apiMutLookup( char *partialString, char *fullString, int maxStringSize )
         j = 0;
         while ( 1 == 1 ) {
             if ( 0 == strlen( mutAllowedList[j] )) break;
+           
+            // Exact match has the highest prescedence
+            // ignore all other substring matches
+            // 
+            if ( 0 == strcasecmp( mutAllowedList[j], partialString ) ) {
+                strlcpy( fullString, mutAllowedList[j], maxStringSize );
+                returnCount = 1;
+                break;
+            }
+
+            // Substring match casee.  Count them in case there are more
+            // than one matches.
+            // 
             if ( NULL != strcasestr( mutAllowedList[j], partialString ) ) {
                 strlcpy( fullString, mutAllowedList[j], maxStringSize );
                 returnCount++;
@@ -2359,6 +2598,100 @@ int apiMutLookup( char *partialString, char *fullString, int maxStringSize )
     }
     return returnCount;
 }
+
+
+//  ==============================================================================================
+//  apiMutActive
+//
+//  Read RCON GameModeProperty "Mutator" and decode the list of active mutator from known
+//  (approved) list.
+//
+
+#define API_MUT_GMP_MAX (4096)
+
+char *apiMutActive( int fetchNow ) 
+{
+    static char mutatorsActive[ API_LINE_STRING_MAX ]; 
+    static int  firstTime = 1;
+    char        mutatorsGMP[ API_MUT_GMP_MAX ];
+    char        *savedPointer[ API_MUT_MAXLIST ];
+    int         i, j, skipThis;
+
+    if ( firstTime || fetchNow ) {
+
+        strlcpy( mutatorsGMP, apiGameModePropertyGetRaw( "mutators" ), API_MUT_GMP_MAX );
+        logPrintf( LOG_LEVEL_DEBUG, "api", "RCON Mutators ::%s::", mutatorsGMP );
+
+        strclr( mutatorsActive );
+        j = 0;
+
+        while (0 != strlen( mutAllowedListSorted[j] )) {
+
+            if ( NULL != (savedPointer[j] = strcasestr( mutatorsGMP, mutAllowedListSorted[j] ) )) {
+
+                // look for previously found duplicate at the same string position to 
+                // eliminate erroneous reporting of mutator names that are subset string
+                // e.g., "bob100" and "bob10" -- for this to work "sorted" list must be used
+                // with descending string size (greatest to least string size)
+                //
+                skipThis = 0;
+                if (j != 0) 
+                    for (i = 0; i<j; i++ ) 
+                        if ( savedPointer[j] == savedPointer[i] ) 
+                            skipThis = 1;
+
+                // if no duplicate found, append to list of active mutators
+                //
+                if ( !skipThis ) {
+                    strlcat( mutatorsActive, mutAllowedListSorted[j], API_MUT_MAXCHAR );
+                    strlcat( mutatorsActive, " ",                     API_MUT_MAXCHAR );
+                }
+            }
+
+            if ( ++j > API_MUT_MAXLIST ) break;   // increment w/ memory overwrite safety stop
+        }
+    }
+
+    // If no mutators found, return "none".  
+    // then eliminate all leading/trailing spaces.
+    //
+    if ( 0 == strlen( mutatorsActive ) ) strlcpy( mutatorsActive, "none",  API_LINE_STRING_MAX );
+    strTrimInPlace( mutatorsActive );
+
+    firstTime = 0;
+
+    return mutatorsActive;
+}
+
+
+//  ==============================================================================================
+//  Following functions manage the Clan List, used by picladmin (!lock) and pigateway plugins.
+//
+//  apiClanClear - clear the clan list
+//  apiIsClan    - check if player is in clan
+//  apiClanAdd   - add name or ID to clan list
+//  apiClanGet   - get name/ID element from clan list
+//
+int apiClanClear( void )
+{
+    return( apiIdListClear( clanIdList ) );
+}
+
+int apiIsClan( char *playerID )
+{
+    return( apiIdListMatch( playerID, clanIdList ));
+}
+
+int apiClanAdd( char *playerID )
+{
+    return( apiIdListAdd( playerID, clanIdList ) );
+}
+
+char *apiClanGet( int index )
+{
+    return ( apiIdListGet( clanIdList, index ));
+}
+
 
 
 //  ==============================================================================================
@@ -2373,32 +2706,37 @@ int apiIsHotRestart( void )
 }
 
 
-#if 0
-
 //  ==============================================================================================
-//  apiMutQueue
+//  test_api
 //
+//  remove later
 //
-char *apiMutQueue( char *mutNext )
+#if 0
+void test_api( void )
 {
-    if ( NULL == mutNext ) { 
-        strlcpy( mutQueue, "none" , 256 );
-    }
-    else if ( 0 == strlen( mutNext ) ) { 
-        strlcpy( mutQueue, "none", 256 ) ;
-    }
-    else {
-        j = 0;
-        while ( 1 == 1 ) {
-            strlcpy( mutQueue, getWord( mutNext, j++, " ," ), 256 ); 
-            if ( 0 == strlen( w = getWord( mutNext, j++, " ," , 256 ))) { break; }
-            strncat( mutQueue, "," );
-            strncat( mutQueue, " " );
+    char *strout;
 
-        
+    strlcpy( mutAllowedListSorted[0],  "RealisticMovementHardcore", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[1],  "AntiMaterielRiflesOnly", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[2],  "RealisticMovement", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[3],  "SoldierOfFortune", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[4],  "BoltActionsOnly", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[5],  "MapVoteLabels", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[6],  "ShotgunsOnly", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[7],  "MakarovsOnly", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[8],  "PistolsOnly", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[9],  "Gunslingers", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[10], "HealthRegen", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[11], "HardcoreHUD", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[12], "Vampirism", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[13], "Medic", API_MUT_MAXCHAR );
+    strlcpy( mutAllowedListSorted[14], "", API_MUT_MAXCHAR );
 
-    }
+    strout = apiMutActive( 1 );
+
+    printf("\n\n::%s::\n\n", strout );
+    return;
 }
-
 #endif
+
 

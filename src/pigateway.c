@@ -58,6 +58,7 @@ static struct {
     int  firstAdminSlotNo;            // first slot# to start checking if player is on access list
     char adminPortKickMsgLock[CFS_FETCH_MAX];                // kick message if not on access list
     char adminPortKickMsgFull[CFS_FETCH_MAX];                    // kick message if server is full
+    int  lockServerOnIdle;                          // 1=auto lock server when server goes to idle
     // char adminListFilePath[CFS_FETCH_MAX];
     int  gameChangeLockoutSec;
     int  enableBadNameFilter;
@@ -68,7 +69,7 @@ static struct {
 
     unsigned int  allowInWindowTimeSec;                 // picladmin !allow window time in seconds
 
-    int  adminPortDisable;                   // for disable admin port blocking during game change
+    // int  adminPortDisable;                   // for disable admin port blocking during game change
     alarmObj *aPtr;                                 // create a 'lockout' alarm druing game change
 
 } pigatewayConfig;
@@ -81,16 +82,41 @@ static unsigned long timeRestarted = 0L;
 //  ==============================================================================================
 //  _isPriority
 //
-//  Check if a client GUID is an admin 
+//  Returns non-zero value if a client name/GUID is an admin (priport attribute), root, 
+//  or matches the active clan roster (when active)
 //
-static int _isPriority( char *connectID )
+static int _isPriority( char *connectID, char *connectName )
 {
     int isMatch = 0;
 
-    // check if player has "priport" attribute
+    // 1. check if player has "priport" attribute
     //
-    // isMatch = apiIsAdmin( connectID );
     isMatch = apiAuthIsAttribute( connectID, "priport" );
+    logPrintf( LOG_LEVEL_INFO, "pigateway", "isPriority priport user ::%d::", isMatch );
+
+    // 2. check if player is "clan", overwrite the priport check
+    //
+    if ( 3L == p2pGetL( "pigateway.p2p.lockOut", 0L ) ) {
+        if ( 0 == ( isMatch = apiIsClan( connectID ) ))  {
+            isMatch = apiIsClan( connectName ); 
+            logPrintf( LOG_LEVEL_INFO, "pigateway", "isPriority clan user ::%d::", isMatch );
+        }
+    }
+
+    // 3. check if player is "root" - overwrites everyting else
+    //
+    if ( 0 == strcmp( "root", apiAuthGetRank( connectID ) )) {
+        isMatch = 1;
+        logPrintf( LOG_LEVEL_INFO, "pigateway", "isPriority root user" );
+    }
+
+    // 4. Simple but CPU efficient anti-spoof check - disqualify priority 
+    // 
+    if ( NULL != strstr( connectName, "7656" ) ) {
+        // in the future use this inside apiIsClan
+        // int rosterIsValidGUID( char *testGUID )
+        isMatch = 0;
+    }
 
     return( isMatch );
 }
@@ -123,7 +149,7 @@ static int _isBadName( char *playerName, char *playerGUID )
 //
 int pigatewayGameChangeAlarmCB( char *str ) 
 {
-    pigatewayConfig.adminPortDisable = 0;
+    // pigatewayConfig.adminPortDisable = 0;
     logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Gateway Lockout is CLEAR" );
     return 0;
 }
@@ -150,6 +176,9 @@ int pigatewayInitConfig( void )
     strlcpy( pigatewayConfig.adminPortKickMsgLock, 
         cfsFetchStr( cP, "pigateway.adminPortKickMsgLock", "Server hosting a special event." ), CFS_FETCH_MAX);
 
+    pigatewayConfig.lockServerOnIdle = (int) cfsFetchNum( cP, "pigateway.lockServerOnIdle", 0 );
+
+
     pigatewayConfig.enableBadNameFilter = (int) cfsFetchNum( cP, "pigateway.enableBadNameFilter", 1 );
     pigatewayConfig.gameChangeLockoutSec = (int) cfsFetchNum( cP, "pigateway.gameChangeLockoutSec", 120 );
     // strlcpy( pigatewayConfig.adminListFilePath,  
@@ -166,7 +195,7 @@ int pigatewayInitConfig( void )
 
     // _priSlots_init( pigatewayConfig.adminListFilePath, 0 );
 
-    pigatewayConfig.adminPortDisable = 0;
+    // pigatewayConfig.adminPortDisable = 0;
     pigatewayConfig.aPtr = alarmCreate( pigatewayGameChangeAlarmCB );
     logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Created lockout alarm" );
 
@@ -217,19 +246,23 @@ int pigatewayClientSynthAddCB( char *strIn )
     //
     firstAdminSlot = pigatewayConfig.firstAdminSlotNo;
   
-    // server lockout via picladmin "lock on|off" command
+    // server lockout via picladmin "lock off|on|perm|clan" command
     // if "locked" then make all slots "admin" or via the allowin exemption
     //
     if ( 0L != p2pGetL( "pigateway.p2p.lockOut", 0L ))   // default is 0L = unlock
         firstAdminSlot = 1;
 
     if (apiPlayersGetCount() >= firstAdminSlot ) {         // check if these are admin-only slots
+
         if ( _allowInExemption( playerName ) ) {
             logPrintf( LOG_LEVEL_CRITICAL, "pigateway", "Special full server join granted by admin ::%s::%s::%s::", 
                     playerName, playerGUID, playerIP );
         }
-        else if ( !_isPriority( playerGUID ) && (pigatewayConfig.adminPortDisable == 0) ) {     // check if this is an admin
+        // else if ( !_isPriority( playerGUID, playerName ) && (pigatewayConfig.adminPortDisable == 0) ) {     // check if this is an admin
+        else if ( !_isPriority( playerGUID, playerName ) ) {     // check if this is an admin
 
+            // this block of code kicks incoming players
+            //
             if ( (apiTimeGet() - timeRestarted) > PIGATEWAY_RESTART_LOCKOUT_SEC ) {  // check if we are restarting
                 // apiKickOrBan( 0, playerGUID, "Server_full, under maintenance, or hosting a private session." );
 
@@ -286,10 +319,12 @@ int pigatewayClientSynthDelCB( char *strIn )
     if ( 0 == apiPlayersGetCount() ) {
         // Unlcok the server - restore to normal operation
         // Do not unlock if the variable state is "perm" (=2L) 
-        //
-        p2pSetL( "pigateway.p2p.lockOut", 0L );
-        apiSaySys( "Unlocking the server due to zero players" );
-        logPrintf( LOG_LEVEL_INFO, "pigateway", "Unlocking the server due to zero players DelCB" );
+        // 
+        if ( ( 0 == pigatewayConfig.lockServerOnIdle ) && ( 1L == p2pGetL( "pigateway.p2p.lockOut", 0L ) )) {
+            p2pSetL( "pigateway.p2p.lockOut", 0L );
+            apiSaySys( "Unlocking the server due to zero players" );
+            logPrintf( LOG_LEVEL_INFO, "pigateway", "Unlocking the server due to zero players DelCB" );
+        }
     }
     return 0;
 }
@@ -344,6 +379,20 @@ int pigatewayInitCB( char *strIn )
 //
 int pigatewayRestartCB( char *strIn )
 {
+    // clear the clan list (if used)
+    apiClanClear();
+
+    // establish the default lock state on reboot
+    //
+    if (  pigatewayConfig.lockServerOnIdle ) {
+        p2pSetL( "pigateway.p2p.lockOut", 2L );
+        logPrintf( LOG_LEVEL_INFO, "pigateway", "Reboot: locking the server as default" );
+    }
+    else {
+        p2pSetL( "pigateway.p2p.lockOut", 0L );
+        logPrintf( LOG_LEVEL_INFO, "pigateway", "Reboot: Unlocking the server as default" );
+    }
+
     return 0;
 }
 
@@ -361,7 +410,7 @@ int pigatewayMapChangeCB( char *strIn )
     // Do not unlock if the variable state is "perm" (=2L) 
     //
     lockState = p2pGetL( "pigateway.p2p.lockOut", 0L );
-    if ( lockState != 2L )  {
+    if ( lockState == 1L )  {
         p2pSetL( "pigateway.p2p.lockOut", 0L );
     }
 
@@ -398,10 +447,9 @@ int pigatewayGameEndCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  pigatewayRoundStartCB
 //
-//  ...
-//  ...
+//  Callback for Round Start
 //
 int pigatewayRoundStartCB( char *strIn )
 {
@@ -409,7 +457,10 @@ int pigatewayRoundStartCB( char *strIn )
         apiSay( "REMINDER: Server is locked by Access Control." );
     }
     else if ( 2L ==  p2pGetL( "pigateway.p2p.lockOut", 0L )) {
-        apiSay( "*Server PERM-LOCKED by Access Control!" );
+        apiSay( "!!Server PERM-LOCKED by Access Control!!" );
+    }
+    else if ( 3L ==  p2pGetL( "pigateway.p2p.lockOut", 0L )) {
+        apiSay( "!!Server PERM-LOCKED by Clan List!!" );
     }
 
     return 0;
@@ -473,10 +524,9 @@ int pigatewayCapturedCB( char *strIn )
 }
 
 //  ==============================================================================================
-//  ...
+//  pigatewayPeriodicCB
 //
-//  ...
-//  ...
+//  1Hz periodic callback
 //
 int pigatewayPeriodicCB( char *strIn )
 {
@@ -488,11 +538,23 @@ int pigatewayPeriodicCB( char *strIn )
         //
         tenSecondPolling = 0;
         if ( 0 == apiPlayersGetCount() ) {
-            // Unlcok the server - restore to normal operation
-            //
-            p2pSetL( "pigateway.p2p.lockOut", 0L );
-            // apiSaySys( "Unlocking the server due to zero players" );
-            logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Unlocking the server due to zero players at PeriodicCB " );
+            if ( pigatewayConfig.lockServerOnIdle )  {
+                // Lcok the server when no players are present 
+                //
+                apiClanClear();
+                p2pSetL( "pigateway.p2p.lockOut", 2L );
+                // apiSaySys( "Unlocking the server due to zero players" );
+                logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Continue locking the empty server due to default in PeriodicCB " );
+            } 
+            else {
+                // Unlock the server - restore to normal operation
+                //
+                logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Unlocking the server due to zero players at PeriodicCB " );
+                apiClanClear();
+                p2pSetL( "pigateway.p2p.lockOut", 0L );
+                // apiSaySys( "Unlocking the server due to zero players" );
+                logPrintf( LOG_LEVEL_DEBUG, "pigateway", "Clanlist cleared on empty server @ periodic loop" );
+            }
         }
     }
 

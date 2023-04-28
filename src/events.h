@@ -14,7 +14,7 @@
 //  ==============================================================================================
 
 
-#define SISSM_MAXEVENTS                     (32)
+#define SISSM_MAXEVENTS                     (64)
 #define SISSM_MAXPLUGINS                    (32)
 
 #define SISSM_EV_CHAT                       ( 0)    // this must be first for security reasons!!
@@ -47,7 +47,10 @@
 
 #define SISSM_EV_MAP_OBJECTIVE              (26)
 #define SISSM_EV_RCON                       (27)
-#define SISSM_EV_MESHERR                    (28)
+
+#define SISSM_EV_ACTIVITY                   (28)
+#define SISSM_EV_CA_START                   (29)                      // counterattack start
+#define SISSM_EV_CA_STOP                    (30)                      // counterattack start
 
 
 // Following substring in log file triggers an event
@@ -58,7 +61,6 @@
 #define SS_SUBSTR_GAME_END     "Match State Changed from GameOver to LeavingMap"
 #define SS_SUBSTR_REGCLIENT    "LogNet: Join succeeded:"
 #define SS_SUBSTR_UNREGCLIENT  "LogNet: UChannel::Close:"
-#define SS_SUBSTR_OBJECTIVE    "LogGameMode: Display: Advancing spawns for faction"
 #define SS_SUBSTR_MAPCHANGE    "SeamlessTravel to:"
 #define SS_SUBSTR_CAPTURE      "LogSpawning: Spawnzone '"
 #define SS_SUBSTR_SHUTDOWN     "LogExit: Game engine shut down"
@@ -69,17 +71,26 @@
 #define SS_SUBSTR_DESTROY      "was destroyed for team"
 #define SS_SUBSTR_RCON         "LogRcon:"
 
-#define SS_SUBSTR_BP_PLAYER_CONN        " RestartPlayerAtPlayerStart "
+#define SS_SUBSTR_ACTIVITY     "LogGameplayEvents: Display:"
+#define SS_SUBSTR_CA_START     "LogGameplayEvents: Display: Objective "               // in counterattack
+#define SS_SUBSTR_CA_STOP      "LogGameMode: Display: Advancing spawns for faction "  // no counterattack
+
+#define SS_SUBSTR_BP_PLAYER_CONN        "LogGameMode: Verbose: RestartPlayerAt"        // <- Medicon+NoMod
 #define SS_SUBSTR_BP_PLAYER_DISCONN     " Unpossessed"
 #define SS_SUBSTR_BP_CHARNAME           "' cached new pawn '"
-// #define SS_SUBSTR_BP_TOUCHED_OBJ        " has been touched by sol"  
-// #define SS_SUBSTR_BP_UNTOUCHED_OBJ      " has stopped being touched by sol" 
 #define SS_SUBSTR_BP_TOUCHED_OBJ        " entered."
 #define SS_SUBSTR_BP_UNTOUCHED_OBJ      " exited."
 
-#define SS_SUBSTR_MAP_OBJECTIVE "LogObjectives: Verbose: Authority: Adding objective '"
-#define SS_SUBSTR_MESHERR       "LogGameMode: Verbose: RestartPlayerAt"
+#define SS2_SUBSTR_PLAYERCONN1          "RestartPlayerAtPlayerStart"
+#define SS2_SUBSTR_PLAYERCONN2          "RestartPlayerAtTransform"
 
+// obsoleted
+// #define SS_SUBSTR_BP_PLAYER_CONN     " RestartPlayerAtPlayerStart "                 // <- pre-Medicon
+// #define SS_SUBSTR_BP_TOUCHED_OBJ     " has been touched by sol"  
+// #define SS_SUBSTR_BP_UNTOUCHED_OBJ   " has stopped being touched by sol" 
+// #define SS_SUBSTR_MESHERR       "LogGameMode: Verbose: RestartPlayerAt"
+
+#define SS_SUBSTR_MAP_OBJECTIVE "LogObjectives: Verbose: Authority: Adding objective '"
 
 extern int eventsInit( void );
 extern int eventsRegister( int eventID, int (*callBack)( char * ));
