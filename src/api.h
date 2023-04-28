@@ -19,6 +19,7 @@
 
 #define API_ROSTER_STRING_MAX        (256*64)      // max size of contatenated roster string +EPIC
 #define API_LINE_STRING_MAX             (256)
+#define API_CMDS_STRING_MAX             (512)
 
 
 extern int   apiInit( void );
@@ -28,6 +29,7 @@ extern int   apiDestroy( void );
 extern int   apiServerRestart( char *reasonForRestart );
 extern int   apiGameModePropertySet( char *gameModeProperty, char *value );
 extern char *apiGameModePropertyGet( char *gameModeProperty );
+extern char *apiGameModePropertyGetRaw( char *gameModeProperty );
 extern int   apiSay( const char * format, ... );
 extern int   apiSaySys( const char * format, ... );
 extern int   apiKickOrBan( int isBan, char *playerGUID, char *reason );
@@ -41,6 +43,7 @@ extern char *apiGetServerName( void );
 extern char *apiGetServerNameRCON( int forceCacheRefresh );
 extern char *apiGetServerMode( void );
 extern char *apiGetMapName( void );
+extern char *apiGetLighting( void );
 extern char *apiGetSessionID( void );
 extern unsigned long apiTimeGet( void );
 extern char *apiTimeGetHuman( unsigned long timeMark );
@@ -52,14 +55,15 @@ extern int   apiMapcycleRead( char *mapcycleFilePath );
 extern int   apiMapChange( char *mapName, char *gameMode, int secIns, int dayNight, char *mutatorsList, int clearMutator );
 extern char *apiMapList(void );
 extern int   apiIsSupportedGameMode( char *candidateMode  );
+extern int   apiIsCounterAttack( void );
 
 extern int   apiMutLookup( char *partialString, char *fullString, int maxStringSize );
 extern char *apiMutList( void );
+extern char *apiMutActive( int fetchNow );
+
 
 extern int   apiIsHotRestart( void );
 
-#define IDLISTMAXELEM        (256)
-#define IDLISTMAXSTRSZ       (256)   // EPIC
 #define IDSTEAMID64LEN        (17)
 #define IDEPICIDLEN           (65)   // EPIC 
 
@@ -75,9 +79,18 @@ extern int   apiIsHotRestart( void );
 #define API_MUT_MAXLIST                  (64)
 #define API_MUT_MAXCHAR                  (80)
 
+
+// List manager & data structure
+//
+#define IDLISTMAXELEM        (256)
+#define IDLISTMAXSTRSZ       (256)   // EPIC
 typedef char idList_t[IDLISTMAXELEM][IDLISTMAXSTRSZ];
-extern int   apiIdListRead( char *listFile, idList_t idList );
-extern int   apiIdListCheck( char *connectID, idList_t idList );
+extern int   apiIdListRead( char *listFile, idList_t idList );     // list read from file
+extern int   apiIdListCheck( char *connectID, idList_t idList );   // exact match
+extern int   apiIdListMatch( char *connectID, idList_t idList );   // substr match
+extern int   apiIdListAdd( char *connectID, idList_t idList );     // insert elem to list
+extern int   apiIdListClear( idList_t idList );                    // clear the list
+extern char *apiIdListGet( idList_t idList, int index );           // get elem from list
 
 extern int   apiIsAdmin( char *connectID );
 extern int   apiAuthIsAllowedCommand( char *playerGUID, char *command );
@@ -110,4 +123,12 @@ extern int   apiIsPlayerAliveByGUID( char *playerGUID );
 //
 extern char apiLookupObjectiveLetterFromCache( char *objectiveName );
 extern char apiLookupLastObjectiveLetterFromCache( void );
+
+// clan list to work with picladmin and pigateway (!lock)
+// 
+extern int   apiIsClan( char *playerID );
+extern int   apiClanAdd( char *playerID );
+extern int   apiClanClear( void );
+extern char *apiClanGet( int index );
+
 

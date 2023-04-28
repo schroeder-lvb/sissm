@@ -48,3 +48,4 @@ ___ Cleanup local git copy and create a new branch for next time
     git branch -d v0.0.0     (old branch, -D to force)
     git checkout -b v0.0.0      (create next branch)
 
+    (to rename a branch, git branch -m new-name)

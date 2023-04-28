@@ -31,6 +31,7 @@ extern int   rosterIsValidGUID( char *testGUID );
 extern int   rosterFindFirstID(  char *lineIn, char symOpen, char symClose, char *foundID, int maxString  );
 extern void  rosterSetMapName( char *mapName );
 extern char *rosterGetMapName( void );
+extern char *rosterGetLighting( void );
 extern void rosterSetObjective( char *objectiveName, char *objectiveType );
 extern char *rosterGetObjective( void );
 extern char *rosterGetObjectiveType( void );

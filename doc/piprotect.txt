@@ -1,0 +1,40 @@
+Simple Insurgency Sandstorm Server Manager - SISSM
+PIPROTECT Plugin
+JS Schroeder -- last updated:  2023.04.27
+
+==========================
+
+The PIPROTECT Plugin
+
+The purpose of the PRIPROTECT Plugin is to prevent the server from crashing due to player Join-in-progress bugs on some maps.  Typically the system log report repeated attempt to "RestartPlayerAt" until the entire server crashes.
+
+This bug appears typically on the final objective/final counterattack on select NWI stock maps when a new player joins the game.  The connection is not causing the crash, however, if the new player selects a role and joins the game on the final objective or during the final counterattack, likelihood of system crash goes up greatly.
+
+If you wish to use this feature, first enable the plugin:
+
+piprotect.pluginState          1
+
+There are two algorithms - you may enable one or both.
+
+piprotect.enableStartFail      1    // 1=enable kick on repeated failure to start player
+piprotect.enableBlockJoin      1    // 1=block new connection during high risk objectives (see table)
+
+1.  enableStartFail will detect multiple attempts by the server to start a player into spawn.  If more than set number of attempts are detected per second (default 16 tries/sec as set by piprotect.countThreshold) then this user will be kicked before the server loses stability.
+
+2.  enableBlockJoin will pre-emptively block players from connecting to the server, depending on the current objective, for specific map, side, and if the game is in regular transition or counterattack.  Upper case letter (e.g., "F") means objective-F counterattack, whereas lowercase (e.g., "f") means transit between checkpoints E and F.  On some maps, join is stable up to 8 players, whereas on more sensitive maps, *any* new join greatly increases the possibility of a crash.
+
+On this example final counterattack for "F" will reject any new connections if server already has 6 or more people.
+
+piprotect.joinLimit[0]  "hillside_checkpoint_security      F 6"
+
+On this example, when the game is in transmit from checkpoint A to B, any new connection attempt of more than 5 playres will be rejected.
+
+piprotect.joinLimit[34] "crossing_checkpoint_security      b 5"
+
+Please see example_sissm.cfg file for good starting example, from which you may modify to your taste.
+
+* * * 
+
+When this crash bug is fixed, PRIPROTECT plugin will be removed/obsoleted.
+
+

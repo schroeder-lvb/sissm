@@ -1,6 +1,6 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 PICLADMIN - User's Manual for the Assistant Administrators
-JS Schroeder -- last updated:  2022.09.29 
+JS Schroeder -- last updated:  2024.04.27 
 
 PICLADMIN (Plugin Command-Line Admin) plugin allows admin commands to be
 executed through the in-game chat interface.  The server operator set up
@@ -34,23 +34,23 @@ Examples:  !help list, !help banid
 
 ========================
 
-botfixed (bf) [0-60]
+botfixed (bf) [0-120]
 Set fixed bot count regardless of how many players are in game.
 Examples:  !bf 20, !botfixed 50
 
 ([SISSM1.2] !bf 0 is now allowed for testing)
 ========================
 
-botscaled (bs) {2-59} [2-60]
+botscaled (bs) {2-59} [2-120]
 Set bot count in scaling mode - if two numbers are specified min:max
 range is set; one number, only max limit is set.
 Examples:  !bs 36, !botscaled 32, !bs 4 36
 
 ========================
 
-botreset
+botreset (br)
 Set bot count changed by !bs or !bf back to default 
-Examples:  !br
+Examples:  !botreset, !br
 
 ========================
 
@@ -107,7 +107,7 @@ Examples:  !bt rob, !bant ert, !bant robert team kills not allowed, !bant rob tk
 banidt (bit) [SteamID64] {reason | reason-code}
 Temp-ban a player by SteamID64 - this can be done after a player has signed off.
 Examples:  !bit 76561123123123123, !banidt 76561123123123123, 
-           !bit 76561123123123123 arguing with the admin
+Examples:  !bit 76561123123123123 arguing with the admin
 
 ========================
 
@@ -120,7 +120,7 @@ Examples:  !ub 76561123123123123, !unbanid 76561123123123123
 kick (k) [partial-name] {reason | reason-code}
 Kick a player by partial name
 Examples:  !k ober, !kick robert, !kick robert rush, 
-           !kick robert exploding cache without your team
+Examples:  !kick robert exploding cache without your team
 
 ========================
 
@@ -136,9 +136,9 @@ Example:  !rcon say hello
 
 ========================
 
-gamemodeproperties (gmp) [property name {new_value}]
+gamemodeproperty (gmp) [property name {new_value}]
 Set or read gamemodeproperties (vars)
-Example:  !gamemodeproperties minimumenemies 3, !gmp maximumenemies
+Example:  !gamemodeproperty minimumenemies 3, !gmp maximumenemies
 
 ========================
 
@@ -180,15 +180,23 @@ Example:  !allowin jullie, !allowin *, !allowin
 
 ========================
 
-maplist
+maplist (maplist)
 Lists available maps installed on server.
 Note: for this feature to work, a specific mapcycle.txt format with metatag is required!
 Example:  !maplist
 
-mutlist
+=========================
+
+mutlist (mutlist)
 Lists available mutators availalbe on the server.
 Note: for this feature to work, sissm.cfg must specify list of allowed mutators.
 Example:  !mutlist
+
+=========================
+
+mutactive (mutactive)
+Lists currently active mutators 
+Example:  !mutactive
 
 ========================
 
@@ -219,43 +227,72 @@ Example:  !rules
 
 ========================
 
-lock [on|off|perm]
+lock (lk) [on|off|perm|clan]
 Root/Admin command to reserve the server for access list players ("priport" attribute)
 When lock is "on" only priort players (admins, etc.) can sign in, unlocks on map change.
 When lock is "perm" server is locked until "lock off", or when server becomes empty
-Examples:  lock on, !lock off, !lock perm
+Examples:  !lock on, !lock off, !lock perm, !lock clan
 
 ========================
 
-wax [on|off|perm]
+clan (cl) [clear][add][list] {player ID or partial name/tag}
+Root/Admin command to temp reserve the server for ad-hoc list of players "clan"
+Examples:  !clan clear, !cl clear
+Examples:  !clan add alice bob charlie
+Examples:  !clan add [MYCLAN]
+Examples:  !clan add 76561111111111111 76562222222222222 76563333333333333
+Examples:  !clan list, !cl list
+
+Note "!lock clan" is automatic after the first "!clan add"
+To disable clan lock, "!lock off"
+
+========================
+
+wax (wax) [on|off|perm]
 Admin/Moderator command to require typing breach/blow code before action, or else
 the player is kicked (if autokick is on).
 On, Off, Perm actions have 2 objective delay to come into effect.
 On: means wax will stay active until map change, or when server goes idle.
 Perm: means wax will stay active until turned off, or server goes idle.
+Examples:  !wax on, !wax off, !wax perm
 
 ========================
 
-strict
+strict (sr) 
 This allows unpriviledge players to "!wax on" 
 Can only be turned off by admins/moderators with !wax command privilege.
 The command will cancel on map change, or when server goes idle.
+Examples:  !strict, !sr
 
 ========================
 
-endgame {now}
+nowait (nw)
+Accelerates antirush timers so that players may immediately enter territorial zone or explode the cache
+Examples:  !nowait, !nw
+
+========================
+
+nokick (nk)
+Temporarily exempts player(s) from antirush violation kick for 15 seconds
+Useful for training new players not yet aware of antirush auto-kick
+Useful for protecting commander from anti-rush auto-kick, when accidentally exploding the cache via the support call
+Examples:  !nokick, !nk
+
+========================
+
+endgame (eg) {now}
 Immediately end the game in progress, to map voting menu (if enabled)
 Examples:  !endgame now, !eg now
 
 ========================
 
-dev [test-var] {int value}
+dev (dev) [test-var] {int value}
 For develpers only - enabled only for the ROOT connection.  Reads/writes to 'test-var' 
 Examples:  !dev nokick 1, !dev nokick 0, !dev humans 8, !dev humans 0
 
 ========================
 
-reinit
+reinit (reinit)
 Root user command to re-read admins (and other priv) list, and the badwords list without
 restarting SISSM.
 Note this affects SISSM privileges only, not the in-game admin screen privilege. 

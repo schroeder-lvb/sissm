@@ -223,6 +223,42 @@ int rosterGetCoopSide( void )
 }
 
 //  ==============================================================================================
+//  rosterGetLighting
+//
+//  Returns the ?lighting string for this map ("day", "night", "dusk", "rain", etc.)
+//
+
+#define MATCH_LIGHTING "?Lighting="
+
+char *rosterGetLighting( void )
+{
+    static char retStr[20];
+    char *w, *v;
+
+    // default return "day"
+    strlcpy( retStr, "day", 20 );
+
+    // find the "?lighting=" substring position 
+    if ( NULL != (w = strstr( rosterTravel, MATCH_LIGHTING ) )) {
+        // point to first letter after the "=" sign
+        w += strlen( MATCH_LIGHTING );
+        // parse the lighting parameter
+        if ( NULL != (v = getWord( w, 0, "? " )) ) {
+            strlcpy( retStr, v, 20 );
+            strToLowerInPlace( retStr );
+            strTrimInPlace( retStr );
+        } 
+    }
+    return( retStr );
+}
+
+//  ==============================================================================================
+//  rosterGetCoopObjectiveLetter
+//
+//  Returns the active (next) objective, i.e., 'A', 'B', 'C'..., or ' ' if error
+//
+
+//  ==============================================================================================
 //  rosterGetCoopObjectiveLetter
 //
 //  Returns the active (next) objective, i.e., 'A', 'B', 'C'..., or ' ' if error

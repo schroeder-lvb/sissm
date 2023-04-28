@@ -69,10 +69,12 @@ static struct {
     int  showLastReboot;                   // 1=show last reboot time and last rebooted reason 
     int  showCurrentTime;                  // 1=show current time
     int  showGameMode;                     // 1=show current game mode
+    int  showMutators;                     // 1=show active mutators
 
 } piwebgenConfig;
 
-static char gameMode[ API_ROSTER_STRING_MAX ];
+static char gameMode[ API_LINE_STRING_MAX ];
+static char gameMutators[ API_LINE_STRING_MAX ];
 
 //  ==============================================================================================
 //  piwebgenInitConfig
@@ -106,12 +108,13 @@ int piwebgenInitConfig( void )
     piwebgenConfig.showLastReboot    = (int) cfsFetchNum( cP, "piwebgen.showLastReboot", 0 );
     piwebgenConfig.showCurrentTime   = (int) cfsFetchNum( cP, "piwebgen.showCurrentTime", 0 );
     piwebgenConfig.showGameMode      = (int) cfsFetchNum( cP, "piwebgen.showGameMode", 0 );
+    piwebgenConfig.showMutators      = (int) cfsFetchNum( cP, "piwebgen.showMutators", 0 );
     piwebgenConfig.reReadHostName    = (int) cfsFetchNum( cP, "piwebgen.reReadHostName", 0 );
-
 
     cfsDestroy( cP );
 
-    strlcpy( gameMode, "Unknown", API_ROSTER_STRING_MAX );
+    strlcpy( gameMode, "Unknown", API_LINE_STRING_MAX );
+    strlcpy( gameMutators, "Unknown", API_LINE_STRING_MAX );
 
     return 0;
 }
@@ -265,7 +268,10 @@ static int _genWebFile( void )
         //
         if ( piwebgenConfig.showSessionID )
             fprintf( fpw, "<br>SID: %s\n", apiGetSessionID());
-        fprintf( fpw, "<br>Map: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp %s\n", apiGetMapName() );
+
+        // Display map & lighting mode
+        //
+        fprintf( fpw, "<br>Map: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp %s (%s)\n", apiGetMapName(), apiGetLighting() );
 
         // Display number of players and stauts of the server
         //
@@ -306,14 +312,23 @@ static int _genWebFile( void )
         }
 
         if ( 0 != piwebgenConfig.showGameMode ) {
-            fprintf( fpw, "<br>Game Mode: &nbsp;&nbsp;&nbsp;&nbsp;   %s\n", gameMode );
+            fprintf( fpw, "<br>Game Mode: &nbsp;&nbsp;   %s\n", gameMode );
         }
 
-        if ( 1L == p2pGetL( "pigateway.p2p.lockOut", 0L )) {
-            fprintf( fpw, "<br>* Temporarily LOCKED for Private Session *\n" );
+        if ( 0 != piwebgenConfig.showMutators ) {
+            fprintf( fpw, "<br>Mutators: &nbsp;&nbsp;&nbsp;   %s\n", gameMutators );
         }
-        else if ( 2L == p2pGetL( "pigateway.p2p.lockOut", 0L )) {
-            fprintf( fpw, "<br>*** Temporarily LOCKED for Private Session ***\n" );
+
+        switch( p2pGetL( "pigateway.p2p.lockOut", 0L )) {
+        case 1L:
+            fprintf( fpw, "<br>* Temporarily LOCKED for Private Session *\n" );
+            break;
+        case 2L:
+            fprintf( fpw, "<br>*** Server LOCKED for Private Sessions ***\n" );
+            break;
+        case 3L:
+            fprintf( fpw, "<br>*** Server RESERVED for Private Group ***\n" );
+            break;
         }
 
         // Display list of players
@@ -488,21 +503,34 @@ int piwebgenPeriodicCB( char *strIn )
 {
     static unsigned int intervalCount = 0;
     static unsigned int modePollingGameMode   = 0;
+    static unsigned int modePollingMutators   = 0;
     static unsigned int modePollingHostName   = 15;
 
+    // Game Mode polling/caching from RCON, once every 60 seconds
+    //
     if ( piwebgenConfig.showGameMode ) {
         if ( modePollingGameMode++ > 60 ) {
             modePollingGameMode = 0;
 
             // Get current game mode: "checkpoint", "hardcorecheckpoint"....
             //
-            strlcpy( gameMode, apiGameModePropertyGet( "gamemodetagname" ), API_ROSTER_STRING_MAX );
+            strlcpy( gameMode, apiGameModePropertyGet( "gamemodetagname" ), API_LINE_STRING_MAX );
             if ( 0 != strlen( gameMode ) )
                 logPrintf( LOG_LEVEL_INFO, "piwebgen", "GameMode is ::%s::", gameMode );
             else {
-                strlcpy( gameMode, "Unknown", API_ROSTER_STRING_MAX );
+                strlcpy( gameMode, "Unknown", API_LINE_STRING_MAX );
                 logPrintf( LOG_LEVEL_WARN, "piwebgen", "** Unable to read; current GameMode" );
             }
+
+        }
+    }
+
+    // Mutator polling/caching from RCON, once every 60 seconds
+    //
+    if ( piwebgenConfig.showMutators ) {
+        if ( modePollingMutators++ > 60 ) {
+            modePollingMutators = 0;
+            strlcpy( gameMutators, apiMutActive( 1 ), API_LINE_STRING_MAX );
         }
     }
 

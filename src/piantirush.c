@@ -113,10 +113,14 @@ static struct {
     int  nPlayerExemptionTrainOffset,   trNPlayerOfs;      
 
     char trainingModeMsg[CFS_FETCH_MAX];                                  // training mode message
-    // int  trainingOnReminderTime;     // time in elapsed sec to display training mode reminder text
+    char teamNotReadyPrompt[CFS_FETCH_MAX];       // 'team not ready' while kill activity detected
+    // int  trainingOnReminderTime;   // time in elapsed sec to display training mode reminder text
     int  trainingOnDefaultEnable;       // from sissm.cfg option to make training mode default 'on'
+    int  minimumQuietTimeSec;            // no-kill required time before 'team is ready', 0=disable 
 
 } piantirushConfig;
+
+static unsigned long _lastKillTime = 0L;         // kill activity detection 'team readiness' status
 
 static int _localMute = 0;
 static int _fastMode  = 0;
@@ -405,6 +409,35 @@ static void _capRusherExitZone( char *playerCharID )
 }
 
 //  ==============================================================================================
+//  _isQuiet
+//
+//  Returns true if 1) no kills registered for past 'n' seconds OR 2) no kills registered
+//  since the start (initial condition exception).  This function is used to detect if the
+//  activity has caesed, a rudimentary way to determine if 'team is ready' to breach/detonate.
+//
+static int _isQuiet( void )
+{
+    int quietState = 0;
+
+    // Check if the feature is diabled - if so it's always 'quiet'
+    // 
+    if ( piantirushConfig.minimumQuietTimeSec == 0 ) 
+        quietState = 1;
+ 
+    // Check if field has been quiet for 'minimumQuietTime' seconds.
+    //
+    else if ( _lastKillTime +  piantirushConfig.minimumQuietTimeSec <= apiTimeGet() ) 
+        quietState = 1;
+
+    // Check if the server just started (initial exception case)
+    //
+    else if ( _lastKillTime == 0L ) 
+        quietState = 1;
+
+    return( quietState );
+}
+
+//  ==============================================================================================
 //  _capRusherPeriodicCheck (internal)
 //
 //  This routine checks the status of the territorialRushers[] table to determine if any
@@ -598,6 +631,7 @@ static int _notifyNoDestroyCB( char *str )
 }
   
 
+
 //  ==============================================================================================
 //  _earlyDestroyReqCB
 //
@@ -608,7 +642,10 @@ static int _notifyNoDestroyCB( char *str )
 //
 static int _earlyDestroyReqCB( char *str )
 {
-    if ( alarmStatus( aPtr ) < (long) (piantirushConfig.destroySpeedup + piantirushConfig.trEarDesOfs) ) {
+    if ( !_isQuiet() && ( 0L != p2pGetL( "piantirush.p2p.training", 0L )) ) {  // if not quiet & training is 'on'
+        _localSay( piantirushConfig.teamNotReadyPrompt );
+    }
+    else if ( alarmStatus( aPtr ) < (long) (piantirushConfig.destroySpeedup + piantirushConfig.trEarDesOfs) ) {
         _localSay( piantirushConfig.destroyOkPrompt );
         kickArmed = 0;                    // kick safety : disable kick
         alarmCancel( aPtr );
@@ -630,7 +667,10 @@ static int _earlyDestroyReqCB( char *str )
 //
 static int _earlyBreachReqCB( char *str )
 {
-    if ( alarmStatus( aPtr ) < (long) piantirushConfig.earlyBreachSpeedup + piantirushConfig.trEarlyOfs ) {
+    if ( !_isQuiet() && ( 0L != p2pGetL( "piantirush.p2p.training", 0L )) ) {  // if not quiet & training is 'on'
+        _localSay( piantirushConfig.teamNotReadyPrompt );
+    }
+    else if ( alarmStatus( aPtr ) < (long) piantirushConfig.earlyBreachSpeedup + piantirushConfig.trEarlyOfs ) {
         _localSay( piantirushConfig.breachOkPrompt );
         alarmReset( aPtr, 2L );   
         _capRusherClear();
@@ -774,6 +814,24 @@ void _startOfEverything( void )
     return;
 
 }
+
+
+
+//  ==============================================================================================
+//  piantirushActivityCB
+//
+//  Used for "kill" detection, situation awareness looking for quiescense in the battlefield
+//
+int piantirushActivityCB( char *strIn )
+{
+    if ( NULL != strstr( strIn, " killed " ) ) {
+        if ( NULL != strstr( strIn, " with " ) ) {
+            _lastKillTime = apiTimeGet();    
+        }
+    }
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  ...
@@ -942,6 +1000,25 @@ int piantirushRoundEndCB( char *strIn )
 //
 int piantirushCapturedCB( char *strIn )
 {
+    static unsigned long int lastTimeCaptured = 0L;
+
+    kickArmed = 0;
+    _startOfEverything(); 
+
+    // if in training mode, announce it at Capture & RoundStart
+    //
+    if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) ) {
+
+        // system generates multiple 'captured' report, so it is necessary
+        // to add a 10-second window filter to make sure only one gets fired off.
+        //
+        if ( lastTimeCaptured + 10L < apiTimeGet() ) {
+            lastTimeCaptured = apiTimeGet();
+            apiSay( piantirushConfig.trainingModeMsg );
+        }
+    }
+
+#if 0
     kickArmed = 0;
     _startOfEverything(); 
 
@@ -950,6 +1027,7 @@ int piantirushCapturedCB( char *strIn )
     //
     if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) )
        apiSay( piantirushConfig.trainingModeMsg );
+#endif 
 
     return 0;
 }
@@ -1425,8 +1503,10 @@ int piantirushInitConfig( void )
     //
     piantirushConfig.nPlayerExemptionTrainOffset   = (int) cfsFetchNum( cP, "piantirush.nPlayerExemptionTrainOffset",     0 );  // 0 or -1
     strlcpy( piantirushConfig.trainingModeMsg, 
-        cfsFetchStr( cP, "piantirush.trainingModeMsg", "Typing '11' before Breach/Blow is REQUIRED!!" ), CFS_FETCH_MAX);
-
+        cfsFetchStr( cP, "piantirush.trainingModeMsg", "Type '11' before Breach/Detonate!" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.teamNotReadyPrompt,
+        cfsFetchStr( cP, "piantirush.teamNotReadyPrompt", "Denied - Team NOT ready!" ), CFS_FETCH_MAX);
+ 
     // training mode undocumented vars - these are undocumented parameters - not needed by most installations
     //
     piantirushConfig.lockIntervalSecTrainOffset    = (int) cfsFetchNum( cP, "piantirush.lockIntervalSecTrainOffset",    600 );
@@ -1434,6 +1514,7 @@ int piantirushInitConfig( void )
     piantirushConfig.earlyBreachSpeedupTrainOffset = (int) cfsFetchNum( cP, "piantirush.earlyBreachSpeedupTrainOffset", 600 );
     piantirushConfig.destroySpeedupTrainOffset     = (int) cfsFetchNum( cP, "piantirush.destroySpeedupTrainOffset",     600 );
     piantirushConfig.trainingOnDefaultEnable       = (int) cfsFetchNum( cP, "piantirush.trainingOnDefaultEnable",         0 );
+    piantirushConfig.minimumQuietTimeSec           = (int) cfsFetchNum( cP, "piantirush.minimumQuietTimeSec",             0 );
 
     piantirushConfig.trTimeOfs     = 0;
     piantirushConfig.trSlowOfs     = 0;
@@ -1513,6 +1594,7 @@ int piantirushInstallPlugin( void )
     eventsRegister( SISSM_EV_BP_TOUCHED_OBJ,       piantirushObjTouchCB );
     eventsRegister( SISSM_EV_BP_UNTOUCHED_OBJ,     piantirushObjUntouchCB );
 
+    eventsRegister( SISSM_EV_ACTIVITY,             piantirushActivityCB );
 
     return 0;
 }
