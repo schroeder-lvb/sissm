@@ -114,9 +114,21 @@ static struct {
 
     char trainingModeMsg[CFS_FETCH_MAX];                                  // training mode message
     char teamNotReadyPrompt[CFS_FETCH_MAX];       // 'team not ready' while kill activity detected
-    // int  trainingOnReminderTime;   // time in elapsed sec to display training mode reminder text
-    int  trainingOnDefaultEnable;       // from sissm.cfg option to make training mode default 'on'
-    int  minimumQuietTimeSec;            // no-kill required time before 'team is ready', 0=disable 
+    // int  trainingOnReminderTime;  // time in elapsed sec to display training mode reminder text
+    int  trainingOnDefaultEnable;      // from sissm.cfg option to make training mode default 'on'
+    int  minimumQuietTimeSec;           // no-kill required time before 'team is ready', 0=disable 
+
+    int botSpawnKillWindowSec;   // time in sec after cache detonation to check for bot spawnkills
+    int botSpawnKillMaxKills;       // max number of kills before player declared bot spawn killer
+    int botSpawnKillWarnOrKick;                                         // 0=warn only, 1=autokick
+    char botSpawnKillKickMessage[CFS_FETCH_MAX];               // kick message to offending player
+    char botSpawnKillWarnMessage[CFS_FETCH_MAX];                // warn or kick message to console
+    char botSpawnKillExemptMethods[CFS_FETCH_MAX];                  // list of exempt kill methods
+   
+    int  genevaDefault;                                                      // default 0=off 1=on
+    char genevaWeapons[CFS_FETCH_MAX];                          // list of illegal-to-kill weapons
+    char genevaKickWarnMessage[CFS_FETCH_MAX];   // screen warning of illegal weapons prohibitions
+    char genevaKickReason[CFS_FETCH_MAX];                // kick message for using illegal weapons
 
 } piantirushConfig;
 
@@ -132,6 +144,7 @@ static alarmObj *tPtr  = NULL;                              // Alarm for territo
 static alarmObj *rPtr  = NULL;             // Delay prompt for player request for early cache blow
 static alarmObj *bPtr  = NULL;                 // Delay prompt for player request for early breach
 static alarmObj *xPtr  = NULL;           // training mode ("!wax on") reminder prompt when enabled
+static alarmObj *sPtr  = NULL;                                   // bot-spawnkill enforcement timer
 static int lastState = -1;                          // last state of capture rate: { -1, 0, 1, 2 }
 
 
@@ -710,6 +723,16 @@ static int _trainingModeReminderCB( char *str )
     return 0;
 }
 
+//  ==============================================================================================
+//  _closeBotSpawnWindowCB
+//
+static int _closeBotSpawnWindowCB( char *str )
+{
+    logPrintf( LOG_LEVEL_INFO, "piantirush", "Bot-spawnkill detection window closed" );
+    alarmCancel( sPtr );
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  _rulesAlarmCB 
@@ -758,7 +781,6 @@ static int _normalSpeedAlarmCB( char *str )
   
     return 0;
 }
-
 
 
 
@@ -816,7 +838,6 @@ void _startOfEverything( void )
 }
 
 
-
 //  ==============================================================================================
 //  piantirushActivityCB
 //
@@ -824,12 +845,74 @@ void _startOfEverything( void )
 //
 int piantirushActivityCB( char *strIn )
 {
+    int killDetected = 0;
+    int errCode = 0, match = 0, i;
+    char *s;
+    static char killerName[256], killerID[256], killedName[256], killedID[256], weaponName[256];
+
+    // check kill activity for area-clear status before breach/destruct
+    // 
     if ( NULL != strstr( strIn, " killed " ) ) {
         if ( NULL != strstr( strIn, " with " ) ) {
+            killDetected = 1;
             _lastKillTime = apiTimeGet();    
+            strclr( killerName );
         }
     }
-    return 0;
+
+    // due to high rate of message, this will help to optimize
+    // looking for 'kill' message
+    //
+    if ( killDetected ) {
+
+        // if this feature is enabled by p2pvars
+        //
+        if ( 0L != p2pGetL( "piantirush.p2p.genevaKick", 0L ) ) {
+            errCode = rosterParsePlayerKill(strIn, 256, killerName, killerID, killedName, killedID, weaponName );
+
+            // looking for some weapons possibilities, such as
+            // BP_Projectile_Molotov_C_2146811897 BP_Projectile_RocketAT4_C_2146858628 
+            // BP_Projectile_ANM14_C_2146829547 BP_Projectile_RocketRPG7_C_2147463592 
+            //
+            for (match = 0, i = 0;; i++ ) {
+                if ( NULL == (s = getWord( piantirushConfig.genevaWeapons, i, " " )) ) 
+                    break;
+                if ( NULL != strcasestr( weaponName, s ) ) {
+                    match = 1;
+                    break;
+                }
+            }
+        }
+ 
+        if ( match ) {
+            // if the killer is a human, then kick
+            //
+            if ( NULL == strcasestr( killerID, "INVALID" ) ) {
+                if ( 0 != strlen( killerName ) ) {
+                    apiKick( killerName, piantirushConfig.genevaKickReason );
+                    apiSay( "'%s' kicked - illegal use of '%s'", killerName, weaponName );
+                    logPrintf( LOG_LEVEL_INFO, "piantirush", "Auto-Kicked restricted weapon ::%s::%s::%s", killerName, killerID, weaponName );
+                }
+            }
+        }
+    }
+
+    // Experimental "spawn kill detection" algorithm - WIP for logging only
+    //
+    // Check kill activity for possible bot spawn kill
+    // For CPU optimization process this only inside the check time window 'aPtr'
+    // 
+    if ( killDetected ) {
+
+        if ( alarmStatus( sPtr ) > 0L ) {                  // if inside the detection window then
+            if ( 0 == strlen( killerName ) )
+                errCode = rosterParsePlayerKill(strIn, 256, killerName, killerID, killedName, killedID, weaponName );
+            logPrintf( LOG_LEVEL_INFO, "piantirush", "Bot-spawnkill kill :%s:%s:%s:%s:%s", killerName, killerID, killedName, killedID, weaponName );
+        }
+
+    }
+
+    return errCode;
 }
 
 
@@ -883,6 +966,10 @@ int piantirushInitCB( char *strIn )
 //
 int piantirushRestartCB( char *strIn )
 {
+    // Geneva weapons restrictions to default specified in sissm.cfg file
+    //
+    p2pSetL( "piantirush.p2p.genevaKick", (long) piantirushConfig.genevaDefault  );
+
     return 0;
 }
 
@@ -979,6 +1066,10 @@ int piantirushRoundStartCB( char *strIn )
     if ( 0L != p2pGetL( "piantirush.p2p.training", 0L ) )  
        apiSay( piantirushConfig.trainingModeMsg );
 
+    // clear the bot-spawnkill detector timer
+    //
+    alarmCancel( sPtr );
+
     return 0;
 }
 
@@ -990,6 +1081,11 @@ int piantirushRoundStartCB( char *strIn )
 int piantirushRoundEndCB( char *strIn )
 {
     _captureSpeedForceNext();
+
+    // Geneva weapons restrictions to default specified in sissm.cfg file
+    // 
+    p2pSetL( "piantirush.p2p.genevaKick", (long) piantirushConfig.genevaDefault  );
+
     return 0;
 }
 
@@ -1000,7 +1096,8 @@ int piantirushRoundEndCB( char *strIn )
 //
 int piantirushCapturedCB( char *strIn )
 {
-    static unsigned long int lastTimeCaptured = 0L;
+    static unsigned long int lastTimeCaptured  = 0L;
+    static unsigned long int lastTimeCaptured2 = 0L;
 
     kickArmed = 0;
     _startOfEverything(); 
@@ -1015,6 +1112,21 @@ int piantirushCapturedCB( char *strIn )
         if ( lastTimeCaptured + 10L < apiTimeGet() ) {
             lastTimeCaptured = apiTimeGet();
             apiSay( piantirushConfig.trainingModeMsg );
+        }
+    }
+
+    // if geneva restriction is enabled, announce it at Capture & RoundStart
+    //
+    if ( 0L != p2pGetL( "piantirush.p2p.genevaKick", 0L ) ) {
+
+        // system generates multiple 'captured' report, so it is necessary
+        // to add a 10-second window filter to make sure only one gets fired off.
+        //
+        if ( lastTimeCaptured2 + 10L < apiTimeGet() ) {
+            lastTimeCaptured2 = apiTimeGet();
+            apiSay( "%s %s", 
+                piantirushConfig.genevaKickWarnMessage, 
+                piantirushConfig.genevaWeapons );
         }
     }
 
@@ -1256,6 +1368,12 @@ int piantirushCacheDestroyed( char *strIn )
         }
     }
     kickArmed = 0;
+
+    if ( piantirushConfig.botSpawnKillWindowSec != 0L ) {      // if bot spawnkill prevension is enabled 
+        alarmReset( sPtr, piantirushConfig.botSpawnKillWindowSec );           // set active window timer
+        logPrintf( LOG_LEVEL_INFO, "piantirush", "Bot-spawnkill detection window open for %ld seconds", piantirushConfig.botSpawnKillWindowSec );
+    }
+
     return 0;
 }
 
@@ -1532,6 +1650,33 @@ int piantirushInitConfig( void )
     // 
     p2pSetL( "piantirush.p2p.SigNoWait", 0L );
 
+    // Variables for Bot Spawnkill detection (Checkpoint/Hardcore only)
+    // 
+    piantirushConfig.botSpawnKillWindowSec  = (int) cfsFetchNum( cP, "piantirush.botSpawnKillWindowSec", 10L ); 
+    piantirushConfig.botSpawnKillMaxKills   = (int) cfsFetchNum( cP, "piantirush.botSpawnKillMaxKills",   6L );
+    piantirushConfig.botSpawnKillWarnOrKick = (int) cfsFetchNum( cP, "piantirush.botSpawnKillWarnOrKick", 0L );
+    strlcpy( piantirushConfig.botSpawnKillKickMessage,
+        cfsFetchStr( cP, "piantirush.botSpawnKillKickMessage", "Please do not spawn-kill bots!  Try again!" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.botSpawnKillWarnMessage,
+        cfsFetchStr( cP, "piantirush.botSpawnKillWarnMessage", "Please do not spawn-kill bots!" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.botSpawnKillExemptMethods,
+        cfsFetchStr( cP, "piantirush.botSpawnKillExemptMethods", "" ), CFS_FETCH_MAX);
+
+
+    // Variables for Bot-killing using prohibited weapons (Geneva)
+    // 
+    piantirushConfig.genevaDefault = (int) cfsFetchNum( cP, "piantirush.genevaDefault", 0L );    // default 1=enable 0=disable
+
+    strlcpy( piantirushConfig.genevaKickReason,
+        cfsFetchStr( cP, "piantirush.genevaKickReason", "Auto-kicked for illegal use of weapon.  Try again!" ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.genevaKickWarnMessage,
+        cfsFetchStr( cP, "piantirush.genevaKickWarnMessage", "*Weapons restriction in effect: " ), CFS_FETCH_MAX);
+    strlcpy( piantirushConfig.genevaWeapons, 
+        cfsFetchStr( cP, "piantirush.genevaWeapons", "Molotov ANM14" ), CFS_FETCH_MAX);
+
+    // Geneva weapons restrictions p2p variable
+    p2pSetL( "piantirush.p2p.genevaKick", (long) piantirushConfig.genevaDefault  );
+
     cfsDestroy( cP );
 
     return 0;
@@ -1571,6 +1716,10 @@ int piantirushInstallPlugin( void )
 
     kickArmed = 0;
 
+    sPtr = alarmCreate( _closeBotSpawnWindowCB );  // bot spawnkill window timer
+    alarmReset( sPtr, 0L );
+
+
     // Install Event-driven CallBack hooks so the plugin gets
     // notified for various happenings.  A complete list is here,
     // but comment out what is not needed for your plug-in.
@@ -1598,5 +1747,25 @@ int piantirushInstallPlugin( void )
 
     return 0;
 }
+
+
+
+#if 0
+void piantirush_main( void )
+{
+    char killerName[255], killerID[255], weaponName[255];
+    char killedName[255], killedID[255];
+    int errCode;
+
+    char str1[] = "[2023.05.21-17.31.49:930][ 90]LogGameplayEvents: Display: [Clan]PlName[76560000000000000, team 0] killed Marksman[INVALID, team 1] with BP_Firearm_G3_Child_C_2147355825";
+
+    char str2[] = "[2023.05.21-18.16.19:158][459]LogGameplayEvents: Display: Pl Name[MyClan][b2e0b000000000000000000000000000|00011111111111111111111111111111, team 0] killed Marksman[INVALID, team 1] with BP_Firearm_M4A1_C_2146819051";
+
+    errCode = rosterParsePlayerKill(  str1, 255, killerName, killerID, killedName, killedID, weaponName );
+
+    printf("\nError ::%d:: Killer ::%s::%s:: // Killed ::%s::%s:: // Weapon ::%s::\n", errCode, killerName, killerID, killedName, killedID, weaponName );
+
+}
+#endif
 
 

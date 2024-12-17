@@ -15,14 +15,14 @@ ___ Linux version DOA Testing
 ___ Build 2 Linux Versions for Quick Install:  Standard & Restricted to rel-x.x.x/
 ___ Turn-off SISSM_RESTRICTED flag in src/sissm.c
 ___ Zip src/*, doc/* 2 binaries:  "zip -r rel-x.x.x.zip rel-x.x.x/* doc/* src/* Makefile"
-___ Upload to Windows test platform
+___ Upload to Windows and legacy Linux test platforms
 
 ___ Update the Windows sissm.cfg to reflect changes
 ___ Windows version DOA Testing (cl *.c Ws2_32.lib /Fesissm.exe)
-___ Build 4 Windows versions for Quick-Start Package:  Standard & Restricted x 32- & 64-bits
+___ Build 2 Windows versions for Quick-Start Package:  Standard & Restricted 64-bits only
 
 ___ Create Quick-Start zip package in Windows environment 
-    4 Windows binaries, 2 Linux binaries, Example sissm.cfg, Example badwords.txt, README
+    2 Windows binaries, 4 Linux binaries, Example sissm.cfg, Example badwords.txt, README
 
 ___ Update Github Binary Download Site
 

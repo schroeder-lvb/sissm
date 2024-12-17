@@ -10,14 +10,16 @@ The purpose of the PRIPROTECT Plugin is to prevent the server from crashing due 
 
 This bug appears typically on the final objective/final counterattack on select NWI stock maps when a new player joins the game.  The connection is not causing the crash, however, if the new player selects a role and joins the game on the final objective or during the final counterattack, likelihood of system crash goes up greatly.
 
-If you wish to use this feature, first enable the plugin:
+If you wish to use this feature, make sure your sissm.cfg is updated with the piprotect plugin parameter from doc/example_sissm.cfg.
+
+Enable the plugin:
 
 piprotect.pluginState          1
 
-There are two algorithms - you may enable one or both.
+There are two algorithms - you may enable one or both.  Recommended default as shown
 
 piprotect.enableStartFail      1    // 1=enable kick on repeated failure to start player
-piprotect.enableBlockJoin      1    // 1=block new connection during high risk objectives (see table)
+piprotect.enableBlockJoin      0    // 1=block new connection during high risk objectives (see table)
 
 1.  enableStartFail will detect multiple attempts by the server to start a player into spawn.  If more than set number of attempts are detected per second (default 16 tries/sec as set by piprotect.countThreshold) then this user will be kicked before the server loses stability.
 
@@ -31,9 +33,33 @@ On this example, when the game is in transmit from checkpoint A to B, any new co
 
 piprotect.joinLimit[34] "crossing_checkpoint_security      b 5"
 
+---------------
+Engine.ini
+---------------
+
+For piprotect plugin to work you must have this in your Engine.ini:
+
+[Core.Log]
+LogGameMode=Verbose
+LogSkinnedMeshComp=Error
+
+...
+
 Please see example_sissm.cfg file for good starting example, from which you may modify to your taste.
 
-* * * 
+---------------
+Technical Notes
+---------------
+
+Log messages of concern:
+
+[2023.04.27-14.15.41:531][  7]LogSkinnedMeshComp: Warning: GetBoneTransform : BoneIndex(59) out of range of MasterBoneMap for CharacterMesh1P
+[2023.04.29-00.09.51:453][ 26]LogGameMode: Verbose: RestartPlayerAtTransform <PlayerName>
+[2023.04.29-00.13.02:564][424]LogGameMode: Verbose: RestartPlayerAtPlayerStart <PlayerName>
+
+---------------
+Resolution
+---------------
 
 When this crash bug is fixed, PRIPROTECT plugin will be removed/obsoleted.
 
