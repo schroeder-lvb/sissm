@@ -302,6 +302,21 @@ int pirebooterCapturedCB( char *strIn )
 }
 
 //  ==============================================================================================
+//  pirebooterActivityCB
+//
+//  Used for "kill" detection, which implies activity (reset 'hung' time)
+//
+int pirebooterActivityCB( char *strIn )
+{
+    if ( NULL != strstr( strIn, " killed " ) ) {
+        if ( NULL != strstr( strIn, " with " ) ) {
+            pirebooterConfig.timeLastProgress = apiTimeGet();
+        }
+    }
+    return 0;
+}
+
+//  ==============================================================================================
 //  pirebooterShutdownCB
 //
 //  Server shut down - reset the idle timer AND the time re-booted (which is NOW).
@@ -463,6 +478,7 @@ int pirebooterInstallPlugin( void )
     eventsRegister( SISSM_EV_OBJECTIVE_CAPTURED,   pirebooterCapturedCB );
     eventsRegister( SISSM_EV_PERIODIC,             pirebooterPeriodicCB );
     eventsRegister( SISSM_EV_SHUTDOWN,             pirebooterShutdownCB );
+    eventsRegister( SISSM_EV_ACTIVITY,             pirebooterActivityCB );
 
     return 0;
 }

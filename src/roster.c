@@ -37,7 +37,7 @@ static char rosterObjective[256], rosterObjectiveType[256];
 //  ==============================================================================================
 //  rosterIsValidGUID
 //
-//  Returns 1 for SteamID, 2 for EPIC ID, 0 for invalid ID
+//  Returns 1 for SteamID, 2 for EPIC ID, 3 for WinDGK, 0 for invalid ID
 //
 int rosterIsValidGUID( char *testGUID )
 {
@@ -45,19 +45,28 @@ int rosterIsValidGUID( char *testGUID )
     int len = (int) strlen( testGUID ); 
   
     switch ( len )  { 
-    case 17:                   // Steam
+    case IDSTEAMID64LEN:                // Steam
         isValid = 1;
-        for (i=0; i<17; i++) {
+        for (i=0; i<IDSTEAMID64LEN; i++) {
             if ( !isdigit( testGUID[i] )) {
                 isValid = 0;
                 break;
             }
         }
         break;
-    case 65:                   // EPIC
+    case IDEPICIDLEN:                   // EPIC
         isValid = 2;
-        for (i=0; i<65; i++) {
+        for (i=0; i<IDEPICIDLEN; i++) {
             if ( ( !isxdigit( testGUID[i] )) && ( testGUID[i] != '|' ) ) {
+                isValid = 0;
+                break;
+            }
+        }
+        break;
+    case IDWINGDKLEN:                   // WinGDK
+        isValid = 3;
+        for (i=0; i<IDWINGDKLEN; i++) {
+            if ( !isdigit( testGUID[i] )) {
                 isValid = 0;
                 break;
             }
@@ -74,11 +83,11 @@ int rosterIsValidGUID( char *testGUID )
 //  ==============================================================================================
 //  rosterFindFirstID
 //
-//  This routine extracts the first match for either SteamID or EPIC-ID in the string.  The IDs
+//  This routine extracts the first match for either Steam/Epic/WinGDK ID in the string.  The IDs
 //  must be wrapped in open/close delimiters such as [ and ] or ( and ).  They CANNOT be the 
 //  same symbol.
 //  
-//  Returned foundCode of 0 =  no match, 1 = steamID and 2 = EPIC ID was found.
+//  Returned foundCode of 0 =  no match, 1 = steamID, 2 = EPIC ID, 3 = WinGDK was found.
 //
 int rosterFindFirstID(  char *lineIn, char symOpen, char symClose, char *foundID, int maxString  )
 {
@@ -500,6 +509,10 @@ int rosterParse( char *buf, int n )
                     strlcpy( tmpStr, &w[4], 66 );
                     strlcpy( masterRoster[j].steamID, tmpStr, 66 );
                 } 
+                else if ( NULL != ( w = strstr( masterRoster[j].steamID, "WinGDK:" )) ) { // WinGDK
+                    strlcpy( tmpStr, &w[7], 17 );
+                    strlcpy( masterRoster[j].steamID, tmpStr, 17 );
+                } 
                 else if ( NULL != ( w = strstr( masterRoster[j].steamID, "7656" )) ) {  // pre-v1.11 backword compat
                     strlcpy( tmpStr, w,  32 );
                     strlcpy( masterRoster[j].steamID, tmpStr, 32 );
@@ -830,7 +843,7 @@ void rosterParsePlayerSynthConn( char *connectString, int maxSize, char *playerN
     strlcpy( playerIP,   getWord( connectString, 2, " " ), maxSize );
 
     // look for 3rd <space> for beginning of player name
-    // recoded for EPIC ID
+    // recoded for EPIC ID, also for WinGDK
     // 
     strclr( playerName );
     for (i=0; i < (int) strlen( connectString ); i++) {
@@ -865,7 +878,7 @@ void rosterParsePlayerSynthDisConn( char *connectString, int maxSize,  char *pla
     strlcpy( playerIP,   getWord( connectString, 2, " " ), maxSize );
 
     // look for 3rd <space> for beginning of player name
-    // recoded for EPIC ID
+    // recoded for EPIC ID, also for WinGDK
     // 
     strclr( playerName );
     for (i=0; i < (int) strlen( connectString ); i++) {
@@ -994,8 +1007,11 @@ int rosterParsePlayerChat( char *strIn, int maxChars, char *clientID, char *chat
                     if ( 0 == rosterIsValidGUID( clientID ) ) {
                         strlcpy( clientID, p, 18 );  // check if this is Steam ID
                         if ( 0 == rosterIsValidGUID( clientID ) ) {
-                            strclr( clientID );      // parse error, no ID
-                            errCode = 2;
+                            strlcpy( clientID, p, 17 );  // check if this is WinGDK ID
+                            if ( 0 == rosterIsValidGUID( clientID ) ) {
+                                strclr( clientID );      // parse error, no ID
+                                errCode = 2;
+                           }
                         }
                     }
                     break;
@@ -1054,6 +1070,131 @@ void rosterParseMapname( char *mapLogString, int maxChars, char *mapName )
     return;
 }
 
+// 
+
+//  ==============================================================================================
+//  rosterParsePlayerKill
+//
+//  This is one of series of parser called by event callback routine.
+//  This one is associated with parsing kill-killed event w/ method (weapon)
+//
+//  Sample strIn input:
+//
+//  [2023.05.21-17.31.49:930][ 90]LogGameplayEvents: Display: PlName[76560000000000000, team 0] killed Marksman[INVALID, team 1] with BP_Firearm_G3_Child_C_2147355825
+//  [2023.05.21-18.16.19:158][459]LogGameplayEvents: Display: Pl Name[epic-id, team 0] killed Marksman[INVALID, team 1] with BP_Firearm_M4A1_C_2146819051
+//
+static int _parseKillerKilled( char *killerKilled, int maxChars, char *playerName, char *playerID )
+{
+    char tmpStr[ 1024 ], *u = NULL, *w = NULL;
+    int i, errCode;
+
+    // -----------------
+    // This local method parses "[clan]Player Name[12341234123]"  to playerName and playerID
+    // -----------------
+
+    strlcpy( tmpStr, killerKilled, 1024 );
+
+    // Do a backward search and terminate the string at the last '['
+    // which seprates player name from player ID.
+    //
+    errCode = 1;
+    for (i = (int) strlen( tmpStr ); i>=1; i--) {
+        if ( tmpStr[i] == '[' ) {
+            w = &tmpStr[i];      // w is the pivot
+            *w = 0;              // terminate this string in the middle
+            errCode = 0;
+            break;
+        }
+    }
+
+    // Copy two substrings (first half, second half) to
+    // respective return values, and get rid of [] surrounding
+    // the player ID.
+    //
+    if ( errCode == 0 ) {
+        errCode = 1;
+        strlcpy( playerName, tmpStr, maxChars );
+        strlcpy( playerID, w+1, maxChars );
+        if ( NULL != ( u = strstr( playerID, "]" ))) {
+            *u = 0;
+            errCode = 0;
+        }
+    }
+    return( errCode );
+}
+
+int rosterParsePlayerKill(  char *strIn, int maxChars, char *killerName, char *killerID, char *killedName, char *killedID, char *weaponName )
+{
+    char tmpStr[ 1024 ], *v, *w;
+    int errCode = 1;
+
+    strclr( killerName ); strclr( killerID );
+    strclr( killedName ); strclr( killedID );
+    strclr( weaponName );
+
+    strlcpy( tmpStr, strIn, 1024 );
+
+    if ( NULL != ( w = strstr( tmpStr, ": Display: " ))) {
+
+        // ----------------------
+        // 1 of 3:  process killer name & ID
+        //
+        w += 11;  // points to start of player name
+        if (*w != 0) {
+            if ( NULL == ( v = strstr( w, ", team 0] killed " )))
+                v = strstr( w, ", team 1] killed " );
+            if ( v != NULL ) {
+                *v = ']';
+                *(v+1) = 0;
+                errCode = _parseKillerKilled( w, maxChars, killerName, killerID );
+            }
+        }
+
+        // ----------------------
+        // 2 of 3:  process killed name & ID
+        //
+        if ( errCode == 0) {
+            errCode = 1;
+            strlcpy( tmpStr, strIn, 1024 );
+            if ( NULL == ( w = strstr( tmpStr, ", team 0] killed " ))) {
+                w = strstr( tmpStr, ", team 1] killed " );
+            }
+
+            if ( w != NULL ) {
+                w += 17;  // points to start of player name
+                if ( *w != 0 ) {
+                    if ( NULL == ( v = strstr( w, ", team 0] with " )))
+                        v = strstr( w, ", team 1] with " );
+                    if ( v != NULL ) {
+                        *v = ']';
+                        *(v+1) = 0;
+                        errCode = _parseKillerKilled( w, maxChars, killedName, killedID );
+                    }
+                }
+            }
+        }
+
+        // ----------------------
+        // 3 of 3:  process weaponName
+        //
+        if ( errCode == 0) {
+            errCode = 1;
+            if ( NULL == ( w = strstr( strIn, ", team 0] with " ))) {
+                w = strstr( strIn, ", team 1] with " );
+            }
+            if ( w != NULL ) {
+                w += 15;
+                if ( *w != 0 ) {
+                    strlcpy( weaponName, w, maxChars );
+                    errCode = 0;
+                }
+            }
+        }
+    }
+    return errCode;
+}
+
+
 
 //  ==============================================================================================
 //  rosterSyntheticChangeEvent
@@ -1067,8 +1208,8 @@ void rosterParseMapname( char *mapLogString, int maxChars, char *mapName )
 //  direction is 'disconnect'; calling it backwards finds 'new connections'
 //
 
-#define SIZEOFGUID  (17)            // e.g., 76561100000000000 (17) or EPIC 
-#define SIZEOFIP    (15)            // e.g., 123.035.001.024
+// #define SIZEOFGUID  (17)            // e.g., 76561100000000000 (17) or EPIC 
+// #define SIZEOFIP    (15)            // e.g., 123.035.001.024
 
 int rosterSyntheticChangeEvent( char *prevRoster, char *currRoster, int (*callback)( char *, char *, char *) )
 {

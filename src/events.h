@@ -49,8 +49,8 @@
 #define SISSM_EV_RCON                       (27)
 
 #define SISSM_EV_ACTIVITY                   (28)
-#define SISSM_EV_CA_START                   (29)                      // counterattack start
-#define SISSM_EV_CA_STOP                    (30)                      // counterattack start
+#define SISSM_EV_CA_START                   (29)    // counterattack start, use EV_ACTIVITY instead
+#define SISSM_EV_CA_STOP                    (30)    // counterattack start
 
 
 // Following substring in log file triggers an event

@@ -127,39 +127,53 @@ int piwebgenInitConfig( void )
 //      "76560000000000001 111.001.034.025 Random Person "
 //  To: 
 //      <a href="http://steamcommunity.com/profiles/76560000000000001/" target="_blank">Random Person</a>
-//  And this:
-//      "12312312312312312312312312312312|12312312312312312312312312312312 111.001.034.025 Random Person"
+//  This:
+//      "fe6c0000000000000000000000000001|20000000000000000000000000000003 111.001.034.025 Random Person"
 //  To:
-//      <a href="javascript:alert('12312312312312312312312312312312|12312312312312312312312312312312');" style="color: #8ebf42">Random Person</a> 
-//
-#define STEAM_PROFILE "<a href=\"http://steamcommunity.com/profiles/76560000000000001/\" target=\"_blank\">"
-#define EPIC_PROFILE  "<a href=\"javascript:alert(\'01234567890123456789012345678901|01234567890123456789012345678901\');\" style=\"color: #8ebf42\">"
+//      <a href="javascript:alert('fe6c0000000000000000000000000001|20000000000000000000000000000003');" style="color: #8ebf42">Random Person</a> 
+//  This:
+//      "0123456789012345 111.001.034.025 Random Person"
+//  To:
+//      <a href="javascript:alert('0123456789012345');" style="color: #ff9900">Random Person</a> 
+
+
+#define PROFILE_STEAM  "<a href=\"http://steamcommunity.com/profiles/%s/\" target=\"_blank\">%s</a>"
+#define PROFILE_EPIC   "<a href=\"javascript:alert(\'%s\');\" style=\"color: #8ebf42\">%s</a>"
+#define PROFILE_WINGDK "<a href=\"javascript:alert(\'%s\');\" style=\"color: #ff9900\">%s</a>"
+
 
 char *_convertNameToHyperlink( char *identString )
 {
     static char retStr[256];
-    char testGUID[256], *q;
-    int formatOfID = 0;
+    char playerID[80], playerName[64], *q;
+    int nameIndex, formatOfID = 0;
+
+    //    internal test injection
+    //    strlcpy( identString, "fe6c0000000000000000000000000001|20000000000000000000000000000003 111.001.034.025 Random Person", 256 );
+    //    strlcpy( identString,  "0123456789012345 111.001.034.025 Random Person", 256 );
 
     // Get the first word of identString and check if Steam or EPIC
     //
     if ( NULL != (q = getWord( identString, 0, " " ))) {
-        strlcpy( testGUID, q, 256 );
-        formatOfID = rosterIsValidGUID( testGUID );
+        strlcpy( playerID, q, 80 );
+        formatOfID = rosterIsValidGUID( playerID );
     }
 
     switch( formatOfID ) {
     case 1: // Steam
-        strlcpy( retStr, STEAM_PROFILE, 256 );                                    // copy the template
-        strncpy( &retStr[44], identString, 17 );                        // insert/substitute SteamID64
-        strlcat( retStr, &identString[34], 256 );                           // append name (text part)
-        strlcat( retStr, "</a>", 256 );                                             // close with </a>
+        nameIndex = 34;
+        strlcpy( playerName, &identString[nameIndex], 64 );
+        snprintf( retStr, 256, PROFILE_STEAM, playerID, playerName );
         break;
     case 2: // EPIC
-        strlcpy( retStr, EPIC_PROFILE, 256 );                                    // copy the template
-        strncpy( &retStr[27], identString, 65 );                         // insert/substitute EPIC ID
-        strlcat( retStr, &identString[82], 256 );                           // append name (text part)
-        strlcat( retStr, "</a>", 256 );                                             // close with </a>
+        nameIndex = 82;
+        strlcpy( playerName, &identString[nameIndex], 64 );
+        snprintf( retStr, 256, PROFILE_EPIC, playerID, playerName );
+        break;
+    case 3: // WinGDK
+        nameIndex = 33;
+        strlcpy( playerName, &identString[nameIndex], 64 );
+        snprintf( retStr, 256, PROFILE_WINGDK, playerID, playerName );
         break;
     default:
         strlcpy( retStr, "*InternalError*", 256 );

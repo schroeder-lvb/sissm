@@ -217,6 +217,11 @@ int piprotectClientAddCB( char *strIn )
                 apiSay( "Unable to connect '%s' for this objective", playerName );
                 logPrintf( LOG_LEVEL_WARN, "piprotect", "Protective Kick: '%s'  Map: '%s' Obj: '%c' Limit %d", playerName, mapName, objLetter, limitPlayers );
             }
+            else if ( 3 == rosterIsValidGUID( playerGUID ) ) {   // if WinGDK
+                apiKick( playerName, "Join temporarily blocked for this objective - try again in few minutes" );
+                apiSay( "Unable to connect '%s' for this objective", playerName );
+                logPrintf( LOG_LEVEL_WARN, "piprotect", "Protective Kick: '%s'  Map: '%s' Obj: '%c' Limit %d", playerName, mapName, objLetter, limitPlayers );
+            }
             else {
                 logPrintf( LOG_LEVEL_WARN, "piprotect", "Protective kick failed: '%s'  Map: '%s' Obj: '%c' Limit %d", playerName, mapName, objLetter, limitPlayers );
             }

@@ -115,7 +115,7 @@ int _cmdGameModeProperty(), _cmdRcon();
 int _cmdInfo(), _cmdAllowIn(), _cmdSpam(), _cmdFast(), _cmdAsk(), _cmdPrep(), _cmdWarn();
 int _cmdRules(), _cmdContact(), _cmdThirdWave(), _cmdLock(), _cmdNoKick();
 int _cmdMap(), _cmdMapX(), _cmdMapList(), _cmdMutList(), _cmdMutActive(), _cmdReInit();
-int _cmdBotRespawn(), _cmdBotReset(), _cmdEndGame(), _cmdWax(), _cmdStrict();
+int _cmdBotRespawn(), _cmdBotReset(), _cmdEndGame(), _cmdWax(), _cmdStrict(), _cmdGeneva();;
 int _cmdClan();
 
 struct {
@@ -152,10 +152,10 @@ struct {
     { "bt",     "bant",          "bant [partial name] {reason}",  _cmdBant },
     { "k",      "kick",          "kick [partial name] {reason}",  _cmdKick },
 
-    { "bi",     "banid",         "banid [steamid64] {reason}",    _cmdBanId },
-    { "bit",    "banidt",        "banidt [steamid64] {reason}",   _cmdBanIdt },
-    { "ub",     "unbanid",       "unbanid [steamid64]",           _cmdUnBanId },
-    { "ki",     "kickid",        "kickid [steamid64] {reason}",   _cmdKickId },
+    { "bi",     "banid",         "banid [playerid] {reason}",     _cmdBanId },
+    { "bit",    "banidt",        "banidt [playerid] {reason}",    _cmdBanIdt },
+    { "ub",     "unbanid",       "unbanid [playerid]",            _cmdUnBanId },
+    { "ki",     "kickid",        "kickid [playerid] {reason}",    _cmdKickId },
 
     { "info",   "info",          "info",                          _cmdInfo    },
     { "al",     "allowin",       "allowin [partial name]",        _cmdAllowIn },
@@ -185,6 +185,7 @@ struct {
     { "wax",    "wax",           "wax on|off|perm",               _cmdWax        },
     { "sr",     "strict",        "strict",                        _cmdStrict     },
     { "cl",     "clan",          "clan clear|add|list",           _cmdClan       },
+    { "ge",     "geneva",        "geneva on|off",                 _cmdGeneva     },
 
     { "*",      "*",             "*",                             NULL }
 
@@ -493,6 +494,31 @@ int _cmdLock( char *arg, char *arg2, char *passThru )
     
     return errCode; 
 }
+
+// ===== "geneva on|off"
+//
+int _cmdGeneva( char *arg, char *arg2, char *passThru ) 
+{  
+    int errCode = 0;
+
+    if (0 == strcmp( "off", arg )) {
+        p2pSetL( "piantirush.p2p.genevaKick", 0L );
+        apiSaySys( "Geneva Rule Off" );
+    }
+    else if (0 == strcmp( "on", arg )) {
+        p2pSetL( "piantirush.p2p.genevaKick", 1L );
+        apiSaySys( "*Geneva Rule is ON - weapons restrictions apply!" );
+    }
+    else {
+        switch ( p2pGetL( "piantirush.p2p.genevaKick", 0L ) ) {
+            case 1L:  apiSaySys( "Geneva is ON - weapons restrictions apply" );    break;
+            default:  apiSaySys( "Geneva is OFF - no restrictions" );  
+        }
+    }
+    
+    return errCode; 
+}
+
 
 // ===== "wax on|off"
 //
@@ -803,7 +829,7 @@ int _cmdEndGame( char *arg, char *arg2, char *passThru  )
 
 
 
-// ===== "banid [steamid]"
+// ===== "banid [playerid]"
 // target may be offline (ISS ver 1.4+ banid rcon command)
 //
 int _cmdBanId( char *arg, char *arg2, char *passThru  ) 
@@ -823,7 +849,7 @@ int _cmdBanId( char *arg, char *arg2, char *passThru  )
     return errCode; 
 }
 
-// ===== "banidt [steamid]"
+// ===== "banidt [playerid]"
 // target may be offline (ISS ver 1.4+ banid rcon command)
 //
 int _cmdBanIdt( char *arg, char *arg2, char *passThru  ) 
@@ -843,7 +869,7 @@ int _cmdBanIdt( char *arg, char *arg2, char *passThru  )
     return errCode; 
 }
 
-// ===== "unbanid [steamid]"
+// ===== "unbanid [playerid]"
 // target may be offline (ISS ver 1.4+ unbanid rcon command)
 //
 int _cmdUnBanId( char *arg, char *arg2, char *passThru  ) 
@@ -863,7 +889,7 @@ int _cmdUnBanId( char *arg, char *arg2, char *passThru  )
     return errCode; 
 }
 
-// ===== "kickid [steamid]"
+// ===== "kickid [playerid]"
 // target must be online
 //
 int _cmdKickId( char *arg, char *arg2, char *passThru  ) 
@@ -871,7 +897,7 @@ int _cmdKickId( char *arg, char *arg2, char *passThru  )
     int errCode = 1;
     char cmdOut[256], statusIn[256];
 
-    if ( rosterIsValidGUID( arg )) {  // EPIC
+    if ( rosterIsValidGUID( arg )) {  // if valid ID
         snprintf( cmdOut, 256, "kick \"%s\" \"%s\"", arg, _reason( passThru) );
         apiRcon( cmdOut, statusIn );
         errCode = 0;
@@ -933,7 +959,7 @@ int _cmdKick( char *arg, char *arg2, char *passThru )
     int errCode = 0;
     char steamID[256];
 
-    // Lookup Steam or EPIC ID from player name 'arg'
+    // Lookup Steam, EPIC or WinGDK ID from player name 'arg'
     //
     strlcpy( steamID, rosterLookupSteamIDFromPartialName( arg, 3 ), 256 );
 
@@ -942,11 +968,11 @@ int _cmdKick( char *arg, char *arg2, char *passThru )
         vendorType = rosterIsValidGUID( steamID );
 
         switch( vendorType ) {
-        case 1:   // steam:  kick by ID for definitive target
+        case 1:   // Steam:  kick by ID for definitive target
             errCode = apiKick( steamID, _reason( passThru ) );
             logPrintf( LOG_LEVEL_WARN, "picladmin", "Steam Admin kick by ID  ::%s::", steamID );
             break;
-        case 2:   // epic:  kick by name due to NWI bug (SS 1.13 and prior)
+        case 2: case 3:  // EPIC/WinGDK:  kick by name due to NWI bug (SS 1.13 and prior)
             errCode |= apiKick( arg, _reason( passThru ) );
             logPrintf( LOG_LEVEL_WARN, "picladmin", "EPIC Admin kick by Name ::%s::", arg );
             break;

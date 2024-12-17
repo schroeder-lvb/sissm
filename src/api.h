@@ -64,8 +64,9 @@ extern char *apiMutActive( int fetchNow );
 
 extern int   apiIsHotRestart( void );
 
-#define IDSTEAMID64LEN        (17)
+#define IDSTEAMID64LEN        (17)   // SteamID64
 #define IDEPICIDLEN           (65)   // EPIC 
+#define IDWINGDKLEN           (16)   // WinGDK
 
 #define WORDLISTMAXELEM     (1024)
 #define WORDLISTMAXSTRSZ     ( 32)  

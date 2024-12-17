@@ -2316,14 +2316,14 @@ int apiMapcycleRead( char *mapcycleFile )
                         strlcpy( mapCycleList[i].reqName,  lastReqName,  256 );
                         strlcpy( mapCycleList[i].traveler, lastMapName,  256 );
                         strncat( mapCycleList[i].traveler, "?Scenario=", 256 );
-                        strncat( mapCycleList[i].traveler, scenarioName, 256 );
+                        strncat( mapCycleList[i].traveler, scenarioName, 128 );
 
                         // parse the gamemode
                         //
                         if ( NULL != ( v = strcasestr( tmpLine, "mode=\"" )  )) {
                             if ( NULL != (u = getWord( v, 1, "\"" )) ) {
                                 strncat( mapCycleList[i].traveler, "?Game=", 256 );
-                                strncat( mapCycleList[i].traveler, u,        256 );
+                                strncat( mapCycleList[i].traveler, u,        172 );
                                 strlcpy( mapCycleList[i].gameMode, u,         40 );
                             }
                         }

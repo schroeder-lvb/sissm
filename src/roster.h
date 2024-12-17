@@ -49,11 +49,12 @@ extern char *rosterGetMutator( void );
 extern void  rosterSetServerName( char *serverName );
 extern char *rosterGetServerName( void );
 
+extern int rosterParsePlayerKill( char *strIn, int maxChars, char *killerName, char *killerID, char *killedName, char *killedID, char *weaponName );
+
 extern void rosterReset( void );
 extern void rosterInit( void );
 extern int  rosterParse( char *buf, int n );
 extern int  rosterCount( void );
-
 
 extern char *rosterLookupNameFromIP( char *playerIP );
 extern char *rosterLookupIPFromGUID( char *playerGUID );
