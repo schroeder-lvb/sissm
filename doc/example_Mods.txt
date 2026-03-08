@@ -1,9 +1,4 @@
-# Pruefstand 7
-# https://insurgencysandstorm.mod.io/pruefstand-72
-120200
+# This file is no longer used after Sandstorm v1.20
 
-MountainPass
-# https://insurgencysandstorm.mod.io/mountainpass
-109375
 
 

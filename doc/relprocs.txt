@@ -1,4 +1,4 @@
-SISSM Release Procedure 
+SISSM Release Procedure
 (Post-Testing Release Checklist)
 
 ___ 'git status' audit for missed new files, removed files, changed files
@@ -11,41 +11,48 @@ ___ Example .CFG file update
 ___ Example .CFG file update header w/ rev#
 ___ Update Documentation if changes require it
 
-___ Linux version DOA Testing
+* * * Linux
+
+___ Create rel-XX folder 
+___ Linux version Build/DOA Testing
 ___ Build 2 Linux Versions for Quick Install:  Standard & Restricted to rel-x.x.x/
+___ Build 2 Linux AppImage Versions for Quick Install:  Standard & Restricted to rel-x.x.x/
 ___ Turn-off SISSM_RESTRICTED flag in src/sissm.c
 ___ Zip src/*, doc/* 2 binaries:  "zip -r rel-x.x.x.zip rel-x.x.x/* doc/* src/* Makefile"
 ___ Upload to Windows and legacy Linux test platforms
 
+* * * Windows
+
 ___ Update the Windows sissm.cfg to reflect changes
 ___ Windows version DOA Testing (cl *.c Ws2_32.lib /Fesissm.exe)
 ___ Build 2 Windows versions for Quick-Start Package:  Standard & Restricted 64-bits only
-
-___ Create Quick-Start zip package in Windows environment 
+___ Create Quick-Start zip package in Windows environment
     2 Windows binaries, 4 Linux binaries, Example sissm.cfg, Example badwords.txt, README
 
-___ Update Github Binary Download Site
+* * * GITHUB Source Package 
 
 ___ Github token generation -- https://github.com/settings/tokens/new, click on "Repo"
     https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
-
 ___ Linux:  git status, verify no files added inadvertantly
-___ Linux:  Commit, Push 
+___ Linux:  Commit, Push
 
     git branch              (display the branches)
-    git commit -a           (call it "v0.0.0 Alpha vs ISS vX.X CTE patch-1)
+    git commit -a           (call it "v0.0.0 vs ISS vX.X)
     git push origin v0.0.0
 
 ___ Web:  Pull Request & Merge on Github
-
 ___ Announcement on Forums & Chats
 ___ Create .zip archive for offline backup
-
 ___ Cleanup local git copy and create a new branch for next time
 
     git checkout master
     git pull origin master
     git branch -d v0.0.0     (old branch, -D to force)
     git checkout -b v0.0.0      (create next branch)
+    (Note: to rename an existing branch, git branch -m new-name)
 
-    (to rename a branch, git branch -m new-name)
+* * * GITHUB Binary Package 
+
+___ Upload to Github, Binary Package
+
+

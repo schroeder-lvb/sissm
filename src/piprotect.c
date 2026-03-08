@@ -41,6 +41,7 @@
 #include "winport.h"
 #include "bsd.h"
 #include "log.h"
+#include "rdrv.h"
 #include "events.h"
 #include "cfs.h"
 #include "util.h"
@@ -60,11 +61,14 @@
 #define PIPROTECT_MAXNAMESIZE (80)
 #define PIPROTECT_MAXNUMNAMES (32)
 
-#define PIPROTECTERRMATCH1 "RestartPlayerAtPlayerStart"
-#define PIPROTECTERRMSG1   "[2022.05.28-02.26.24:185][ 38]LogGameMode: Verbose: RestartPlayerAtPlayerStart"
+#define PIPROTECTERRMATCH1  "RestartPlayerAtPlayerStart"
+#define PIPROTECTERRMSG1    "[2022.05.28-02.26.24:185][ 38]LogGameMode: Verbose: RestartPlayerAtPlayerStart"
 
-#define PIPROTECTERRMATCH2 "RestartPlayerAtTransform"
-#define PIPROTECTERRMSG2   "[2022.06.04-20.54.13:643][ 48]LogGameMode: Verbose: RestartPlayerAtTransform"
+#define PIPROTECTERRMATCH2  "RestartPlayerAtTransform"
+#define PIPROTECTERRMSG2    "[2022.06.04-20.54.13:643][ 48]LogGameMode: Verbose: RestartPlayerAtTransform"
+
+// #define PIPROTECTVOTEERRSTR "LogGameMode: Error: Unhandled conclusion from mapcycle map vote: 0:"
+#define PIPROTECTVOTEERRSTR "mapcycle map vote"
 
 static int  nameCharOffset1, nameCharOffset2;
 static char errPlayerName[ PIPROTECT_MAXNUMNAMES ][PIPROTECT_MAXNAMESIZE];
@@ -84,6 +88,9 @@ static struct {
 
     int  enableBlockJoin;                                         // block high risk join (2 of 2)
     char joinLimit[PIPROT_MAXLASTOBJTABLE][CFS_FETCH_MAX];       // side/map/objective nbots adjustments
+
+    int enableMapVoteWorkaround;    // 1=enable handling of map "nobody voted" bug exception check
+    char mapVoteErrRconEx[ CFS_FETCH_MAX ];    // map chagne rcon command to execute if vote fails 
 
 } piprotectConfig;
 
@@ -129,12 +136,18 @@ int piprotectInitConfig( void )
 
     strlcpy( piprotectConfig.kickReason, cfsFetchStr( cP, "piprotect.kickReason", "Server Internal Error" ), CFS_FETCH_MAX);
 
+
+    // algorithm #3 - check for system exception triggered by "nobody voted for map" bug v1.20
+    // 
+    piprotectConfig.enableMapVoteWorkaround = 
+        (int) cfsFetchNum( cP, "piprotect.enableMapVoteWorkaround",     0.0 );  // 0=disable 1=enable
+    strlcpy( piprotectConfig.mapVoteErrRconEx, cfsFetchStr( cP, "piprotect.mapVoteErrRconEx", 
+        "travel Ministry?Scenario=Scenario_Ministry_Checkpoint_Security" ), CFS_FETCH_MAX);
+
     cfsDestroy( cP );
 
     return 0;
 }
-
-
 
 
 //  ==============================================================================================
@@ -471,6 +484,35 @@ int piprotectPeriodicCB( char *strIn )
     return 0;
 }
 
+//  ==============================================================================================
+//  piprotectSysErrorCB
+//
+//
+int piprotectSysErrorCB( char *strIn )
+{
+    static char cmdOut[BUFSIZE_T], statusIn[BUFSIZE_R];
+    int errCode = 0;
+
+    // look for [2026.03.01-19.26.53:628][745]LogGameMode: Error: Unhandled conclusion from mapcycle map vote: 0:
+    // 
+    if ( NULL != strstr( strIn, PIPROTECTVOTEERRSTR ) ) {
+        
+        // map change to something 'safe' here
+        //
+        // strlcpy( cmdOut, "travel Ministry?Scenario=Scenario_Ministry_Checkpoint_Security", BUFSIZE_T );
+        strlcpy( cmdOut, piprotectConfig.mapVoteErrRconEx, BUFSIZE_T );
+        errCode = apiRcon( cmdOut, statusIn );
+
+        logPrintf( LOG_LEVEL_WARN, "piprotect", "**System internal error - Map Vote Fail / Working around it: %d", errCode  );
+    }
+
+    // do any other system Error detection and handling here.
+    //
+    ;; 
+
+    return 0;
+} 
+
 
 //  ==============================================================================================
 //  piprotectInstallPlugin
@@ -515,10 +557,14 @@ int piprotectInstallPlugin( void )
     // eventsRegister( SISSM_EV_SESSIONLOG,           piprotectSessionLog );
     // eventsRegister( SISSM_EV_OBJECT_SYNTH,         piprotectObjectSynth );
     eventsRegister( SISSM_EV_PERIODIC,                piprotectPeriodicCB );
+
    
     if ( piprotectConfig.enableStartFail ) 
         eventsRegister( SISSM_EV_BP_PLAYER_CONN,   piprotectDetectedCB );  // was MESHERR
 
+    if ( piprotectConfig.enableMapVoteWorkaround )  
+        eventsRegister( SISSM_EV_SYS_ERROR,        piprotectSysErrorCB );
+    
     nameCharOffset1 = (int) strlen( PIPROTECTERRMSG1 ) + 1;
     nameCharOffset2 = (int) strlen( PIPROTECTERRMSG2 ) + 1;
 
