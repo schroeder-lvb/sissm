@@ -32,6 +32,7 @@ extern char *apiGameModePropertyGet( char *gameModeProperty );
 extern char *apiGameModePropertyGetRaw( char *gameModeProperty );
 extern int   apiSay( const char * format, ... );
 extern int   apiSaySys( const char * format, ... );
+extern int   apiSayQue( const char * format, ... );
 extern int   apiKickOrBan( int isBan, char *playerGUID, char *reason );
 extern int   apiKick( char *playerNameOrGUID, char *reason );
 extern int   apiKickAll( char *reason );
@@ -61,6 +62,8 @@ extern int   apiMutLookup( char *partialString, char *fullString, int maxStringS
 extern char *apiMutList( void );
 extern char *apiMutActive( int fetchNow );
 
+extern int   apiGetBotWaves( void );
+extern int   apiSetBotWaves( int numWaves );
 
 extern int   apiIsHotRestart( void );
 

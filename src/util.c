@@ -188,6 +188,76 @@ void strToLowerInPlace(char * s)
     return;
 }
 
+//  ==============================================================================================
+//  strSubReplace
+// 
+//  Replace substring (strFind) with another (strReplace).  This returns 0 if match
+//  not found, and 1 if replacement was made.  In either case, the output result is strOut. 
+//
+//
+int strSubReplace( char *strIn, char *strFind, char *strReplace, int strMaxSize, char *strOut )
+{
+    int stat = 0;
+    char *w, *v;
+
+    strlcpy( strOut, strIn, strMaxSize );
+    v = strstr( strIn,  strFind );
+    w = strstr( strOut, strFind );
+    if ( NULL == w ) {
+        // if not found, strOut already has the original image
+        stat = 0;
+    }
+    else {
+        // put string terminator at start of match
+        *w = (char) 0;
+        // copy-in the replacement
+        strlcat( strOut, strReplace, strMaxSize );
+        // copy-in the last part (after match)
+        v += strlen( strFind );
+        strlcat( strOut, v, strMaxSize );
+        stat = 1;      // confirm replaced
+    }
+    return stat;
+}
+
+
+//  ==============================================================================================
+//  strSubReplaceWord
+//
+//  Replace substring (strFind) with another (strReplace).  This returns 0 if match
+//  not found, and 1 if replacement was made.  In either case, the output result is strOut. 
+//  This variant works by word-based algorithm separated by a delimiter character 'delim'
+//
+int strSubReplaceWord( char delim, char *strIn, char *strFind, char *strReplace, int strMaxSize, char *strOut )
+{
+    char currWord[80], delimStr[2], *w;
+    int  len, stat = 0, wordIndex = 0;
+
+    delimStr[0] = delim;  delimStr[1] = 0;
+
+    strcpy( strOut, "" );
+    while ( 1 == 1 ) {
+
+        if ( NULL == (w = getWord( strIn, wordIndex++, delimStr )) ) {
+            break;
+        }
+        strlcpy( currWord, w, 80 );
+        if ( 0 == strcmp( currWord, strFind ) ) {  // if match
+            strlcpy( currWord, strReplace, 80 );
+            stat = 1;
+        }
+        strlcat( strOut, currWord, strMaxSize );
+        strlcat( strOut, delimStr, strMaxSize );
+    }
+
+    if ( (len = (int) strlen( strOut )) > 1 ) {
+        strOut[len-1] = 0;
+    }
+    return stat;
+
+}
+
+
 
 //  ==============================================================================================
 //  reformatIP
@@ -273,5 +343,56 @@ int debugPoke( char *fileName, int *valueOut )
         fclose( fpr );
     }
     return( errCode ); 
+}
+
+
+//  ==============================================================================================
+//  String Quueue Collection 
+//      strInitQue, strDeQue, strEnQue
+// 
+//
+void strInitQue( strQuePtr qp, int queDepthLimit )
+{
+    qp->head  = 0;
+    qp->tail  = 0;
+
+    qp->limit = queDepthLimit;  // que depth soft limit
+    if (qp->limit > STRQUE_ELEM) qp->limit = STRQUE_ELEM;
+
+    return;
+}
+
+char *strDeQue( strQuePtr qp )
+{
+    char *retPtr;
+
+    if ( qp->head == qp->tail ) {  // if empty
+        retPtr = NULL;
+    }
+    else {
+        if ( ++qp->tail >= qp->limit ) qp->tail = 0;
+        retPtr = qp->strData[ qp->tail ];
+        // printf("\nRead from %d", qp->tail );
+    }
+    return retPtr;
+}
+
+int strEnQue( strQuePtr qp, char *strIn )
+{
+    int errCode = 0;
+    int newHead = qp->head + 1;
+
+    if ( newHead >= qp->limit ) newHead = 0;
+
+    if ( newHead == qp->tail ) {  // if full
+        errCode = 1;
+    }
+    else {
+        strlcpy( qp->strData[ newHead ], strIn, STRQUE_STRLEN-1 );
+        // printf("\nWrote to %d", newHead );
+        errCode = 0;
+        qp->head = newHead;
+    }
+    return errCode;
 }
 

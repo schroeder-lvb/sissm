@@ -1,13 +1,13 @@
 Simple Insurgency Sandstorm Server Manager - SISSM
 Quick Start Guide for SISSM
-JS Schroeder -- last updated:  2020.09.26
+JS Schroeder -- last updated:  2026.03.07
 ===============================
 
 For source, description and documentation of SISSM, visit:
 https://github.com/schroeder-lvb/sissm
 
 This is a quick-start install instruction site for SISSM, if --
-*  You are using pre-compiled executable package (Windows/Debian10/Ubuntu20)
+*  You are using pre-compiled executable package (Windows/Debian/Ubuntu)
 *  You already have a working Co-op mode Insurgency Sandstorm Server, and
 *  You have full control of your server (shell access) for installing 3rd party software, 
    e.g., home server or cloud-based VPS (but not a commercial game hosting service)
@@ -44,10 +44,10 @@ https://github.com/schroeder-lvb/sissm_releases
 
 Download the latest 'quick-start' package and unzip to an empty folder:
 
-*  sissm                  Linux executable
-*  sissm_restricted       Linux variant for GSPs - script execution is disabled for security
-*  sissm.exe              Windows executable
-*  sissm_restricted.exe   Windows variant for GSPs - script execution is disabled for security
+*  sissm                Linux executable
+*  sissm-GSP            Linux variant for GSPs - script execution is disabled for security
+*  sissm.exe            Windows executable
+*  sissm-GSP.exe        Windows variant for GSPs - script execution is disabled for security
 *  sissm_example.cfg    Starter configuration (from which you will make a copy and edit)
 
 (There may be 32- and 64-bit versions of the Windows executable.)
@@ -92,7 +92,7 @@ LogGameplayEvents=Verbose
 LogDemo=Verbose
 LogObjectives=Verbose
 LogGameMode=Verbose
-LogNet=Log
+LogNet=Net
 LogINSGameInstance=Verbose
 LogUObjectGlobals=Verbose
 
@@ -132,4 +132,5 @@ Note some plugins are disabled by default on the distribution package.
 
 Almost all of SISSM's messages sent to the game clients are defined in the SISSM.CFG file.
 Experiment with language localization according to your server location.
+
 

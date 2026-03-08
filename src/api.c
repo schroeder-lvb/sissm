@@ -110,9 +110,10 @@ static idList_t clanIdList;
 // "bad words" list that can be used to filter connection (pigatewa)
 
 static wordList_t badWordsList;                                               // Bad words list
-static char badWordsFilePath[ API_LINE_STRING_MAX ];            // full file path to admins.txt
+static char badWordsFilePath[ CFS_FETCH_MAX ];                  // full file path to admins.txt
 
-static char mapcycleFilePath[ API_LINE_STRING_MAX ];          // full file path to mapcycle.txt
+static char mapcycleFilePath[ CFS_FETCH_MAX ];                // full file path to mapcycle.txt
+static char mapcycleHiddenChar[ CFS_FETCH_MAX ];         // maps to hide from voting & rotation
 
 struct {
     char mapName[ 256];    // map name required for traveler
@@ -160,6 +161,10 @@ double finalCacheBotQuotaMultiplier = 0;                     // 0=disable, typic
 #endif
 
 static int _inHotRestart = 1;            // assume SISSM hotrestart, cleared when new round starts
+
+static strQue sayQue;      // string queue buffer for time throttled apiSayQue() output to console
+
+static int _currentWaves = 0;                       // current bot waves 2, 3, or 0=system default
 
 //  ==============================================================================================
 //  apiRemoveCodes
@@ -602,6 +607,26 @@ int _apiPollAlarmCB( char *strIn )
 }
 
 //  ==============================================================================================
+//  _apiPeriodicCB
+//
+//  Call-back function for peirodic processing (1.0hz)
+// 
+int _apiPeriodicCB( char *strIn )
+{
+    char *w, sayLine[80];
+
+    // apiSayQue processing - if any message is queued to output to
+    // console, deque one and send it to apiSaySys().
+    //
+    if ( NULL != (w = strDeQue( &sayQue )) ) {
+        strlcpy( sayLine, w, 80 );
+        apiSaySys( sayLine );
+    }
+    return 0;
+}
+
+
+//  ==============================================================================================
 //  _apiChatCB
 //
 //  Call-back function for player typing something into the chat box - for the API module 
@@ -953,6 +978,11 @@ int _apiMapChangeCB( char *strIn )
     errCode = _apiFetchGameState();
     logPrintf( LOG_LEVEL_INFO, "api", "MapChange ActiveObjective update::%s:: and Error ::%d::", gameStatePrevious, errCode );
 
+    // On transition to a new map, BotWaves reset back to default (game.ini), so let's track that
+    // Note: BotWaves setting does not to auto-reset on new rounds 
+    //
+     _currentWaves = 0;
+
     return 0;
 }
 
@@ -1288,6 +1318,10 @@ int apiInit( void )
     //
     strlcpy( mapcycleFilePath, cfsFetchStr( cP, "sissm.mapcycleFilePath", "" ), CFS_FETCH_MAX );
 
+    // read if to enable advanced hidden Mapcycle feature that hides from voting
+    // 
+    strlcpy( mapcycleHiddenChar, cfsFetchStr( cP, "sissm.mapcycleHiddenChar", "" ), CFS_FETCH_MAX );
+
     // read the Mutator lists allowed by this system
     //
     strlcpy( mutListTemp1, cfsFetchStr( cP, "sissm.MutatorsStock", "" ), CFS_FETCH_MAX );
@@ -1399,6 +1433,10 @@ int apiInit( void )
     eventsRegister( SISSM_EV_ACTIVITY,         _apiCounterStartCB );
     eventsRegister( SISSM_EV_CA_STOP,          _apiCounterStopCB  );
 
+    // Setup Periodic call back
+    //
+    eventsRegister( SISSM_EV_PERIODIC,         _apiPeriodicCB );
+
     // Setup Alarm (periodic callbacks) for fetching roster from RCON
     // 
     _apiPollAlarmPtr = alarmCreate( _apiPollAlarmCB );
@@ -1452,6 +1490,10 @@ int apiInit( void )
     // Clear the clan list
     //
     apiIdListClear( clanIdList );
+
+    // initialize the string queue structure for apiSayQue()
+    //
+    strInitQue( &sayQue, STRQUE_ELEM );
 
     return( _rPtr == NULL );
 }
@@ -1657,6 +1699,32 @@ char *apiGameModePropertyGetRaw( char *gameModeProperty )
     }
     return( value );
 }
+
+
+
+//  ==============================================================================================
+//  apiSayQue
+//
+//  Same as apiSaySys except output to console is throttled since the game has bandwidth   
+//  limiter for many messages sent quickly.
+//  
+//
+int apiSayQue( const char * format, ... )
+{
+    static char buffer[API_T_BUFSIZE];
+    va_list args;
+
+    va_start( args, format ); 
+    vsnprintf( buffer, (API_T_BUFSIZE >= API_MAXSAY) ? API_MAXSAY : API_T_BUFSIZE, format, args );
+    apiRemoveCodes( buffer );                         // remove color codes if mod is not installed
+
+    // apiSaySys( buffer ); 
+    strEnQue( &sayQue, buffer );
+
+    va_end( args );
+    return 0;
+}
+
 
 //  ==============================================================================================
 //  apiSay
@@ -2250,9 +2318,10 @@ char *apiGetServerNameRCON( int forceCacheRefresh )
 int apiMapcycleRead( char *mapcycleFile )
 {
     FILE *fpr;
-    int   i, j;
+    int   i, j, k;
     char  tmpLine[256], lastMapName[256], lastReqName[256];
     char  *w, *w2, *v, *u, scenarioName[256];
+    char  hiddenChar;
 
     strclr( lastMapName );
     for (i = 0; i<API_MAXMAPS; i++) {
@@ -2274,10 +2343,33 @@ int apiMapcycleRead( char *mapcycleFile )
     strclr( mutDefault );
 #endif
 
+    // check if we are using new feature to hide active maps from 
+    // voting & rotation, but still callable from SISSM !map command.
+    // this feature introduced in v1.5 of SISSM.  hiddenChar = 0 is
+    // disabled. HiddehChar = '!' is recommended.
+    //
+    hiddenChar = mapcycleHiddenChar[0];
+
+    // Read through the mapcycle file
+    // 
     i = 0;
     if ( NULL != (fpr = fopen( mapcycleFile, "rt" ))) {
         while ( !feof( fpr ) ) {
             if (NULL != fgets( tmpLine, 255, fpr )) {
+
+                // part 0:  special case with "!" as first character
+                //
+                if ( 0 != hiddenChar ) {
+                    if (( strlen( tmpLine ) > 2 ) && ( tmpLine[0] == hiddenChar )) {
+                        // shift all characters of this string to left, 
+                        // writing over the "!" 
+                        k = 0;
+                        do { 
+                            k++;
+                            tmpLine[k-1] = tmpLine[k];  
+                        } while ( tmpLine[k] != 0 );
+                    }
+                }
 
                 // part 1:  parse the "#SISSM.mapname" line
                 //
@@ -2615,6 +2707,7 @@ char *apiMutActive( int fetchNow )
     static int  firstTime = 1;
     char        mutatorsGMP[ API_MUT_GMP_MAX ];
     char        *savedPointer[ API_MUT_MAXLIST ];
+    char        compareString[ API_MUT_MAXLIST ]; 
     int         i, j, skipThis;
 
     if ( firstTime || fetchNow ) {
@@ -2626,8 +2719,12 @@ char *apiMutActive( int fetchNow )
         j = 0;
 
         while (0 != strlen( mutAllowedListSorted[j] )) {
+          
+            strlcpy( compareString, mutAllowedListSorted[j], API_MUT_MAXLIST );
+            strlcat( compareString, "_C", API_MUT_MAXLIST );
 
-            if ( NULL != (savedPointer[j] = strcasestr( mutatorsGMP, mutAllowedListSorted[j] ) )) {
+            // if ( NULL != (savedPointer[j] = strcasestr( mutatorsGMP, mutAllowedListSorted[j] ) )) {
+            if ( NULL != (savedPointer[j] = strcasestr( mutatorsGMP, compareString  ) )) {
 
                 // look for previously found duplicate at the same string position to 
                 // eliminate erroneous reporting of mutator names that are subset string
@@ -2662,6 +2759,48 @@ char *apiMutActive( int fetchNow )
 
     return mutatorsActive;
 }
+
+//  ==============================================================================================
+//  apiSetBotWaves/apiGetBotWaves
+//
+//  Set number of bot waves for Checkpoint/Hardcore.  System default is '2' but can be increased
+//  to '3' more increased number of bots spawned across time (according to DPR settings).
+//  
+//
+int apiGetBotWaves( void )
+{
+    // returns 0 = unset, 2 = '2waves', 3 = '3 waves'
+    return _currentWaves;
+}
+
+int apiSetBotWaves( int numWaves )
+{
+    int errCode = 0;
+
+    switch ( numWaves ) {
+    case 2:  // 2 waves
+        apiGameModePropertySet( "ObjectiveTotalEnemyRespawnMultiplierMin",  "0.6" ) ;
+        apiGameModePropertySet( "ObjectiveTotalEnemyRespawnMultiplierMax",  "1.0" ) ;
+        apiGameModePropertySet( "RespawnDPR",  "0.1" ) ;
+        logPrintf( LOG_LEVEL_INFO, "api", "Set to 2 bot spawn waves" );
+        _currentWaves = 2;
+        break;
+    case 3:  // 3 saves
+        apiGameModePropertySet( "ObjectiveTotalEnemyRespawnMultiplierMin",  "1.0" ) ;
+        apiGameModePropertySet( "ObjectiveTotalEnemyRespawnMultiplierMax",  "2.0" ) ;
+        apiGameModePropertySet( "RespawnDPR",  "0.2" ) ;
+        logPrintf( LOG_LEVEL_INFO, "api", "Set to 3 bot spawn waves" );
+        _currentWaves = 3;
+        break;
+    default:
+        errCode = 1;
+        logPrintf( LOG_LEVEL_CRITICAL, "api", "Invalid value for Wave3 State - must fix" );
+        break;
+    }
+    return errCode; 
+}
+
+
 
 
 //  ==============================================================================================

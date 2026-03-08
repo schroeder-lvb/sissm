@@ -60,6 +60,12 @@ Exmaples:  !bd 5, !botdifficulty 10
 
 ========================
 
+botwaves (bw) [2-3]
+Change enemy bot spawn wave count in PvE. (2=default)
+Exmaples:  !bw 3, !botwaves 2
+
+========================
+
 killfeed (kf) on|ff
 Turn on/off killfeed
 Examples:  !kf off, !killfeed on

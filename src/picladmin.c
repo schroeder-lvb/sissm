@@ -96,8 +96,8 @@ static struct {
 
 
 
-static int _rulesIndex = -1;
-static int _rulesTickCount = 0;
+// static int _rulesIndex = -1;
+// static int _rulesTickCount = 0;
 
 
 //  ==============================================================================================
@@ -106,7 +106,7 @@ static int _rulesTickCount = 0;
 
 int _cmdHelp(), _cmdVersion(), _cmdMacros(), _cmdMacrosList();
 int _cmdDeveloper();
-int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty();
+int _cmdBotFixed(), _cmdBotScaled(), _cmdBotDifficulty(), _cmdBotWaves();
 int _cmdKillFeed(), _cmdFriendlyFire();
 int _cmdRestart(), _cmdEnd(), _cmdReboot();
 int _cmdBan(), _cmdBant(), _cmdKick(), _cmdNoWait();
@@ -134,6 +134,7 @@ struct {
     { "bf",     "botfixed",      "botfixed [nBots]",              _cmdBotFixed },
     { "bs",     "botscaled",     "botscaled [nBots]",             _cmdBotScaled },
     { "bd",     "botdifficulty", "botdifficulty [0-10]",          _cmdBotDifficulty },
+    { "bw",     "botwaves",      "botwaves [2-3]",                _cmdBotWaves },
     { "x",      "execute",       "execute [alias]",               _cmdMacros },
     { "ml",     "macroslist",    "macroslist",                    _cmdMacrosList },
 
@@ -677,6 +678,35 @@ int _cmdBotDifficulty( char *arg, char *arg2, char *passThru )
     return errCode;
 }
 
+// ===== "botwaves [2-3]"
+//
+int _cmdBotWaves( char *arg, char *arg2, char *passThru ) 
+{ 
+    int  errCode = 0;
+
+    if ( 0 == strcmp( arg, "2" )) {
+        if ( 0 == (errCode = apiSetBotWaves( 2 ))) {
+            p2pSetL( "picladmin.p2p.botWaveOverride", 2L );  // flag as admin override
+        }
+    }
+    else if ( 0 == strcmp( arg, "3" )) {
+        if ( 0 == (errCode = apiSetBotWaves( 3 ))) {
+            p2pSetL( "picladmin.p2p.botWaveOverride", 3L );  // flag as admin override
+        }
+    }
+    else if ( 0 == strcmp( arg, "reset" )) {
+        p2pSetL( "picladmin.p2p.botWaveOverride", 0L );      // flag as auto
+    }
+    else {
+        errCode = 1;
+    }
+
+    _stddResp( errCode );   // ok or error message to game
+
+    return errCode;
+}
+
+
 // ===== "killfeed on|off"
 //
 int _cmdKillFeed( char *arg, char *arg2, char *passThru  ) 
@@ -1069,7 +1099,7 @@ int _cmdInfo( char *arg, char *arg2, char *passThru )
     int errCode = 0;
     char *s, strOut[256];
     double botDiff;
-    int botMin, botMax;
+    int botMin, botMax, botWave;
 
     strclr( strOut );
 
@@ -1084,17 +1114,24 @@ int _cmdInfo( char *arg, char *arg2, char *passThru )
 
     if ( 3 == sscanf( strOut, "%d:%d:%lf", &botMin, &botMax, &botDiff )) {
         if ( botMin != botMax ) 
-            apiSaySys("AI scaled count %d:%d Difficulty %6.3lf", botMin*2, botMax*2, botDiff*10.0 );
+            apiSayQue("AI scaled count %d:%d Difficulty %6.3lf", botMin*2, botMax*2, botDiff*10.0 );
         else
-            apiSaySys("AI fixed count %d Difficulty %6.3lf", botMax*2, botDiff*10.0 );
+            apiSayQue("AI fixed count %d Difficulty %6.3lf", botMax*2, botDiff*10.0 );
     }
     else {
-        apiSaySys( "Retrieval error ::%s::", strOut );
+        apiSayQue( "Retrieval error ::%s::", strOut );
     }
     if (apiBPIsActive()) { 
-        apiSaySys( "%d of %d players alive", apiBPPlayerCount(), apiPlayersGetCount());
+        apiSayQue( "%d of %d players alive", apiBPPlayerCount(), apiPlayersGetCount());
     }
 
+    // get current bot waves (2 or 3)
+    //
+    botWave = apiGetBotWaves(); 
+    if ( botWave == 0 ) 
+        apiSayQue( "BotWaves Unset - system default" );
+    else 
+        apiSayQue( "BotWaves %d", botWave );
 
     return errCode; 
 }
@@ -1213,11 +1250,25 @@ int _cmdContact( char *arg, char *arg2, char *passThru )
 //
 int _cmdRules( char *arg, char *arg2, char *passThru ) 
 { 
-    int errCode = 0;
+    int i, errCode = 0;
 
-    if (_rulesIndex == -1 ) {   // handled by periodic callback
-        _rulesIndex = 0;
+    for ( i = 0; i<NUM_RULES; i++ ) {
+        if ( 0 != strlen( picladminConfig.rulesInfo[ i ] )) 
+            apiSayQue( picladminConfig.rulesInfo[ i ]);
+        else
+            break;
     }
+
+//  if (( _rulesIndex != -1 ) && ( picladminConfig.rulesIntervalSec != 0) ) {
+//     if ( (++_rulesTickCount) >= picladminConfig.rulesIntervalSec ) {
+//          _rulesTickCount = 0;
+//          apiSaySys( picladminConfig.rulesInfo[ _rulesIndex++ ]);
+//          if ( _rulesIndex >= NUM_RULES ) _rulesIndex = -1;
+//      }
+
+//  if (_rulesIndex == -1 ) {   // handled by periodic callback
+//      _rulesIndex = 0;
+//  }
 
     return errCode;
 }
@@ -1372,6 +1423,7 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
             // alias 
             //
             if ( 0 == strcasecmp( wordBuf, "hardcore" )) strlcpy( wordBuf, "checkpointhardcore", 80 );
+            if ( 0 == strcasecmp( wordBuf, "hclite"   )) strlcpy( wordBuf, "hardcore",           80 );
 
             // process each word
             //
@@ -1393,6 +1445,7 @@ int _cmdMap( char *arg, char *arg2, char *passThru )
                         errCode = 1;
                         break;
                     case 1:
+                        //  if ( 0 == strcasecmp( mutName, "hclite" )) strlcpy( mutName, "hardcore", 80 );
                         strlcat( mutatorsList, mutName, 256 );
                         strlcat( mutatorsList, ",",     256 );
                         break;
@@ -1455,7 +1508,7 @@ static int _showList( char *list )
                 strncat( outBuf, v, 255 );
                 strncat( outBuf, " ", 255 );
             }
-            apiSaySys( "%s", outBuf );
+            apiSayQue( "%s", outBuf );
         }
     } 
     return errCode;
@@ -1483,12 +1536,16 @@ int _cmdMapList( char *arg, char *arg2, char *passThru )
 //
 int _cmdMutList( char *arg, char *arg2, char *passThru )
 {
-    char *w, listBuf[1024];
+    char *w, listBuf[1024], listBuf2[1024];
     int errCode = 0;
 
     if (NULL != (w = apiMutList() )) {
+
         strlcpy( listBuf, w, 1024 );
-        _showList( listBuf );
+
+        // strSubReplace( listBuf, "Hardcore", "HcLite", 1024, listBuf2 );
+        strSubReplaceWord( ' ', listBuf, "Hardcore", "HcLite", 1024, listBuf2 );
+        _showList( listBuf2 );
     }
 
     return errCode;
@@ -1848,14 +1905,6 @@ int picladminRoundStartCB( char *strIn ) { _resetP2PVars(); return 0; }
 //
 int picladminPeriodicCB( char *strIn ) 
 { 
-    if (( _rulesIndex != -1 ) && ( picladminConfig.rulesIntervalSec != 0) ) {
-        if ( (++_rulesTickCount) >= picladminConfig.rulesIntervalSec ) {
-            _rulesTickCount = 0;
-            apiSaySys( picladminConfig.rulesInfo[ _rulesIndex++ ]);
-            if ( _rulesIndex >= NUM_RULES ) _rulesIndex = -1;
-        }
-    }
-
     // Special condition when EOG/EOR reboot is queued but everybody logs off
     // before end of game/round.
     //

@@ -16,6 +16,8 @@
 
 #define _GNU_SOURCE
 
+#define WAVE3 (0)             // will be removed
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +72,13 @@ static struct {
 
     char showInGame[CFS_FETCH_MAX];                        // set to "" to disable in-game display
 
+#if WAVE3
+    int Wave3StateDefault;     // Wave3 Algorithm default setting: 0=off n=auto (set to 1 for 'on')
+    int Wave3AutoNPlayersOn;                                // nPlayers above which wave3 turns on
+    int Wave3StateCurrent;                        // Wave3 Algorithm current setting: 0=off n=auto
+    int Wave3StateNumWaves;                    // current number of bot waves in checkpoint: 2 or 3
+#endif
+
 } pidynbotsConfig;
 
 // bot count offsets for this gamemode.
@@ -122,6 +131,15 @@ int pidynbotsInitConfig( void )
     // Read the botbias table
     //
     strlcpy( pidynbotsConfig.BotBias, cfsFetchStr( cP, "pidynbots.botbias",  "" ), CFS_FETCH_MAX);
+
+    // Read the Wave3 Configuration 
+    // 
+#if WAVE3
+    pidynbotsConfig.Wave3StateDefault    = (int) cfsFetchNum( cP, "pidynbots.Wave3StateDefault", 0.0 );  
+    pidynbotsConfig.Wave3AutoNPlayersOn  = (int) cfsFetchNum( cP, "pidynbots.Wave3AutoNPlayersOn", 0.0 );  
+    pidynbotsConfig.Wave3StateCurrent    =        pidynbotsConfig.Wave3StateDefault;  // 0=static 1=auto
+    pidynbotsConfig.Wave3StateNumWaves   = -1;
+#endif
 
     cfsDestroy( cP );
 
@@ -454,13 +472,49 @@ int pidynbotsClientDelCB( char *strIn ) { return 0; }
 int pidynbotsChatCB( char *strIn )      { return 0; }
 
 
+#if WAVE3
+
+//  ==============================================================================================
+//  _wave3AutoUpdate
+//  Called from end of Capture/start of new leg to adjust wave3 settings 
+//  
+
+static int _Wave3AutoUpdate( int init )
+{
+    static int cur_wave = -1;
+    int nP, tgt_wave;
+
+    // if current mode is "off" then set wave to "2"
+    tgt_wave = 2;
+    if ( pidynbotsConfig.Wave3AutoNPlayersOn ) {
+        // Get current human count
+        nP = apiPlayersGetCount();        // get current number of players 
+        if ( np >= pidynbotsConfig.Wave3AutoNPlayersOn ) tgt-wave = 3;
+    }
+
+    if ( tgt_wave != curr_wave ) {
+        curr_wave = tgt_wave;    
+        if ( tgt_wave == 2 ) _setBotWaves( 0 );   // standard 2 waves 
+        else                 _setBotWaves( 1 );   // extra 3rd wave
+    }
+
+    return 0;
+}
+
+#endif
+
+
 //  ==============================================================================================
 //  pidynbotsCapturedCB 
 //
-//  This callback is invoked at 1Hz periodic rate.  It is used to handle P2P signaling events
+//  This callback is invoked when the objective is complete
 //
 int pidynbotsCapturedCB( char *strIn )  
 {   
+#if WAVE3
+     _wave3AutoUpdate( 0 );
+#endif
+
     return 0; 
 }
 
@@ -475,8 +529,7 @@ int pidynbotsPeriodicCB( char *strIn )
 {
     int sigBotScaleChanged;
 
-    // Signal Handler FROM picladmin
-    // 
+    // Signal Handler FROM picladmin on bot count override
     //
     sigBotScaleChanged = p2pGetL( "pidynbots.p2p.sigBotScaled", 0L ); 
     if ( sigBotScaleChanged ) {
@@ -486,6 +539,36 @@ int pidynbotsPeriodicCB( char *strIn )
         // Force an update
         _computeBotParams( 0 );
     }
+
+#if WAVE3 
+    int sigBotWaveCmd;
+    // Signal Handler from picladmin on Bot Wave override
+    //
+    if ( 0L != (sigBotWaveCmd = p2pGetL( "pidynbots.p2p.sigBotWaveCmdMode", 0L ))) {
+        p2pSetL( "pidynbots.p2p.sigBotWaveCmdMode", 0L );
+
+        switch (sigBotWaveCmd) {
+        case 1:    // cmd "!wave3 off"
+            _SetBotWaves( 0, 0 );
+            // -> disable auto
+            pidynbotsConfig.Wave3StateCurrent  = 0;
+            break;
+        case 2:    // cmd "!wave3 on"
+            _SetBotWaves( 1, 0 );
+            // -> disable auto
+            pidynbotsConfig.Wave3StateCurrent  = 0;
+           break;
+        case 3:    // cmd "!wave3 auto"
+            // -> enable auto
+            pidynbotsConfig.Wave3StateCurrent  = 1;
+            break;
+        default:   // no command, no process
+            // passthrough 
+            break;
+        };
+    }
+#endif
+
     return 0;
 }
 
@@ -566,6 +649,15 @@ int pidynbotsRoundStartCB( char *strIn )
     } 
 
     _computeBotParams( 1 );
+
+#if WAVE3
+    // Reset the state for Wave3 control
+    // if Wave3 is set to "auto" then send RCON commands based on nPlayers
+    //
+    pidynbotsConfig.Wave3StateCurrent    = pidynbotsConfig.Wave3StateDefault;
+    pidynbotsConfig.Wave3StateNumWaves   = -1;
+    _wave3AutoUpdate( 1 );
+#endif
 
     return 0;
 }

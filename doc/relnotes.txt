@@ -1,3 +1,29 @@
+Release 1.5.0 20260307
+
+    Temporary support for Map Voting on bug Sandstorm 1.20; to activate, add to sissm.cfg:
+        piprotect.enableMapVoteWorkaround  1
+        piprotect.mapVoteErrRconEx "travel Ministry?Scenario=Scenario_Ministry_Checkpoint_Security"
+    Don't forget to also enable the piprotect plugin as a whole!
+        piprotect.pluginState          1
+
+    Add support for hidden mapcycle entries (prefixed by !)
+        sissm.mapcycleHiddenChar                "!"         // use "" to disable
+    Example, the following line in Mapcycle.txt will not come up for vote, 
+    but admins can bring up with the !map command
+        !(Scenario="Scenario_Ministry_Checkpoint_Security",Mode="Checkpoint",Lighting="Night")
+        
+    Admins can now specify "hclite" (mutator) vs "hardcore" (mode) in !map command 
+    Add support for "hardcore-lite" (mutator hardcore vs. hardcore mode).  Add to sissm.cfg as, e.g.:
+        sissm.MutatorsStock "Broke Strapped SoldierOfFortune BoltActionsOnly Frenzy FastMovement HcLite"
+        Admin command:  !map [mapname] hclite
+
+    Changed apiSay to throttle chat line output, for ease of reading
+  
+    Added command !botwaves -- update your privilege table on your sissm.cfg to enable it
+        Usage:  "!botwaves 3" (extra bot spawn wave), "!botwaves 2" (return to default)
+ 
+    Updated Windows build instruction for MS Visual Studio 2026 - doc/adv_build_windows
+
 Release 1.4.0 20241216
 
     Added compatibiity with WinGDK market (in addition to Steam and EPIC)

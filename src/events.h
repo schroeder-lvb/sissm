@@ -15,7 +15,7 @@
 
 
 #define SISSM_MAXEVENTS                     (64)
-#define SISSM_MAXPLUGINS                    (32)
+#define SISSM_MAXPLUGINS                    (40)
 
 #define SISSM_EV_CHAT                       ( 0)    // this must be first for security reasons!!
 #define SISSM_EV_INIT                       ( 1)    // order of the indeces must match
@@ -51,6 +51,9 @@
 #define SISSM_EV_ACTIVITY                   (28)
 #define SISSM_EV_CA_START                   (29)    // counterattack start, use EV_ACTIVITY instead
 #define SISSM_EV_CA_STOP                    (30)    // counterattack start
+
+#define SISSM_EV_SYS_ERROR                  (31)    // counterattack start, use EV_ACTIVITY instead
+#define SISSM_EV_SYS_WARN                   (32)    // counterattack start
 
 
 // Following substring in log file triggers an event
@@ -91,6 +94,9 @@
 // #define SS_SUBSTR_MESHERR       "LogGameMode: Verbose: RestartPlayerAt"
 
 #define SS_SUBSTR_MAP_OBJECTIVE "LogObjectives: Verbose: Authority: Adding objective '"
+
+#define SS_SUBSTR_SYS_ERROR             ": Error: "
+#define SS_SUBSTR_SYS_WARN              ": Warning: "
 
 extern int eventsInit( void );
 extern int eventsRegister( int eventID, int (*callBack)( char * ));

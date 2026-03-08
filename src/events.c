@@ -85,6 +85,8 @@ struct {
     { SISSM_EV_ACTIVITY,            28, SS_SUBSTR_ACTIVITY          },
     { SISSM_EV_CA_START,            29, SS_SUBSTR_CA_START          },
     { SISSM_EV_CA_STOP,             30, SS_SUBSTR_CA_STOP           },
+    { SISSM_EV_SYS_ERROR,           31, SS_SUBSTR_SYS_ERROR         },
+    { SISSM_EV_SYS_WARN,            32, SS_SUBSTR_SYS_WARN          },
     { -1,                           -1, "*"                   },
 
 };
